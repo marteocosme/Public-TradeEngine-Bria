@@ -1,3 +1,8 @@
+> ⚠️ Deprecated
+> This document is superseded by MoneyManagement_Spec_v1.1.md  
+> Retained for historical reference only.
+
+
 # **📘 NNFX Money Management Specification v1.1**
 
 ## Purpose

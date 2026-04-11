@@ -22,7 +22,7 @@ It explicitly does not define entry signals or market bias.
 
 ## Inputs
 
-The Money Management system consumes the following inputs
+The Money Management system consumes the following inputs:
 ### Account & Symbol Inputs
 - Account balance or equity (configurable)
 - Symbol specifications:
@@ -91,7 +91,8 @@ Protects capital by removing downside risk once predefined profit conditions are
 
 **Behavioral Rules**
 
-Break even may only activate after an initial profit threshold is reached
+Break even may only activate after a predefined initial profit threshold is reached (expressed in R-multiple or price distance). 
+
 Stop‑loss is moved to:
 
 Entry price, or
@@ -111,7 +112,6 @@ Manages partial profit realization while allowing a portion of the trade to cont
 - Scaling out is based on predefined R‑multiples or price levels
 - Each scale‑out operation:
     - Reduces position size
-    - Updates remaining risk exposure
 - Scale‑out events are finite and ordered
 
 **Constraints**
