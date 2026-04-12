@@ -252,6 +252,35 @@ enum enum_tradeEvent
    EVT_SUMMARY
 };
 
+// ==================================================================
+// Money Management Logging Enums (Phase 4.2)
+// ==================================================================
+
+enum ENUM_MM_EVENT_TYPE
+{
+  MM_TradeValidated,
+  MM_TradeRejected,
+  MM_TradeOpened,
+  MM_BreakEvenTriggered,
+  MM_StopLossAdjusted,
+  MM_PartialCloseExecuted,
+  MM_ExitSignalReceived,
+  MM_TradeClosed,
+  MM_SafetyTriggered
+};
+
+enum ENUM_MM_PHASE
+{
+  MM_PreTrade,
+  MM_Init,
+  MM_Active,
+  MM_Terminal,
+  MM_Safety
+};
+
+
+
+
 // ================================================================
 // 10) SIGNAL SNAPSHOT (Decision Telemetry)
 // ================================================================

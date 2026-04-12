@@ -24,7 +24,25 @@ enum enum_tradeEvent
    EVT_EXIT,
    EVT_SUMMARY
 };
+
 */
+
+// ==================================================================
+// Money Management Base Log Event (Phase 4.2)
+// ==================================================================
+
+struct MM_LogEventBase
+{
+   datetime           event_time;   // Strategy bar/tick time
+   ENUM_MM_EVENT_TYPE event_type;   // MM lifecycle event
+   ENUM_MM_PHASE      phase;        // Trade lifecycle phase
+   string             symbol;       // Symbol (e.g. EURUSD)
+   ENUM_TIMEFRAMES    timeframe;    // Strategy timeframe
+   long               trade_id;     // Internal deterministic ID
+   ulong              ticket;       // Broker ticket (0 if not available)
+};
+
+
 // ==================================================================
 // Unified Logger
 // ==================================================================
@@ -170,6 +188,17 @@ public:
       FileWriteString(h, json);
       FileClose(h);
    }
+
+
+// ================================================================
+// Money Management Logging Entry Point (Phase 4.2)
+// ================================================================
+void LogMMEventBase(const MM_LogEventBase &evt)
+{
+  // Phase 4.2: intentionally empty
+  // Phase 4.3+: route to CSV / JSON writers
+}
+
 
    void LogSignalCSV(const SignalSnapshot &s)
    {
