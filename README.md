@@ -56,6 +56,12 @@ New candle execution (M15)
  Optimize for multiple symbols
  Performance analytics dashboard (future)
 
+ ## ⚠️ Current Limitations
+- Confirmation logic not fully integrated
+- No trailing stop yet
+- Single-symbol execution
+- Limited forward testing data
+
 ---
 
 ## 👤 Author

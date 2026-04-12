@@ -255,28 +255,19 @@ enum enum_tradeEvent
 
 enum ENUM_MM_EVENT_TYPE
 {
-  MM_TradeValidated,
-  MM_TradeRejected,
-  MM_TradeOpened,
-  MM_BreakEvenTriggered,
-  MM_StopLossAdjusted,
-  MM_PartialCloseExecuted,
-  MM_ExitSignalReceived,
-  MM_TradeClosed,
-  MM_SafetyTriggered
+  MM_EVENT_ENTRY,
+  MM_EVENT_BE,
+  MM_EVENT_SCALE_OUT,
+  MM_EVENT_TRAIL,
+  MM_EVENT_EXIT
 };
 
 enum ENUM_MM_PHASE
 {
-  MM_PreTrade,
-  MM_Init,
-  MM_Active,
-  MM_Terminal,
-  MM_Safety
+MM_PHASE_ENTRY,
+MM_PHASE_MANAGE,
+MM_PHASE_EXIT
 };
-
-
-
 
 
 // ================================================================

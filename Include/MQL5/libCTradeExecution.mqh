@@ -14,7 +14,6 @@
 #include <MyInclude\NNFX\libEnum.mqh>
 #include <MyInclude\NNFX\libCTradeContext.mqh>
 #include <MyInclude\NNFX\libCATRRiskTracker.mqh>
-//#include <MyInclude\NNFX\libCContextLogger.mqh>
 
 // ------------------------------------------------------------------
 // CTradeExecution
@@ -142,15 +141,6 @@ public:
       double oldSL = PositionGetDouble(POSITION_SL);
       double tp    = PositionGetDouble(POSITION_TP);
       bool ok = m_trade.PositionModify(symbol, newSL, tp);
-
-      /* ##Removed due to upgrade to libCUnifiedTradeLogger.mqh  
-      if(ok)
-         {
-         m_logger.LogProtectionCSV(symbol, "SL_UPDATE", oldSL, newSL, tp, tp);
-         m_logger.LogProtectionJSON(symbol, "SL_UPDATE", oldSL, newSL, tp, tp);
-         }
-         
-      */
       return ok;
    }
 
@@ -194,29 +184,3 @@ public:
 };
 
 #endif // __LIBCTRADEEXECUTION_MQH__
-
-
-
-/*
-✅ Correct Usage Pattern (Very Important)
-
-double newSL;
-
-// Break-even
-if(beEngine.Evaluate(ctx, inpBEATRxBEXplier, inpXtraPipBE, newSL))
-{
-   tradeExec.ModifyStopLoss(ctx.Symbol, newSL);
-}
-
-// Trailing stop
-if(trailEngine.Evaluate(ctx, inpTSxThrshld, inpTSxATRxplier, newSL))
-{
-   tradeExec.ModifyStopLoss(ctx.Symbol, newSL);
-}
-
-✅ Clean
-✅ No compiler errors
-✅ Fully modular
-
-*/
-//+------------------------------------------------------------------+

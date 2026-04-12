@@ -204,151 +204,12 @@ public:
       DebugPrint(m_debug, "Trade Engine initialized", DBG_INFO);
    }
 
-
-   // ------------------------------------------------------------
-   void ManageOpenPosition(const string symbol)
-   {
-      if(!PositionSelect(symbol)) return;
-
-      long ticket = (long)PositionGetInteger(POSITION_TICKET);
-      uint seq = m_atrTracker.NextEventSeq((long)ticket);
-
-      // ✅ ADD THIS (REQUIRED)
-      enum_position dir = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? Long : Short);
-
-      if(ticket <= 0) return;
-
-      TradeContext ctx;
-      ctx.Symbol = symbol;
-      ctx.ATREntry.Value   = m_atrTracker.GetATR(ticket);
-      ctx.ATREntry.IsValid = (ctx.ATREntry.Value > 0.0);
-
-      // --- PARTIAL CLOSE
-      if(inpEnableScalingOut)
-         {
-         for(int i = 0; i < SCALE_STAGE_COUNT; i++)
-            {
-            double closeLots = 0.0;
-            if(m_scale.Evaluate(ctx, g_scaleStages[i], closeLots))
-               {
-               DebugPrint(m_debug, "SCALE_STAGE_COUNT: " + (string)SCALE_STAGE_COUNT, DBG_INFO);
-               DebugPrint(m_debug, "closeLots: " + (string)closeLots, DBG_INFO);
-               if(m_exec.PartialClose(symbol, closeLots))
-                  {
-                  m_atrTracker.MarkScaleStageApplied(ticket, g_scaleStages[i].atrMultiple);
-
-                  uint seq = m_atrTracker.NextEventSeq(ticket);
-
-                  m_logger.LogCSV(
-                     ticket, seq, symbol, EVT_SCALE,
-                     dir, closeLots,
-                     PositionGetDouble(POSITION_PRICE_OPEN),
-                     PositionGetDouble(POSITION_SL),
-                     PositionGetDouble(POSITION_TP),
-                     ctx.ATREntry.Value,
-                     0.0,
-                     "SCALE_ATR_" + DoubleToString(g_scaleStages[i].atrMultiple, 1)
-                  );
-
-                  m_logger.LogJSON(
-                     ticket, seq, symbol, EVT_SCALE,
-                     dir, closeLots,
-                     PositionGetDouble(POSITION_PRICE_OPEN),
-                     PositionGetDouble(POSITION_SL),
-                     PositionGetDouble(POSITION_TP),
-                     ctx.ATREntry.Value,
-                     0.0,
-                     "SCALE_ATR_" + DoubleToString(g_scaleStages[i].atrMultiple, 1)
-                  );
-                  }
-               }
-            }
-         }
-
-      // --- BREAK EVEN
-      double newSL;
-      if(!m_atrTracker.IsBEApplied(ticket))
-         {
-         if(m_be.Evaluate(ctx, inpBE_ATR, inpBE_ExtraPips, newSL))
-            {
-
-            double oldSL = PositionGetDouble(POSITION_SL);
-            double tp    = PositionGetDouble(POSITION_TP);
-
-            if(m_exec.ModifyStopLoss(symbol, newSL))
-               {
-               // Mark BE applied FIRST
-               m_atrTracker.MarkBEApplied(ticket);
-               m_viz.DrawBreakEven(symbol, newSL); // ✅ Visualize Break Even
-               uint seq = m_atrTracker.NextEventSeq(ticket);
-
-               m_logger.LogCSV(
-                  ticket, seq, symbol, EVT_BE,
-                  dir, PositionGetDouble(POSITION_VOLUME),
-                  PositionGetDouble(POSITION_PRICE_OPEN),
-                  newSL, tp,
-                  ctx.ATREntry.Value,
-                  0.0,
-                  "BE_TRIGGER"
-               );
-
-               m_logger.LogJSON(
-                  ticket, seq, symbol, EVT_BE,
-                  dir, PositionGetDouble(POSITION_VOLUME),
-                  PositionGetDouble(POSITION_PRICE_OPEN),
-                  newSL, tp,
-                  ctx.ATREntry.Value,
-                  0.0,
-                  "BE_TRIGGER"
-               );
-
-               }
-            return;
-            }
-         }
-
-      // --- TRAILING
-      if(m_trail.Evaluate(ctx, inpTrailStartATR, inpTrailATR, newSL))
-         {
-         double oldSL = PositionGetDouble(POSITION_SL);
-         double tp    = PositionGetDouble(POSITION_TP);
-         if(m_exec.ModifyStopLoss(symbol, newSL))
-            {
-            uint seq = m_atrTracker.NextEventSeq(ticket);
-
-            m_logger.LogCSV(
-               ticket, seq, symbol, EVT_TRAIL,
-               dir, PositionGetDouble(POSITION_VOLUME),
-               PositionGetDouble(POSITION_PRICE_OPEN),
-               newSL, tp,
-               ctx.ATREntry.Value,
-               0.0,
-               "ATR_TRAIL"
-            );
-            m_logger.LogJSON(
-               ticket, seq, symbol, EVT_TRAIL,
-               dir, PositionGetDouble(POSITION_VOLUME),
-               PositionGetDouble(POSITION_PRICE_OPEN),
-               newSL, tp,
-               ctx.ATREntry.Value,
-               0.0,
-               "ATR_TRAIL"
-            );
-            }
-         }
-   }
-
-
-
-
-
-
    void OnDeinit()
    {
       m_confirm.Reset();
    }
 
-   // To be called in OnTick EA
+      // To be called in OnTick EA
    void OnTick(const string symbol)
    {
       if(symbol == "") return;
@@ -362,20 +223,7 @@ public:
       ManageEntry(symbol); // Entry logic
    }
 
-private:
-   // ============================================================
-   // Candle detection
-   // ============================================================
-   bool IsNewCandle(const string symbol, ENUM_TIMEFRAMES tf)
-   {
-      datetime t = iTime(symbol, tf, BAR_CURRENT);
-      if(t > m_lastCandleTime)
-         {
-         m_lastCandleTime = t;
-         return true;
-         }
-      return false;
-   }
+   // ------------------------------------------------------------
 
    void ManageEntry(const string symbol)
    {
@@ -409,8 +257,6 @@ private:
       ctx.EntryBias    = ec.direction;
       ctx.IsTradeable  = true;
 
-
-
       RiskParams rp;
       rp.Method = inpRiskMethod;
       rp.BaseRiskPercent = inpRiskPercent;
@@ -427,91 +273,213 @@ private:
          return;
          }
 
-      // ✅ LOG RISK DECISION (before trade send)
-      //m_logger.LogRiskCSV(ctx, rp, lots);
-      //m_logger.LogRiskJSON(ctx, rp, lots);
-
-      /*
-      ##04/05/2026## Possible to remove
-      double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
-      double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
-      */
-      /*
-      ##04/05/2026## Replaced logic
-      double entry = (ctx.EntryBias == Long ? ask : bid);
-      double sl = entry - ctx.EntryBias * ctx.ATREntry.Value * inpSLxATRxPlier;
-      double tp = entry + ctx.EntryBias * ctx.ATREntry.Value * inpTPxATRxPlier;
-      bool ok = m_exec.ExecuteEntry(ctx, lots, sl, tp);
-      */
-      //##New Logic
+      // --- EXECUTE ENTRY (execution only) ---
       bool ok = m_exec.ExecuteEntry(
                    ctx,
                    lots,
                    inpSLxATRxPlier,
                    inpTPxATRxPlier
                 );
-
-
       if(!ok)
          {
          DebugPrint(m_debug, "Trade execution failed.", DBG_ERROR);
          return;
          }
 
-// ✅ Broker accepted the order — position must exist now
+      // ✅ Broker accepted the order — position must exist now
       if(!PositionSelect(symbol))
          {
          DebugPrint(m_debug, "Entry sent but position not found.", DBG_ERROR);
          return;
          }
 
-// ======================================================
-// ✅ ENTRY EVENT — EXACTLY HERE (CORRECT LOCATION)
-// ======================================================
+      // ======================================================
+      // ✅ ENTRY EVENT — EXACTLY HERE (CORRECT LOCATION)
+      // ======================================================
       ulong ticket = (ulong)PositionGetInteger(POSITION_TICKET);
-      double entryPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-      double sl         = PositionGetDouble(POSITION_SL);
-      double tp         = PositionGetDouble(POSITION_TP);
-
-
-
-// Track ATR at entry (must happen BEFORE logging)
+      // Track ATR at entry (must happen BEFORE logging)
       m_atrTracker.AddOrUpdate((long)ticket, ctx.ATREntry.Value);
+      
+      // ✅ ENTRY LOGGING — Phase 4.4 (single source of truth)
+      MM_LogEventBase evt;
+      evt.event_time = ctx.Time;                 // BAR_SIGNAL time
+      evt.event_type = MM_EVENT_ENTRY;
+      evt.phase      = MM_PHASE_ENTRY;
+      evt.symbol     = ctx.Symbol;
+      evt.timeframe  = ctx.EntryPeriod;
+      evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+      evt.ticket     = ticket;
 
+      m_logger.LogMMEventBase(evt);
+   }
+
+   void ManageOpenPosition(const string symbol)
+   {
+      if(!PositionSelect(symbol)) return;
+
+      long ticket = (long)PositionGetInteger(POSITION_TICKET);
       uint seq = m_atrTracker.NextEventSeq((long)ticket);
 
+      // ✅ ADD THIS (REQUIRED)
+      enum_position dir = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? Long : Short);
 
-// ✅ Log ENTRY (Unified Logger)
-      m_logger.LogCSV(
-         ticket,
-         seq,
-         ctx.Symbol,
-         EVT_ENTRY,
-         ctx.EntryBias,
-         lots,
-         entryPrice,
-         sl,
-         tp,
-         ctx.ATREntry.Value,
-         inpRiskPercent,
-         "MARKET_ENTRY"
-      );
+      if(ticket <= 0) return;
 
-      m_logger.LogJSON(
-         ticket,
-         seq,
-         ctx.Symbol,
-         EVT_ENTRY,
-         ctx.EntryBias,
-         lots,
-         entryPrice,
-         sl,
-         tp,
-         ctx.ATREntry.Value,
-         inpRiskPercent,
-         "MARKET_ENTRY"
-      );
-      return;
+      TradeContext ctx;
+      ctx.Symbol = symbol;
+      ctx.ATREntry.Value   = m_atrTracker.GetATR(ticket);
+      ctx.ATREntry.IsValid = (ctx.ATREntry.Value > 0.0);
+
+      // --- PARTIAL CLOSE
+      if(inpEnableScalingOut)
+         {
+         for(int i = 0; i < SCALE_STAGE_COUNT; i++)
+            {
+            double closeLots = 0.0;
+            if(m_scale.Evaluate(ctx, g_scaleStages[i], closeLots))
+               {
+               if(m_exec.PartialClose(symbol, closeLots))
+                  {
+                  // ✅ Track stage application FIRST (prevents re-trigger)
+                  m_atrTracker.MarkScaleStageApplied(ticket, g_scaleStages[i].atrMultiple);
+
+                  // ----------------------------------------------------
+                  // SCALE-OUT LOGGING — Phase 4.4
+                  // ----------------------------------------------------
+                  MM_LogEventBase evt;
+                  evt.event_time = ctx.Time;                 // BAR_SIGNAL time
+                  evt.event_type = MM_EVENT_SCALE_OUT;
+                  evt.phase      = MM_PHASE_MANAGE;
+                  evt.symbol     = ctx.Symbol;
+                  evt.timeframe  = ctx.EntryPeriod;
+                  evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+                  evt.ticket     = ticket;
+
+                  m_logger.LogMMEventBase(evt);
+                  }
+               }
+            }
+         }
+
+      // --- BREAK EVEN
+      double newSL;
+      if(!m_atrTracker.IsBEApplied(ticket))
+         {
+         if(m_be.Evaluate(ctx, inpBE_ATR, inpBE_ExtraPips, newSL))
+            {
+
+            double oldSL = PositionGetDouble(POSITION_SL);
+            double tp    = PositionGetDouble(POSITION_TP);
+
+            if(m_exec.ModifyStopLoss(symbol, newSL))
+               {
+               
+               m_atrTracker.MarkBEApplied(ticket); // 1️⃣ Mark BE applied FIRST (prevents double logging)
+               m_viz.DrawBreakEven(symbol, newSL); // 2️⃣ Optional visualization (safe, non‑functional)
+               uint seq = m_atrTracker.NextEventSeq(ticket); // Revisit removal only in Phase 5
+
+               // 3️⃣ BREAK-EVEN LOGGING — Phase 4.4
+               MM_LogEventBase evt;
+               evt.event_time = ctx.Time;              // BAR_SIGNAL time
+               evt.event_type = MM_EVENT_BE;
+               evt.phase      = MM_PHASE_MANAGE;
+               evt.symbol     = ctx.Symbol;
+               evt.timeframe  = ctx.EntryPeriod;
+               evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+               evt.ticket     = ticket;
+
+               m_logger.LogMMEventBase(evt);
+               }
+               // ✅ Stop after BE — no trailing this tick (your original rule)
+            return;
+            }
+         }
+
+      // --- TRAILING
+      if(m_trail.Evaluate(ctx, inpTrailStartATR, inpTrailATR, newSL))
+         {
+         double oldSL = PositionGetDouble(POSITION_SL);
+         double tp    = PositionGetDouble(POSITION_TP);
+         if(m_exec.ModifyStopLoss(symbol, newSL))
+            {
+               // ----------------------------------------------------
+               // TRAILING STOP LOGGING — Phase 4.4
+               // ----------------------------------------------------
+               MM_LogEventBase evt;
+               evt.event_time = ctx.Time;                // BAR_SIGNAL time
+               evt.event_type = MM_EVENT_TRAIL;
+               evt.phase      = MM_PHASE_MANAGE;
+               evt.symbol     = ctx.Symbol;
+               evt.timeframe  = ctx.EntryPeriod;
+               evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+               evt.ticket     = ticket;
+
+               m_logger.LogMMEventBase(evt);
+            }
+         }
+   }
+
+   void ManageExit(const string symbol)
+   {
+      if(!PositionSelect(symbol)) return;
+
+      ulong ticket = (ulong)PositionGetInteger(POSITION_TICKET);
+      enum_position dir = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? Long : Short);
+
+      // --- Exit signal evaluation ---
+      ExitPSARParams ps{inpPSAR_Steps, inpPSAR_Max};
+      ExitRVIParams rv{(int)inpRVI_Period};
+
+
+      // =====================================================
+      // EXIT DECISION
+      // ====================================================
+
+      if(!m_exit.Update(symbol, inpEntryPeriod, dir, inpExitIndicator, ps, rv, inpExitMode)) 
+         return;
+
+         TradeContext ctx;
+         ctx.Symbol = symbol;
+         ctx.Time   = iTime(symbol, inpEntryPeriod, BAR_CURRENT);
+         ctx.Exit.ShouldExit = true;
+         ctx.Exit.Reason    = EXIT_REVERSAL;
+
+         // ✅ ACTUAL CLOSE
+         if(!m_exec.ExecuteExit(ctx))
+            return;
+
+         // ✅ EXIT LOGGING — Phase 4.4
+         MM_LogEventBase evt;
+         evt.event_time = ctx.Time;
+         evt.event_type = MM_EVENT_EXIT;
+         evt.phase      = MM_PHASE_EXIT;
+         evt.symbol     = ctx.Symbol;
+         evt.timeframe  = ctx.EntryPeriod;
+         evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+         evt.ticket     = ticket;
+
+         m_logger.LogMMEventBase(evt);
+
+         // ✅ Clean up tracker state
+         m_atrTracker.RemoveTicket(ticket);     
+   }
+
+
+
+
+private:
+   // ============================================================
+   // Candle detection
+   // ============================================================
+   bool IsNewCandle(const string symbol, ENUM_TIMEFRAMES tf)
+   {
+      datetime t = iTime(symbol, tf, BAR_CURRENT);
+      if(t > m_lastCandleTime)
+         {
+         m_lastCandleTime = t;
+         return true;
+         }
+      return false;
    }
 
    bool BuildTradeContext(TradeContext &ctx, const string symbol)
@@ -612,8 +580,7 @@ private:
 
       // 6) SIGNAL SNAPSHOT — exactly once per candle
       SignalSnapshot snap = BuildSignalSnapshot(ctx);
-      m_logger.LogSignalCSV(snap);
-      m_logger.LogSignalJSON(snap);
+
 
 
       /*
@@ -623,113 +590,6 @@ private:
       */
       return ctx.IsTradeable;
 
-   }
-
-   void ManageExit(const string symbol)
-   {
-      if(!PositionSelect(symbol)) return;
-
-      long ticket = (long)PositionGetInteger(POSITION_TICKET);
-      enum_position dir = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? Long : Short);
-
-      // --- Build exit params ---
-      ExitPSARParams ps{inpPSAR_Steps, inpPSAR_Max};
-      ExitRVIParams rv{(int)inpRVI_Period};
-
-
-      // =====================================================
-      // EXIT DECISION
-      // ====================================================
-
-      if(m_exit.Update(symbol, PERIOD_M15, dir, inpExitIndicator, ps, rv, EXIT_MODE_CROSS))
-         {
-         double entryPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-         double sl         = PositionGetDouble(POSITION_SL);
-         double tp         = PositionGetDouble(POSITION_TP);
-         double pnl  = PositionGetDouble(POSITION_PROFIT);
-         double lots = PositionGetDouble(POSITION_VOLUME);
-
-         uint seq = m_atrTracker.NextEventSeq(ticket);
-
-         TradeContext ctx;
-         ctx.Symbol = symbol;
-         ctx.Time   = TimeCurrent();
-         ctx.Exit.ShouldExit = true;
-         ctx.Exit.Reason    = EXIT_REVERSAL;
-
-         // ✅ Log exit event
-
-         m_logger.LogCSV(
-            ticket, seq, symbol, EVT_EXIT,
-            dir, lots,
-            entryPrice,
-            sl,
-            tp,
-            ctx.ATREntry.Value,
-            0.0,
-            EnumToString(ctx.Exit.Reason),
-            pnl
-         );
-
-         m_logger.LogJSON(
-            ticket, seq, symbol, EVT_EXIT,
-            dir, lots,
-            entryPrice,
-            sl,
-            tp,
-            ctx.ATREntry.Value,
-            0.0,
-            EnumToString(ctx.Exit.Reason),
-            pnl
-         );
-
-         // ✅ ACTUAL CLOSE
-         if(!m_exec.ExecuteExit(ctx))
-            return;
-
-         // =====================================================
-         // ✅ SUMMARY EVENT (Pattern A – IMMEDIATE FINALIZATION)
-         // =====================================================
-         uint summarySeq = m_atrTracker.NextEventSeq(ticket);
-
-         m_logger.LogCSV(
-            ticket,
-            summarySeq,
-            symbol,
-            EVT_SUMMARY,
-            dir,
-            lots,
-            entryPrice,
-            sl,
-            tp,
-            m_atrTracker.GetATR(ticket),
-            0.0,
-            "TRADE_COMPLETE",
-            pnl
-         );
-
-         m_logger.LogJSON(
-            ticket,
-            summarySeq,
-            symbol,
-            EVT_SUMMARY,
-            dir,
-            lots,
-            entryPrice,
-            sl,
-            tp,
-            m_atrTracker.GetATR(ticket),
-            0.0,
-            "TRADE_COMPLETE",
-            pnl
-         );
-
-         // ✅ Clean up tracker state
-         m_atrTracker.RemoveTicket(ticket);
-
-         return;
-
-         }
    }
 
 };
