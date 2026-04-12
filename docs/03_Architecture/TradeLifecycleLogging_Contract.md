@@ -3,7 +3,7 @@ Effective immediately for all Money Management lifecycle
 
 ---
 
-# 📘 Trade Lifecycle Logging Contract — Phase 3 (Draft)
+# 📘 Trade Lifecycle Logging Contract — Phase 3
 
 ## 1. Purpose
 
