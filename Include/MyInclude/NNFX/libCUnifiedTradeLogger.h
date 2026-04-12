@@ -9,7 +9,7 @@
 
 #include <MyInclude\\NNFX\\libEnum.mqh>
 
-/* Moved to libEnum.mqh
+/* Moved to libEnum.mqh                                                           
 // ==================================================================
 // Unified Event Definition
 // ==================================================================

@@ -1,7 +1,3 @@
-> ⚠️ **DRAFT — NOT YET APPROVED**
-> This document defines the proposed logging contract for Money Management lifecycle events.  
-> It is under review and **must not be used as an implementation contract** until explicitly approved.
-
 ✅ APPROVED — Logging Contract v1.0
 Effective immediately for all Money Management lifecycle 
 
