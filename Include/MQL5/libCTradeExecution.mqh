@@ -10,7 +10,7 @@
 #define __LIBCTRADEEXECUTION_MQH__
 
 #include <Trade\Trade.mqh>
-
+#include <MyInclude\NNFX\CDebug.mqh>
 #include <MyInclude\NNFX\libEnum.mqh>
 #include <MyInclude\NNFX\libCTradeContext.mqh>
 #include <MyInclude\NNFX\libCATRRiskTracker.mqh>
@@ -26,7 +26,7 @@ class CTradeExecution
 private:
    CTrade            m_trade;
    CATRRiskTracker  *m_atrTracker;   // injected, NOT owned
-   //CContextLogger    m_logger;
+   CDebugPrint       debug;
    ulong             m_magic;
    string            m_comment;
 
@@ -70,6 +70,26 @@ public:
       if(ctx.EntryBias != Long && ctx.EntryBias != Short) return false;
       if(!ctx.ATREntry.IsValid || ctx.ATREntry.Value <= 0.0)        return false;
       if(lots <= 0.0)                      return false;
+      // --- Mandatory SL validation ---
+      if(slATRMultiplier <= 0.0)
+         {
+            PrintFormat(
+            "[TradeExecution][ERROR] Invalid slATRMultiplier=%.2f. SL is mandatory. Entry aborted.",
+            slATRMultiplier
+            );
+            return false;
+         }
+
+      // --- Take Profit is optional ---
+      const bool hasTP = (tpATRMultiplier > 0.0);
+
+      if(!hasTP)
+      {
+         PrintFormat(
+            "tpATRMultiplier = 0. Take Profit disabled. Trade will rely on exit / trailing logic."
+         );
+      }
+
 
       string symbol = ctx.Symbol;
 
@@ -86,12 +106,14 @@ public:
       if(ctx.EntryBias == Long)
          {
          sl = entryPrice - slDist;
-         tp = entryPrice + tpDist;
+         if(hasTP)
+            tp = entryPrice + tpDist;
          }
       else
          {
          sl = entryPrice + slDist;
-         tp = entryPrice - tpDist;
+         if(hasTP)
+            tp = entryPrice - tpDist;
          }
 
       int digits = (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS);

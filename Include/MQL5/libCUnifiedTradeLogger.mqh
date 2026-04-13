@@ -164,7 +164,7 @@ public:
 // ==================================================================
 // Static Definition (EA / Translation Unit)
 // ==================================================================
-ulong CUnifiedTradeLogger::s_globalEventId = 0;
+//ulong CUnifiedTradeLogger::s_globalEventId = 0;
 
 #endif // __LIBC_UNIFIED_TRADE_LOGGER_H__
 

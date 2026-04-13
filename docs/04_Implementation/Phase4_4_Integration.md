@@ -178,3 +178,12 @@ Phase 5 – Money Management Behavioral Validation will:
 - Validate MM behavior against specs
 - Enable analytics pipelines
 No further logger design changes are expected.
+
+
+## 10. Entry Parameter Validation
+
+Mandatory entry parameter validation rules for the Execution Engine are defined in:
+
+Docs/01_Specs/ExecutionEngine/EntryParameterValidation.md
+
+

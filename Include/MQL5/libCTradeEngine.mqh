@@ -216,10 +216,10 @@ public:
       ManageExit(symbol); // Manage exits continuously (optional: only on new candle)
 
       if(!IsNewCandle(symbol, inpEntryPeriod)) return; // Only evaluate entry on new candle (BAR_SIGNAL is stable)
-
+      
       m_atrTracker.PruneClosedTickets(); // Maintain ATR ticket list
       ManageOpenPosition(symbol);  // Manage Open Positions | ## can add input settings
-
+      
       ManageEntry(symbol); // Entry logic
    }
 
@@ -327,6 +327,7 @@ public:
 
       TradeContext ctx;
       ctx.Symbol = symbol;
+      ctx.Time = TimeCurrent(); // Use current time for management context
       ctx.ATREntry.Value   = m_atrTracker.GetATR(ticket);
       ctx.ATREntry.IsValid = (ctx.ATREntry.Value > 0.0);
 
