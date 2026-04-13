@@ -3,6 +3,15 @@
 TradeEngine Bria is an algorithmic trading system built in MQL5, inspired by the NNFX methodology.
 It focuses on rule-based decision-making, strict risk management, and systematic validation through backtesting and forward testing.
 
+---
+
+## 📌 Project Status
+
+    ✅ Phase 4 – Execution & Money Management Logging complete  
+    ➡️ See: `Docs/04_Implementation/Phase-4-Completion.md`
+
+    🚧 Next: Phase 5 – Trade Lifecycle Orchestration
+
 --- 
 
 ## 🧠 Strategy Overview
