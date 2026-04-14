@@ -516,6 +516,17 @@ public:
          ctx.Time   = iTime(symbol, inpEntryPeriod, BAR_CURRENT);
          ctx.Exit.ShouldExit = true;
          ctx.Exit.Reason    = EXIT_REVERSAL;
+         RejectionReason reject_reason = REJECT_NONE;
+
+
+         
+         // Phase 5 — Step 6: Lifecycle EXIT (pass-through)
+         m_lifecycleController.RequestAction(
+            0,               // trade_id not enforced yet
+            ACTION_EXIT,
+            ctx,
+            reject_reason
+         );
 
          // ✅ ACTUAL CLOSE
          if(!m_exec.ExecuteExit(ctx))
@@ -531,7 +542,17 @@ public:
          evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
          evt.ticket     = ticket;
 
+
          m_logger.LogMMEventBase(evt);
+
+         
+         // Phase 5 — Step 6: Lifecycle CLOSE (pass-through)
+         m_lifecycleController.RequestAction(
+            0,               // trade_id not enforced yet
+            ACTION_CLOSE,
+            ctx,
+            reject_reason
+         );
 
          // ✅ Clean up tracker state
          m_atrTracker.RemoveTicket(ticket);     
