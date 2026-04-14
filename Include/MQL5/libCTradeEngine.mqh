@@ -293,6 +293,17 @@ public:
          return;
          }
 
+      // --------------------------------------------------
+      // Phase 5 — Step 4: Lifecycle CREATE (pass-through)
+      // --------------------------------------------------
+      RejectionReason reject_reason = REJECT_NONE;
+      m_lifecycleController.RequestAction(
+         0,                    // trade_id not assigned yet
+         ACTION_CREATE,
+         ctx,                  // existing TradeContext
+         reject_reason
+      );
+
       // --- EXECUTE ENTRY (execution only) ---
       bool ok = m_exec.ExecuteEntry(
                    ctx,
@@ -305,6 +316,17 @@ public:
          DebugPrint(m_debug, "Trade execution failed.", DBG_ERROR);
          return;
          }
+      
+      // --------------------------------------------------
+      // Phase 5 — Step 4: Lifecycle ENTER (pass-through)
+      // --------------------------------------------------
+      m_lifecycleController.RequestAction(
+         ctx.trade_id,         // existing trade_id (if already set)
+         ACTION_ENTER,
+         ctx,
+         reject_reason
+      );
+
 
       // ✅ Broker accepted the order — position must exist now
       if(!PositionSelect(symbol))
