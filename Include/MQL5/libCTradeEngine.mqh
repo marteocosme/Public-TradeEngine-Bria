@@ -38,6 +38,7 @@
 #include <MyInclude\NNFX\libCTradeContext.mqh>
 #include <MyInclude\NNFX\libCTradeVisualizer.mqh>
 #include <MyInclude\NNFX\libCUnifiedTradeLogger.mqh>
+#include <MyInclude\NNFX\TradeEngine\TradeLifecycleController.mqh>
 
 
 //#include <MyInclude\NNFX\libCContextLogger.mqh>
@@ -184,8 +185,27 @@ private:
 
    datetime             m_lastCandleTime;
 
+   // --------------------------------------------------
+   // Phase 5 — Trade Lifecycle Orchestration
+   // Step 3: Embedded controller (unused for now)
+   // --------------------------------------------------
+   TradeLifecycleController m_lifecycleController;
+
+   
+//CTradeEngine::CTradeEngine()
+//{
+   // Existing initialization only
+   // No lifecycle logic here in Step 3
+//}
+CTradeEngine::~CTradeEngine()
+{
+   // Clean up if needed   
+}
+
 public:
    CTradeEngine() : m_lastCandleTime(0) {}
+
+
 
    void Init()
    {
