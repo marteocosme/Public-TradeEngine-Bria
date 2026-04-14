@@ -29,41 +29,59 @@ public:
       RejectionReason& reason
    )
    {
-   reason = REJECT_NONE;
-
    int idx = GetOrCreateIndex(trade_id);
    int current = g_tradeStates.At(idx);
    int next = current;
 
+   reason = REJECT_NONE;
+
    switch(action)
    {
       case ACTION_CREATE:
-         next = LIFECYCLE_CREATED;
+         if(current == LIFECYCLE_UNDEFINED)
+            next = LIFECYCLE_CREATED;
+         else
+            reason = REJECT_INVALID_STATE;
          break;
+
 
       case ACTION_ENTER:
          if(current == LIFECYCLE_CREATED)
             next = LIFECYCLE_ENTERED;
+
+         else
+            reason = REJECT_INVALID_STATE;
          break;
 
       case ACTION_MM:
          if(current == LIFECYCLE_ENTERED || current == LIFECYCLE_MANAGED)
             next = LIFECYCLE_MANAGED;
+         else
+            reason = REJECT_ACTION_NOT_ALLOWED;
          break;
 
       case ACTION_EXIT:
          if(current == LIFECYCLE_ENTERED || current == LIFECYCLE_MANAGED)
             next = LIFECYCLE_EXITED;
+         else
+            reason = REJECT_ACTION_NOT_ALLOWED;
          break;
 
       case ACTION_CLOSE:
          if(current == LIFECYCLE_EXITED)
             next = LIFECYCLE_CLOSED;
+         else
+            reason = REJECT_LIFECYCLE_CLOSED;
          break;
 
       default:
+         reason = REJECT_ACTION_NOT_ALLOWED;
          break;
    }
+
+   // ❌ Reject invalid transition
+   if(reason != REJECT_NONE)
+      return false;
 
    // IMPORTANT: even if transition is invalid, we do NOT reject yet
    g_tradeStates.Update(idx, next);
@@ -87,7 +105,7 @@ private:
       g_tradeStates.Add(LIFECYCLE_UNDEFINED);
       return g_tradeIds.Total() - 1;
    }
-   
+
 };
 
 #endif // TRADE_LIFECYCLE_CONTROLLER_MQH
