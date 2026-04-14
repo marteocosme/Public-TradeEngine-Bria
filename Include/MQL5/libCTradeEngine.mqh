@@ -317,18 +317,20 @@ public:
          return;
          }
       
+      // ✅ Broker accepted the order — position must exist now
+      
       // --------------------------------------------------
       // Phase 5 — Step 4: Lifecycle ENTER (pass-through)
       // --------------------------------------------------
       m_lifecycleController.RequestAction(
-         ctx.trade_id,         // existing trade_id (if already set)
+         0, //ctx.trade_id,         // existing trade_id (if already set)
          ACTION_ENTER,
          ctx,
          reject_reason
       );
 
 
-      // ✅ Broker accepted the order — position must exist now
+
       if(!PositionSelect(symbol))
          {
          DebugPrint(m_debug, "Entry sent but position not found.", DBG_ERROR);
@@ -359,6 +361,7 @@ public:
    {
       if(!PositionSelect(symbol)) return;
 
+      RejectionReason reject_reason = REJECT_NONE;
       long ticket = (long)PositionGetInteger(POSITION_TICKET);
       uint seq = m_atrTracker.NextEventSeq((long)ticket);
 
@@ -378,6 +381,14 @@ public:
          {
          for(int i = 0; i < SCALE_STAGE_COUNT; i++)
             {
+            // Phase 5 — Step 5: Lifecycle MM_ACTION (Scale-Out pass-through)
+            m_lifecycleController.RequestAction(
+               0, //ctx.trade_id,
+               ACTION_MM,
+               ctx,
+               reject_reason
+            );
+
             double closeLots = 0.0;
             if(m_scale.Evaluate(ctx, g_scaleStages[i], closeLots))
                {
@@ -407,7 +418,16 @@ public:
       // --- BREAK EVEN
       double newSL;
       if(!m_atrTracker.IsBEApplied(ticket))
-         {
+         {         
+         // Phase 5 — Step 5: Lifecycle MM_ACTION (Break-Even pass-through)
+         m_lifecycleController.RequestAction(
+            0, //ctx.trade_id,
+            ACTION_MM,
+            ctx,
+            reject_reason
+         );
+
+         
          if(m_be.Evaluate(ctx, inpBE_ATR, inpBE_ExtraPips, newSL))
             {
 
@@ -439,10 +459,20 @@ public:
          }
 
       // --- TRAILING
+      
+      // Phase 5 — Step 5: Lifecycle MM_ACTION (Trailing Stop pass-through)
+      m_lifecycleController.RequestAction(
+         0, //ctx.trade_id,
+         ACTION_MM,
+         ctx,
+         reject_reason
+      );
+
       if(m_trail.Evaluate(ctx, inpTrailStartATR, inpTrailATR, newSL))
          {
          double oldSL = PositionGetDouble(POSITION_SL);
          double tp    = PositionGetDouble(POSITION_TP);
+         
          if(m_exec.ModifyStopLoss(symbol, newSL))
             {
                // ----------------------------------------------------
