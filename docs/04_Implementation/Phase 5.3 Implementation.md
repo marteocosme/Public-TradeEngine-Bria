@@ -10,6 +10,7 @@
 
 - Phase 5 Spec ✅ Approved
 - Phase 5 Architecture ✅ Approved
+  *(see `Docs/04_Implementation/Phase-5-Architecture-Approval.md`)*
 - Phase 5.2 Interfaces ✅ Approved
 
 ---
@@ -25,6 +26,8 @@ The goal is to:
 - Ensure logging and snapshot guarantees can be verified at each step
 
 No step in this plan introduces speculative refactors or behavioral changes.
+
+This implementation plan is authorized by the approved Phase 5 Architecture and Interface Design.
 
 ---
 
