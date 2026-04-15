@@ -47,7 +47,8 @@ enum RejectionReason
    REJECT_INVALID_STATE,       // Lifecycle state mismatch
    REJECT_MISSING_TRADE_ID,    // trade_id required but missing
    REJECT_ACTION_NOT_ALLOWED,  // Action not permitted in state
-   REJECT_LIFECYCLE_CLOSED     // Trade already closed
+   REJECT_LIFECYCLE_CLOSED,     // Trade already closed
+   REJECT_MISSING_SNAPSHOT   // (Optional) Snapshot data required for MM action
 };
 
 #endif // LIFECYCLE_TYPES_MQH

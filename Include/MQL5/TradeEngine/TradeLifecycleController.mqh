@@ -2,14 +2,13 @@
 #define TRADE_LIFECYCLE_CONTROLLER_MQH
 
 #include "LifecycleTypes.mqh"
+#include <MyInclude\NNFX\libCTradeContext.mqh>
 #include <Arrays\ArrayLong.mqh>
 #include <Arrays\ArrayInt.mqh>
 
 static CArrayLong g_tradeIds;
 static CArrayInt  g_tradeStates;
 
-// Forward declaration only
-struct TradeContext;
 
 // ------------------------------------------------------------
 // TradeLifecycleController
@@ -83,6 +82,18 @@ public:
    if(reason != REJECT_NONE)
       return false;
 
+   // Snapshot enforcement (Step 9)
+   if(action != ACTION_CREATE)
+   {
+      if(!HasValidSnapshot(ctx))
+      {
+         reason = REJECT_MISSING_SNAPSHOT;
+         return false;
+      }
+   }
+
+      
+
    // IMPORTANT: even if transition is invalid, we do NOT reject yet
    g_tradeStates.Update(idx, next);
 
@@ -104,6 +115,22 @@ private:
       g_tradeIds.Add(trade_id);
       g_tradeStates.Add(LIFECYCLE_UNDEFINED);
       return g_tradeIds.Total() - 1;
+   }
+
+   bool HasValidSnapshot(const TradeContext& ctx) const
+   {
+      // Must be associated with a symbol
+      if(ctx.Symbol == "")
+         return false;
+
+      // ATR snapshot must exist and be valid
+      if(!ctx.ATREntry.IsValid)
+         return false;
+
+      if(ctx.ATREntry.Value <= 0.0)
+         return false;
+
+      return true;
    }
 
 };
