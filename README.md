@@ -11,7 +11,10 @@ It focuses on rule-based decision-making, strict risk management, and systematic
     ➡️ See: `Docs/04_Implementation/Phase-4-Completion.md`
     ✅ Phase 5 — Trade Lifecycle Governance (Completed, tagged v0.5.0-lifecycle-governance)
     ➡️ See: `Docs/04_Implementation/Phase-5-Completion.md`
-    🚧 Next: Phase 6 – Replay & Analytics
+    🚧 Current focus: Phase 6 – Money Management Logging & Validation  
+    
+    📌 Primary goal: production readiness with MM correctness proven via logs
+    
 
 --- 
 

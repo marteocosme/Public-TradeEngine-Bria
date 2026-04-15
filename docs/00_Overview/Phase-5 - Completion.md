@@ -146,3 +146,43 @@ With lifecycle governance complete, the project is now ready for:
 
 
 ✅ Phase 5 is officially closed and complete.
+---
+
+# Deferred Obligations
+The following requirements were intentionally not fulfilled in Phase 5 and are deferred to a subsequent phase.
+
+These items do not invalidate Phase 5 completion; they are explicitly acknowledged as out of scope for lifecycle orchestration itself.
+
+## Money Management Logging Completeness
+While Phase 5 enforces correct trade lifecycle behavior and lifecycle‑bound Money Management actions, it does not guarantee full observability of Money Management state through logs alone.
+
+The following logging obligations remain open:
+
+- Mandatory lifecycle state snapshot logging at MM‑relevant points
+(e.g., post‑entry, break‑even, scale‑out, trailing updates, pre‑exit, final exit)
+- Enforcement that MM actions cannot occur without before/after snapshots
+- A final terminal trade snapshot suitable for replay and analytics
+
+These items are required to fully satisfy the original MM‑01 to MM‑04 logging requirements.
+
+---
+
+## Validation & Replay Readiness
+Phase 5 validates control correctness, but does not yet validate analytical completeness.
+
+Specifically deferred:
+
+- Formal validation criteria that assert a trade is “log‑complete”
+- Guarantees that a full trade lifecycle can be reconstructed from logs alone
+- Explicit failure when required snapshots are missing
+
+
+## Follow‑Up Phase
+All deferred obligations listed above are targeted for resolution in:
+
+    Phase 6 – Money Management Observability, Logging & Validation
+
+No Money Management logic re‑implementation is required; this work is strictly additive and observability‑focused.
+
+✅ End of Deferred Obligations
+

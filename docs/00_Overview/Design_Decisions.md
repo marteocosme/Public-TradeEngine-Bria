@@ -22,6 +22,12 @@ Every decision here represents a conscious trade‑off, not an accident.
 If an implementation question arises, consult this file before changing code.
 
 ---
+## Decision Promotion Rule
+
+If a discussion changes priority, scope, or sequencing,
+the outcome must be recorded here before implementation proceeds.
+
+---
 ## Decision Log
 ### DD‑001 — Money Management Is the Highest Priority Algorithm
 **Date:** 2026‑04‑15
