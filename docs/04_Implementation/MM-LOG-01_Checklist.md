@@ -5,8 +5,8 @@ This checklist defines exactly what must be true before MM‑LOG‑01 can be clo
 
 ## ✅ Section 1 — Preconditions (Gate Check)
 
- - [ ] Phase‑4 is closed and tagged
- - [ ] Phase‑5 is closed and tagged
+ - [x] Phase‑4 is closed and tagged
+ - [x] Phase‑5 is closed and tagged
  - [ ] No new MM logic will be introduced during MM‑LOG‑01
  - [ ] No strategy or entry logic is modified
  - [ ] This phase is treated as closure work, not forward development
