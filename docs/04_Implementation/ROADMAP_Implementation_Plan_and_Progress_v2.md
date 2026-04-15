@@ -85,7 +85,46 @@ The remaining unfulfilled requirements across MM‑01 → MM‑04 are:
 This is the only remaining obligation from MM‑01 to MM‑04.
 
 ---
-## Phase 6 – Observability, Logging & Validation Fulfillment
+## MM‑LOG‑01 – Logging Completion & Validation (Mandatory)
+
+**Phase Type:** Phase 5 closure obligation  
+**Blocking:** ✅ Yes — Phase 6 MUST NOT start until this phase is complete
+
+### Objective
+Formally close all remaining logging and validation gaps originating from MM‑01 to MM‑04.
+This phase completes **observability**, not logic.
+
+### Scope
+- Enforce lifecycle snapshot logging
+- Enforce MM before/after decision snapshots
+- Enforce terminal trade snapshots
+- Guarantee replay‑complete trade logs
+- Log and fail deterministically on violations
+
+### Explicit Non‑Scope
+- New strategy logic
+- Entry signal changes
+- Risk model changes
+- Performance optimization
+
+### Completion Criteria
+MM‑LOG‑01 is complete ONLY when:
+- A full trade lifecycle is reconstructable from logs alone
+- All MM decisions are auditable post‑hoc
+- Missing snapshots are impossible by construction
+- Validation evidence is documented
+
+✅ Completion of MM‑LOG‑01 restores Phase 5 completeness.
+
+---
+## Phase 6 – Post‑Validation Observability & Replay Enablement
+
+**Prerequisite:** MM‑LOG‑01 must be ✅ complete.
+
+Phase 6 builds upon enforced logging guarantees by enabling higher‑level observability,
+replay analysis, and audit tooling. No remaining Phase‑5 obligations are addressed here.
+
+
 
     This phase exists explicitly to close MM‑01 → MM‑04.
 

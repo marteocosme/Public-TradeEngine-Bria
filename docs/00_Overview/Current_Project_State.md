@@ -40,11 +40,14 @@ The following phases are finished, validated, and considered stable unless a cri
 `Phase-5-Completion.md`
 
 Phase 5 guarantees **behavioral correctness**, not full observability.
-
+ℹ️ Note: MM‑LOG‑01 is a mandatory post‑closure obligation required to restore full observability.
 
 ## 🟡 Current Active Focus
-### Phase 6 – Money Management Observability & Validation (ACTIVE)
-This is the current, highest‑priority phase.
+### MM‑LOG‑01 – Money Management Logging Completion & Validation (ACTIVE)
+
+This is a mandatory post‑Phase‑5 closure obligation required to restore full analytical observability.
+Phase 6 MUST NOT start until MM‑LOG‑01 is complete.
+
 
 Phase 6 exists to close all remaining obligations from MM‑01 to MM‑04 related to:
 
@@ -108,7 +111,7 @@ This is the prerequisite for:
 ---
 
 ## Explicit Non‑Goals (Right Now)
-The following are intentionally paused until Phase 6 is complete:
+The following are intentionally paused until MM‑LOG‑01 is complete:
 
 - Trade Entry Strategies
 - Indicator selection or tuning
@@ -157,7 +160,7 @@ If something feels unclear:
 
 ---
 ## Next Milestone
-#### Phase 6 Completion Criteria:
+#### MM‑LOG‑01 Completion Criteria:
 
 - MM behavior can be verified via logs alone
 - At least one backtest cycle performed with MM‑focused analysis
