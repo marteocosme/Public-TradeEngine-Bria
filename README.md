@@ -9,10 +9,25 @@ It focuses on rule-based decision-making, strict risk management, and systematic
 
     ✅ Phase 4 – Execution & Money Management Logging complete  
     ➡️ See: `Docs/04_Implementation/Phase-4-Completion.md`
-
-    🚧 Next: Phase 5 – Trade Lifecycle Orchestration
+    ✅ Phase 5 — Trade Lifecycle Governance (Completed, tagged v0.5.0-lifecycle-governance)
+    ➡️ See: `Docs/04_Implementation/Phase-5-Completion.md`
+    🚧 Next: Phase 6 – Replay & Analytics
 
 --- 
+
+## What This Repo Is
+A modular NNFX-inspired trading engine for MetaTrader 5, focused on:
+- Deterministic trade execution
+- Full lifecycle traceability
+- Money-management first design
+
+---
+
+## What This Repo Is NOT
+- Not a ready-to-use EA
+- Not a signal strategy
+- Not commercially usable without permission
+---
 
 ## 🧠 Strategy Overview
 

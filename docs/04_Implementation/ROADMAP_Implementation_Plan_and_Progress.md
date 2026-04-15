@@ -1,5 +1,10 @@
 # ✅ Implementation Plan & Progress Management
 
+ ⚠️ **Superseded Notice**  
+> Money Management Phases MM‑01 to MM‑04 are structurally addressed via Phase 4 and Phase 5,  
+> with remaining logging and validation obligations formally closed in  
+> **ROADMAP_Implementation_Plan_and_Progress_v2.md**.
+
 This document defines the incremental implementation plan for the NNFX TradeEngine project.
 
 It also serves as a living progress tracker to ensure all changes are spec‑aligned, compile‑safe, and backtest‑validated.
