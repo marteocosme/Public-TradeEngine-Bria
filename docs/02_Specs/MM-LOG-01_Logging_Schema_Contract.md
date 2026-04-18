@@ -97,8 +97,8 @@ stop_loss
 take_profit
 position_size
 risk_percent
-floating_pnlr
-ealized_pnl
+floating_pnl
+realized_pnl
 ```
 
 ### Snapshot Rules

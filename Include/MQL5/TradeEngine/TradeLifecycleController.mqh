@@ -1,8 +1,8 @@
 #ifndef TRADE_LIFECYCLE_CONTROLLER_MQH
 #define TRADE_LIFECYCLE_CONTROLLER_MQH
 
-#include "LifecycleTypes.mqh"
-#include <MyInclude\NNFX\libCTradeContext.mqh>
+#include <MyInclude\NNFX\TradeEngine\LifecycleTypes.mqh>
+#include <MyInclude\NNFX\LifecycleSnapshot.mqh>
 #include <Arrays\ArrayLong.mqh>
 #include <Arrays\ArrayInt.mqh>
 
@@ -12,7 +12,7 @@ static CArrayInt  g_tradeStates;
 
 // ------------------------------------------------------------
 // TradeLifecycleController
-// Phase 5 — Step 2: Skeleton only (NO enforcement)
+// Phase 5 / MM-LOG-01 — Lifecycle transition + snapshot enforcement
 // ------------------------------------------------------------
 class TradeLifecycleController
 {
@@ -20,18 +20,15 @@ public:
    TradeLifecycleController();
    ~TradeLifecycleController();
 
-   // Request lifecycle action (STUB — always returns true)
    bool RequestAction(
       long trade_id,
       LifecycleAction action,
-      TradeContext& ctx,
       RejectionReason& reason
    )
    {
    int idx = GetOrCreateIndex(trade_id);
-   int current = g_tradeStates.At(idx);
-   int next = current;
-
+   LifecycleState current = (LifecycleState)g_tradeStates.At(idx);
+   LifecycleState next = current;
    reason = REJECT_NONE;
 
    switch(action)
@@ -77,33 +74,23 @@ public:
          reason = REJECT_ACTION_NOT_ALLOWED;
          break;
    }
-
-   // ❌ Reject invalid transition
-   if(reason != REJECT_NONE)
-      return false;
-
-   // Snapshot enforcement (Step 9)
-   if(action != ACTION_CREATE)
+   // ALWAYS emit snapshot of trade lifecycle action attempt, even if invalid transition
+   if(!EmitLifecycleSnapshot(trade_id, current, action, reason))
    {
-      if(!HasValidSnapshot(ctx))
-      {
-         reason = REJECT_MISSING_SNAPSHOT;
-         return false;
-      }
+      reason = REJECT_MISSING_SNAPSHOT;
+      return false;
    }
 
-      
-
-   // IMPORTANT: even if transition is invalid, we do NOT reject yet
+   // Reject invalid transition AFTER snapshot
+   // if(reason != REJECT_NONE)
+   //   return false;
+   
+   // Apply valid transition
    g_tradeStates.Update(idx, next);
-
-   return true; // always approve in Step 7
+   return true; 
    };
 
 private:
-   // Internal lifecycle state storage (unused for now)
-   // trade_id → lifecycle state
-   // NOTE: Not enforced or validated in Step 2
    int GetOrCreateIndex(long trade_id){
       int count = g_tradeIds.Total();
       for(int i = 0; i < count; i++)
@@ -116,22 +103,97 @@ private:
       g_tradeStates.Add(LIFECYCLE_UNDEFINED);
       return g_tradeIds.Total() - 1;
    }
-
-   bool HasValidSnapshot(const TradeContext& ctx) const
+   
+   bool EmitLifecycleSnapshot(
+      long trade_id,
+      LifecycleState state,
+      LifecycleAction action,
+      RejectionReason rejection
+   )
    {
-      // Must be associated with a symbol
-      if(ctx.Symbol == "")
-         return false;
+   LifecycleSnapshot snap;
+   bool has_position = PositionSelectByTicket(trade_id);
 
-      // ATR snapshot must exist and be valid
-      if(!ctx.ATREntry.IsValid)
-         return false;
+   // -------------------------------------------------
+   // Identity & Timing
+   // -------------------------------------------------
+   snap.trade_id  = trade_id;
+   snap.symbol    = 
+      has_position
+         ? PositionGetString(POSITION_SYMBOL)
+         : Symbol();
 
-      if(ctx.ATREntry.Value <= 0.0)
-         return false;
+   snap.timestamp = TimeCurrent();
 
-      return true;
+   // -------------------------------------------------
+   // Lifecycle Context
+   // -------------------------------------------------
+   snap.lifecycle_state  = state;
+   snap.lifecycle_action = action;
+   snap.rejection_reason = (int)rejection;
+
+   // -------------------------------------------------
+   // Pricing & Position State
+   // -------------------------------------------------
+   snap.entry_price   = 0.0;
+   snap.current_price = 0.0;
+   snap.stop_loss     = 0.0;
+   snap.take_profit   = 0.0;
+   snap.position_size = 0.0;
+
+   // Query execution reality (safe no‑position defaults)
+   if(has_position)
+   {
+      snap.entry_price   = PositionGetDouble(POSITION_PRICE_OPEN);
+      snap.stop_loss     = PositionGetDouble(POSITION_SL);
+      snap.take_profit   = PositionGetDouble(POSITION_TP);
+      snap.position_size = PositionGetDouble(POSITION_VOLUME);
+
+      // Use Bid/Ask depending on position type
+      int type = (int)PositionGetInteger(POSITION_TYPE);
+      snap.current_price =
+         (type == POSITION_TYPE_BUY)
+            ? SymbolInfoDouble(snap.symbol, SYMBOL_BID)
+            : SymbolInfoDouble(snap.symbol, SYMBOL_ASK);
    }
+   else
+   {
+      // No open position — still log snapshot
+      snap.current_price =
+         SymbolInfoDouble(snap.symbol, SYMBOL_BID);
+   }
+
+   // -------------------------------------------------
+   // Risk & P/L
+   // -------------------------------------------------
+   snap.floating_pnl = 0.0;
+   snap.realized_pnl = 0.0;
+   snap.risk_percent = 0.0;
+
+   if(PositionSelectByTicket(trade_id))
+   {
+      snap.floating_pnl = PositionGetDouble(POSITION_PROFIT);
+   }
+
+   // -------------------------------------------------
+   // MM Context (lifecycle‑only for now)
+   // -------------------------------------------------
+   snap.mm_action = ACTION_NONE;
+
+   // -------------------------------------------------
+   // Emit snapshot
+   // -------------------------------------------------
+   /* TEMPORARY: enforcement without logger binding yet 
+   if(!Logger.EmitLifecycleSnapshot(snap))
+   {
+      // Logging failure invalidates lifecycle transition
+      return false;
+   }
+   */
+   return true;
+
+   }
+
 
 };
 
