@@ -30,9 +30,9 @@ This checklist defines exactly what must be true before MM‑LOG‑01 can be clo
 ## ✅ Section 3 — Snapshot Content (Minimum Required Fields)
 Every lifecycle / MM snapshot includes at least:
 
- - [ ] Trade ID
- - [ ] Symbol
- - [ ] Lifecycle state
+ - [x] Trade ID
+ - [x] Symbol
+ - [x] Lifecycle state
  - [ ] Current price (bid/ask as appropriate)
  - [ ] Stop Loss
  - [ ] Take Profit (if applicable)

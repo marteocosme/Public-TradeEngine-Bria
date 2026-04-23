@@ -56,7 +56,8 @@ class CRiskEngine
 private:
    uint   m_profitCount;
    double m_riskMultiplier;
-   
+   double m_lastComputedRiskAmount;   // ✅ MM-LOG-01 support
+
    // ===============================================================
    // Anti-Martingale: check last closed trade result
    // ===============================================================
@@ -105,22 +106,25 @@ private:
       enum_riskMethod method,
       double riskPercent,
       double fixedAmount
-   ) const
+   )
    {
+      double riskAmount = 0.0;
       switch(method)
       {
          case RISK_BALANCE:
-            return AccountInfoDouble(ACCOUNT_BALANCE) * riskPercent;
+            riskAmount = AccountInfoDouble(ACCOUNT_BALANCE) * riskPercent;
+            break;
 
          case RISK_EQUITY:
-            return AccountInfoDouble(ACCOUNT_EQUITY) * riskPercent;
+            riskAmount = AccountInfoDouble(ACCOUNT_EQUITY) * riskPercent;
+            break;
 
          case RISK_FIXED:
-            return fixedAmount;
-
-         default:
-            return AccountInfoDouble(ACCOUNT_BALANCE) * riskPercent;
+            riskAmount = fixedAmount;
+            break;
       }
+      m_lastComputedRiskAmount = NormalizeDouble(riskAmount, 2); // ✅ MM-LOG-01 support
+      return NormalizeDouble(riskAmount, 2);
    }
 
    // ===============================================================
@@ -270,6 +274,7 @@ public:
    CRiskEngine()
    {
       ResetAntiMartingale();
+      m_lastComputedRiskAmount = 0.0;
    }
 
    // ------------------------------------------------------------
@@ -310,17 +315,14 @@ public:
          stopDistance
       );
    }
+   double GetLastComputedRiskAmount() const
+   {
+      return m_lastComputedRiskAmount;
+   }
+
 };
 
 
 
 #endif // __LIBCRISKENGINE_MQH__
 
-/*
-
-
-
-
-
-
-*/

@@ -100,11 +100,8 @@ public:
       return true;
    };
 
-
- 
 void HandleEntry()
 {
-     /*
    // 1. Build BEFORE snapshot
    MM_SNAPSHOT_BEFORE snap_before;
    FillSnapshotBefore_Entry(snap_before);
@@ -123,7 +120,6 @@ void HandleEntry()
 
    // 5. Order execution (OUTSIDE MM scope)
    ExecuteOrder(mm_result);
-   */
 }
 
 private:

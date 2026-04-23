@@ -43,6 +43,37 @@
 
 //#include <MyInclude\NNFX\libCContextLogger.mqh>
 
+
+// --------------------------------------------------
+// MM Snapshot (Phase 5 / MM-LOG-01 — incremental stub)
+// --------------------------------------------------
+struct MM_SNAPSHOT_BEFORE;
+
+void EmitSnapshotBefore(const MM_SNAPSHOT_BEFORE &snap)
+{
+
+   Print(
+      "[MM_SNAPSHOT_BEFORE]",
+      " symbol=", snap.symbol,
+      " tf=", EnumToString(snap.timeframe),
+      " balance=", snap.balance,
+      " risk=", snap.risk_value
+   );
+}
+struct MM_SNAPSHOT_AFTER;
+
+void EmitSnapshotAfter(const MM_SNAPSHOT_AFTER &snap)
+{
+   Print(
+      "[MM_SNAPSHOT_AFTER]",
+      " symbol=", snap.symbol,
+      " tf=", EnumToString(snap.timeframe),
+      " lot=", snap.calculated_lot_size,
+      " risk_amt=", snap.calculated_risk_amount
+   );
+}
+
+
 // ================================================================
 // Scaling stages (ATREntry-based)
 // ================================================================
@@ -181,7 +212,7 @@ private:
 
    CTradeVisualizer     m_viz;
    CUnifiedTradeLogger  m_logger;
-//CContextLogger       m_logger;
+   //CContextLogger       m_logger;
 
    datetime             m_lastCandleTime;
 
@@ -197,14 +228,15 @@ private:
    // Existing initialization only
    // No lifecycle logic here in Step 3
 //}
-CTradeEngine::~CTradeEngine()
-{
-   // Clean up if needed   
-}
+
 
 public:
    CTradeEngine() : m_lastCandleTime(0) {}
 
+   CTradeEngine::~CTradeEngine()
+{
+   // Clean up if needed   
+}
 
 
    void Init()
@@ -286,21 +318,65 @@ public:
       rp.MaxRiskPercent = inpRiskMax;
       rp.StopATRMultiplier = inpSLxATRxPlier;
 
+
+// --- MM Snapshot BEFORE (complete risk inputs) ---
+MM_SNAPSHOT_BEFORE snap;
+snap.timestamp  = TimeCurrent();
+snap.symbol     = ctx.Symbol;
+snap.timeframe  = ctx.EntryPeriod;
+snap.trade_context_id = 0; // ticket not yet known
+
+snap.mm_phase        = "MM_PHASE_ENTRY";
+snap.mm_event_intent = "MM_EVENT_ENTRY";
+
+snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
+snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
+snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+
+snap.risk_model  = EnumToString(rp.Method);
+snap.risk_value  = rp.BaseRiskPercent;
+
+// --- TRUE MM inputs ---
+snap.stoploss_points = ctx.ATREntry.Value * inpSLxATRxPlier;
+snap.value_per_point =
+   SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
+   SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+
+// what MM actually risks
+snap.risk_amount_used =
+   m_risk.GetLastComputedRiskAmount(); // add getter if needed
+
+EmitSnapshotBefore(snap); // simple logger only
+
       double lots = m_risk.ComputeLotSize(ctx, rp);
       if(lots <= 0)
-         {
+      {
          DebugPrint(m_debug, "Lot size computation failed. Entry blocked.", DBG_WARN);
          return;
-         }
+      }
 
+
+// ✅ MM_SNAPSHOT_AFTER (ENTRY only)
+MM_SNAPSHOT_AFTER snap_after;
+snap_after.timestamp = TimeCurrent();
+snap_after.symbol    = ctx.Symbol;
+snap_after.timeframe = ctx.EntryPeriod;
+
+snap_after.calculated_lot_size = lots;
+snap_after.calculated_risk_amount =
+   m_risk.GetLastComputedRiskAmount();
+
+snap_after.stoploss_points = snap.stoploss_points;
+snap_after.value_per_point = snap.value_per_point;
+
+EmitSnapshotAfter(snap_after);
       // --------------------------------------------------
       // Phase 5 — Step 4: Lifecycle CREATE (pass-through)
       // --------------------------------------------------
       RejectionReason reject_reason = REJECT_NONE;
       m_lifecycleController.RequestAction(
          0,                    // trade_id not assigned yet
-         ACTION_CREATE,
-         ctx,                  // existing TradeContext
+         ACTION_CREATE,                  
          reject_reason
       );
 
@@ -323,9 +399,8 @@ public:
       // Phase 5 — Step 4: Lifecycle ENTER (pass-through)
       // --------------------------------------------------
       m_lifecycleController.RequestAction(
-         0, //ctx.trade_id,         // existing trade_id (if already set)
+         0, // existing trade_id (if already set)
          ACTION_ENTER,
-         ctx,
          reject_reason
       );
 
@@ -385,7 +460,6 @@ public:
             m_lifecycleController.RequestAction(
                0, //ctx.trade_id,
                ACTION_MM,
-               ctx,
                reject_reason
             );
 
@@ -423,7 +497,6 @@ public:
          m_lifecycleController.RequestAction(
             0, //ctx.trade_id,
             ACTION_MM,
-            ctx,
             reject_reason
          );
 
@@ -464,7 +537,6 @@ public:
       m_lifecycleController.RequestAction(
          0, //ctx.trade_id,
          ACTION_MM,
-         ctx,
          reject_reason
       );
 
@@ -524,7 +596,6 @@ public:
          m_lifecycleController.RequestAction(
             0,               // trade_id not enforced yet
             ACTION_EXIT,
-            ctx,
             reject_reason
          );
 
@@ -550,7 +621,6 @@ public:
          m_lifecycleController.RequestAction(
             0,               // trade_id not enforced yet
             ACTION_CLOSE,
-            ctx,
             reject_reason
          );
 
