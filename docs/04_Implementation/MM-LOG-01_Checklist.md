@@ -7,9 +7,9 @@ This checklist defines exactly what must be true before MM‑LOG‑01 can be clo
 
  - [x] Phase‑4 is closed and tagged
  - [x] Phase‑5 is closed and tagged
- - [ ] No new MM logic will be introduced during MM‑LOG‑01
- - [ ] No strategy or entry logic is modified
- - [ ] This phase is treated as closure work, not forward development
+ - [x] No new MM logic will be introduced during MM‑LOG‑01
+ - [x] No strategy or entry logic is modified
+ - [x] This phase is treated as closure work, not forward development
 
 
 ## ✅ Section 2 — Lifecycle Snapshot Coverage
@@ -80,12 +80,12 @@ Every lifecycle / MM snapshot includes at least:
 
 ## ✅ Section 6 — Snapshot Enforcement Rules
 
- - [ ] Lifecycle transition blocked if snapshot is missing
+ - [x] Lifecycle transition blocked if snapshot is missing
  - [ ] MM action blocked if before‑snapshot is missing
  - [ ] MM action blocked if after‑snapshot is missing
  - [ ] Trade exit blocked if final snapshot is missing
  - [ ] All violations explicitly logged
- - [ ] Violations fail deterministically (no fallback)
+ - [x] Violations fail deterministically (no fallback)
 
 
 ## ✅ Section 7 — Replay Completeness Validation
