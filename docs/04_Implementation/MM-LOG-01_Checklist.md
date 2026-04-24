@@ -15,11 +15,11 @@ This checklist defines exactly what must be true before MM‑LOG‑01 can be clo
 ## ✅ Section 2 — Lifecycle Snapshot Coverage
 ### Mandatory Snapshot Points
 
- - [ ] Snapshot logged after trade entry stabilization
+ - [x] Snapshot logged after trade entry stabilization
  - [ ] Snapshot logged before Break‑Even execution
  - [ ] Snapshot logged after Break‑Even execution
- - [ ] Snapshot logged before Scale‑Out execution
- - [ ] Snapshot logged after Scale‑Out execution
+ - [x] Snapshot logged before Scale‑Out execution
+ - [x] Snapshot logged after Scale‑Out execution
  - [ ] Snapshot logged before Trailing Stop update
  - [ ] Snapshot logged after Trailing Stop update
  - [ ] Snapshot logged before trade exit intent
@@ -35,12 +35,12 @@ Every lifecycle / MM snapshot includes at least:
  - [x] Lifecycle state
  - [ ] Current price (bid/ask as appropriate)
  - [ ] Stop Loss
- - [ ] Take Profit (if applicable)
- - [ ] Position size (lots)
- - [ ] Risk % or R value
- - [ ] Floating P/L
- - [ ] Realized P/L
- - [ ] MM action context (NONE / BE / SCALE / TRAIL)
+ - [x] Take Profit (if applicable)
+ - [x] Position size (lots)
+ - [x] Risk % or R value
+ - [x] Floating P/L
+ - [x] Realized P/L
+ - [x] MM action context (NONE / BE / SCALE / TRAIL)
 
 **✅ Rule:** Missing fields are considered a defect.
 

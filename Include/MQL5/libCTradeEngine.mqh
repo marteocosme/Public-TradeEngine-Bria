@@ -49,27 +49,43 @@
 // --------------------------------------------------
 struct MM_SNAPSHOT_BEFORE;
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 void EmitSnapshotBefore(const MM_SNAPSHOT_BEFORE &snap)
 {
 
    Print(
       "[MM_SNAPSHOT_BEFORE]",
+      " event=", snap.mm_event_intent,
+      " phase=", snap.mm_phase,
+      " trade_id=", snap.trade_context_id,
       " symbol=", snap.symbol,
-      " tf=", EnumToString(snap.timeframe),
-      " balance=", snap.balance,
-      " risk=", snap.risk_value
+      " lots_before=", snap.current_position_lots,
+      " risk_used=", snap.current_risk_exposure,
+      " TP=", snap.take_profit,
+      " floating_PnL=", snap.floating_pnl,
+      " ATRx=", snap.scale_atr_multiple,
+      " close_frac=", snap.scale_fraction
+
    );
 }
 struct MM_SNAPSHOT_AFTER;
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 void EmitSnapshotAfter(const MM_SNAPSHOT_AFTER &snap)
 {
    Print(
       "[MM_SNAPSHOT_AFTER]",
+      " event=", snap.mm_event_result,
+      " trade_id=", snap.trade_context_id,
       " symbol=", snap.symbol,
-      " tf=", EnumToString(snap.timeframe),
-      " lot=", snap.calculated_lot_size,
-      " risk_amt=", snap.calculated_risk_amount
+      " lots_after=", snap.calculated_lot_size,
+      " TP=", snap.take_profit,
+      " realized_PnL=", snap.realized_pnl,
+      " risk_anchor=", snap.calculated_risk_amount
    );
 }
 
@@ -195,8 +211,6 @@ private:
    CVolumeSignal        m_volume;
    CATRSignal           m_atr;
 
-
-
    CRiskEngine          m_risk;
    CATRRiskTracker      m_atrTracker;
    CTradeExecution      m_exec;
@@ -222,7 +236,7 @@ private:
    // --------------------------------------------------
    TradeLifecycleController m_lifecycleController;
 
-   
+
 //CTradeEngine::CTradeEngine()
 //{
    // Existing initialization only
@@ -234,9 +248,9 @@ public:
    CTradeEngine() : m_lastCandleTime(0) {}
 
    CTradeEngine::~CTradeEngine()
-{
-   // Clean up if needed   
-}
+   {
+      // Clean up if needed
+   }
 
 
    void Init()
@@ -261,17 +275,17 @@ public:
       m_confirm.Reset();
    }
 
-      // To be called in OnTick EA
+   // To be called in OnTick EA
    void OnTick(const string symbol)
    {
       if(symbol == "") return;
       ManageExit(symbol); // Manage exits continuously (optional: only on new candle)
 
       if(!IsNewCandle(symbol, inpEntryPeriod)) return; // Only evaluate entry on new candle (BAR_SIGNAL is stable)
-      
+
       m_atrTracker.PruneClosedTickets(); // Maintain ATR ticket list
       ManageOpenPosition(symbol);  // Manage Open Positions | ## can add input settings
-      
+
       ManageEntry(symbol); // Entry logic
    }
 
@@ -320,63 +334,64 @@ public:
 
 
 // --- MM Snapshot BEFORE (complete risk inputs) ---
-MM_SNAPSHOT_BEFORE snap;
-snap.timestamp  = TimeCurrent();
-snap.symbol     = ctx.Symbol;
-snap.timeframe  = ctx.EntryPeriod;
-snap.trade_context_id = 0; // ticket not yet known
+      MM_SNAPSHOT_BEFORE snap;
+      snap.timestamp  = TimeCurrent();
+      snap.symbol     = ctx.Symbol;
+      snap.timeframe  = ctx.EntryPeriod;
+      snap.trade_context_id = 0; // ticket not yet known
 
-snap.mm_phase        = "MM_PHASE_ENTRY";
-snap.mm_event_intent = "MM_EVENT_ENTRY";
+      snap.mm_phase        = "MM_PHASE_ENTRY";
+      snap.mm_event_intent = "MM_EVENT_ENTRY";
 
-snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
-snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
-snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+      snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
+      snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
+      snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
 
-snap.risk_model  = EnumToString(rp.Method);
-snap.risk_value  = rp.BaseRiskPercent;
+      snap.risk_model  = EnumToString(rp.Method);
+      snap.risk_value  = rp.BaseRiskPercent;
 
 // --- TRUE MM inputs ---
-snap.stoploss_points = ctx.ATREntry.Value * inpSLxATRxPlier;
-snap.value_per_point =
-   SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
-   SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+      snap.stoploss_points = ctx.ATREntry.Value * inpSLxATRxPlier;
+      snap.value_per_point =
+         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
+         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
 
 // what MM actually risks
-snap.risk_amount_used =
-   m_risk.GetLastComputedRiskAmount(); // add getter if needed
+      snap.risk_amount_used =
+         m_risk.GetLastComputedRiskAmount(); // add getter if needed
 
-EmitSnapshotBefore(snap); // simple logger only
+      EmitSnapshotBefore(snap); // simple logger only
 
       double lots = m_risk.ComputeLotSize(ctx, rp);
       if(lots <= 0)
-      {
+         {
          DebugPrint(m_debug, "Lot size computation failed. Entry blocked.", DBG_WARN);
          return;
-      }
+         }
 
 
 // ✅ MM_SNAPSHOT_AFTER (ENTRY only)
-MM_SNAPSHOT_AFTER snap_after;
-snap_after.timestamp = TimeCurrent();
-snap_after.symbol    = ctx.Symbol;
-snap_after.timeframe = ctx.EntryPeriod;
+      MM_SNAPSHOT_AFTER snap_after;
+      snap_after.timestamp = TimeCurrent();
+      snap_after.symbol    = ctx.Symbol;
+      snap_after.timeframe = ctx.EntryPeriod;
+      snap_after.mm_event_result = "MM_EVENT_ENTRY";
 
-snap_after.calculated_lot_size = lots;
-snap_after.calculated_risk_amount =
-   m_risk.GetLastComputedRiskAmount();
+      snap_after.calculated_lot_size = lots;
+      snap_after.calculated_risk_amount =
+         m_risk.GetLastComputedRiskAmount();
 
-snap_after.stoploss_points = snap.stoploss_points;
-snap_after.value_per_point = snap.value_per_point;
+      snap_after.stoploss_points = snap.stoploss_points;
+      snap_after.value_per_point = snap.value_per_point;
 
-EmitSnapshotAfter(snap_after);
+      EmitSnapshotAfter(snap_after);
       // --------------------------------------------------
       // Phase 5 — Step 4: Lifecycle CREATE (pass-through)
       // --------------------------------------------------
       RejectionReason reject_reason = REJECT_NONE;
       m_lifecycleController.RequestAction(
          0,                    // trade_id not assigned yet
-         ACTION_CREATE,                  
+         ACTION_CREATE,
          reject_reason
       );
 
@@ -392,9 +407,9 @@ EmitSnapshotAfter(snap_after);
          DebugPrint(m_debug, "Trade execution failed.", DBG_ERROR);
          return;
          }
-      
+
       // ✅ Broker accepted the order — position must exist now
-      
+
       // --------------------------------------------------
       // Phase 5 — Step 4: Lifecycle ENTER (pass-through)
       // --------------------------------------------------
@@ -418,7 +433,7 @@ EmitSnapshotAfter(snap_after);
       ulong ticket = (ulong)PositionGetInteger(POSITION_TICKET);
       // Track ATR at entry (must happen BEFORE logging)
       m_atrTracker.AddOrUpdate((long)ticket, ctx.ATREntry.Value);
-      
+
       // ✅ ENTRY LOGGING — Phase 4.4 (single source of truth)
       MM_LogEventBase evt;
       evt.event_time = ctx.Time;                 // BAR_SIGNAL time
@@ -464,10 +479,93 @@ EmitSnapshotAfter(snap_after);
             );
 
             double closeLots = 0.0;
+
+// ===============================
+// MM_SNAPSHOT_BEFORE — SCALE_OUT
+// ===============================
+            MM_SNAPSHOT_BEFORE snap;
+            snap.timestamp = TimeCurrent();
+            snap.symbol    = ctx.Symbol;
+            snap.timeframe = ctx.EntryPeriod;
+
+// identity
+            snap.trade_context_id = ticket;
+
+// lifecycle intent
+            snap.mm_phase        = "MM_PHASE_MANAGE";
+            snap.mm_event_intent = "MM_EVENT_SCALE_OUT";
+
+// account state
+            snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
+            snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
+            snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+
+// exposure BEFORE scale-out
+            snap.current_position_lots =
+               NormalizeDouble(PositionGetDouble(POSITION_VOLUME), 2);
+
+// execution-state observability            
+            snap.take_profit   = PositionGetDouble(POSITION_TP);
+            snap.floating_pnl  = PositionGetDouble(POSITION_PROFIT);
+
+// reference risk (ENTRY risk anchor)
+            snap.current_risk_exposure =
+               m_risk.GetLastComputedRiskAmount(); // still valid reference
+
+// reconstruction inputs
+            snap.stoploss_points =
+               ctx.ATREntry.Value * inpSLxATRxPlier;
+
+            snap.value_per_point =
+               SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
+               SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+
+// ✅ SCALE_OUT trigger (THIS was missing)
+            snap.scale_atr_multiple = g_scaleStages[i].atrMultiple;
+            snap.scale_fraction     = g_scaleStages[i].closeFraction;
+
+
+            EmitSnapshotBefore(snap);
+
             if(m_scale.Evaluate(ctx, g_scaleStages[i], closeLots))
                {
+
+               /* Print(
+                  "[MM_SNAPSHOT_BEFORE]",
+                  " event=", snap.mm_event_intent,
+                  " ATRx=", snap.scale_atr_multiple,
+                  " close_frac=", snap.scale_fraction
+               );
+               */
+
                if(m_exec.PartialClose(symbol, closeLots))
                   {
+
+// ===============================
+// MM_SNAPSHOT_AFTER — SCALE_OUT
+// ===============================
+                  MM_SNAPSHOT_AFTER snap_after;
+                  snap_after.timestamp = TimeCurrent();
+                  snap_after.symbol    = ctx.Symbol;
+                  snap_after.timeframe = ctx.EntryPeriod;
+                  snap_after.mm_event_result = "MM_EVENT_SCALE_OUT";
+
+// exposure AFTER scale-out
+                  snap_after.calculated_lot_size =
+                     snap.current_position_lots - closeLots;
+
+// risk anchor unchanged (ENTRY-based)
+                  snap_after.calculated_risk_amount =
+                     m_risk.GetLastComputedRiskAmount();
+
+// reuse for reconstruction
+                  snap_after.stoploss_points  = snap.stoploss_points;
+                  snap_after.value_per_point  = snap.value_per_point;
+
+                  EmitSnapshotAfter(snap_after);
+
+
+
                   // ✅ Track stage application FIRST (prevents re-trigger)
                   m_atrTracker.MarkScaleStageApplied(ticket, g_scaleStages[i].atrMultiple);
 
@@ -492,7 +590,7 @@ EmitSnapshotAfter(snap_after);
       // --- BREAK EVEN
       double newSL;
       if(!m_atrTracker.IsBEApplied(ticket))
-         {         
+         {
          // Phase 5 — Step 5: Lifecycle MM_ACTION (Break-Even pass-through)
          m_lifecycleController.RequestAction(
             0, //ctx.trade_id,
@@ -500,7 +598,7 @@ EmitSnapshotAfter(snap_after);
             reject_reason
          );
 
-         
+
          if(m_be.Evaluate(ctx, inpBE_ATR, inpBE_ExtraPips, newSL))
             {
 
@@ -509,7 +607,7 @@ EmitSnapshotAfter(snap_after);
 
             if(m_exec.ModifyStopLoss(symbol, newSL))
                {
-               
+
                m_atrTracker.MarkBEApplied(ticket); // 1️⃣ Mark BE applied FIRST (prevents double logging)
                m_viz.DrawBreakEven(symbol, newSL); // 2️⃣ Optional visualization (safe, non‑functional)
                uint seq = m_atrTracker.NextEventSeq(ticket); // Revisit removal only in Phase 5
@@ -526,13 +624,13 @@ EmitSnapshotAfter(snap_after);
 
                m_logger.LogMMEventBase(evt);
                }
-               // ✅ Stop after BE — no trailing this tick (your original rule)
+            // ✅ Stop after BE — no trailing this tick (your original rule)
             return;
             }
          }
 
       // --- TRAILING
-      
+
       // Phase 5 — Step 5: Lifecycle MM_ACTION (Trailing Stop pass-through)
       m_lifecycleController.RequestAction(
          0, //ctx.trade_id,
@@ -544,22 +642,22 @@ EmitSnapshotAfter(snap_after);
          {
          double oldSL = PositionGetDouble(POSITION_SL);
          double tp    = PositionGetDouble(POSITION_TP);
-         
+
          if(m_exec.ModifyStopLoss(symbol, newSL))
             {
-               // ----------------------------------------------------
-               // TRAILING STOP LOGGING — Phase 4.4
-               // ----------------------------------------------------
-               MM_LogEventBase evt;
-               evt.event_time = ctx.Time;                // BAR_SIGNAL time
-               evt.event_type = MM_EVENT_TRAIL;
-               evt.phase      = MM_PHASE_MANAGE;
-               evt.symbol     = ctx.Symbol;
-               evt.timeframe  = ctx.EntryPeriod;
-               evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-               evt.ticket     = ticket;
+            // ----------------------------------------------------
+            // TRAILING STOP LOGGING — Phase 4.4
+            // ----------------------------------------------------
+            MM_LogEventBase evt;
+            evt.event_time = ctx.Time;                // BAR_SIGNAL time
+            evt.event_type = MM_EVENT_TRAIL;
+            evt.phase      = MM_PHASE_MANAGE;
+            evt.symbol     = ctx.Symbol;
+            evt.timeframe  = ctx.EntryPeriod;
+            evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+            evt.ticket     = ticket;
 
-               m_logger.LogMMEventBase(evt);
+            m_logger.LogMMEventBase(evt);
             }
          }
    }
@@ -580,52 +678,52 @@ EmitSnapshotAfter(snap_after);
       // EXIT DECISION
       // ====================================================
 
-      if(!m_exit.Update(symbol, inpEntryPeriod, dir, inpExitIndicator, ps, rv, inpExitMode)) 
+      if(!m_exit.Update(symbol, inpEntryPeriod, dir, inpExitIndicator, ps, rv, inpExitMode))
          return;
 
-         TradeContext ctx;
-         ctx.Symbol = symbol;
-         ctx.Time   = iTime(symbol, inpEntryPeriod, BAR_CURRENT);
-         ctx.Exit.ShouldExit = true;
-         ctx.Exit.Reason    = EXIT_REVERSAL;
-         RejectionReason reject_reason = REJECT_NONE;
+      TradeContext ctx;
+      ctx.Symbol = symbol;
+      ctx.Time   = iTime(symbol, inpEntryPeriod, BAR_CURRENT);
+      ctx.Exit.ShouldExit = true;
+      ctx.Exit.Reason    = EXIT_REVERSAL;
+      RejectionReason reject_reason = REJECT_NONE;
 
 
-         
-         // Phase 5 — Step 6: Lifecycle EXIT (pass-through)
-         m_lifecycleController.RequestAction(
-            0,               // trade_id not enforced yet
-            ACTION_EXIT,
-            reject_reason
-         );
 
-         // ✅ ACTUAL CLOSE
-         if(!m_exec.ExecuteExit(ctx))
-            return;
+      // Phase 5 — Step 6: Lifecycle EXIT (pass-through)
+      m_lifecycleController.RequestAction(
+         0,               // trade_id not enforced yet
+         ACTION_EXIT,
+         reject_reason
+      );
 
-         // ✅ EXIT LOGGING — Phase 4.4
-         MM_LogEventBase evt;
-         evt.event_time = ctx.Time;
-         evt.event_type = MM_EVENT_EXIT;
-         evt.phase      = MM_PHASE_EXIT;
-         evt.symbol     = ctx.Symbol;
-         evt.timeframe  = ctx.EntryPeriod;
-         evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-         evt.ticket     = ticket;
+      // ✅ ACTUAL CLOSE
+      if(!m_exec.ExecuteExit(ctx))
+         return;
+
+      // ✅ EXIT LOGGING — Phase 4.4
+      MM_LogEventBase evt;
+      evt.event_time = ctx.Time;
+      evt.event_type = MM_EVENT_EXIT;
+      evt.phase      = MM_PHASE_EXIT;
+      evt.symbol     = ctx.Symbol;
+      evt.timeframe  = ctx.EntryPeriod;
+      evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+      evt.ticket     = ticket;
 
 
-         m_logger.LogMMEventBase(evt);
+      m_logger.LogMMEventBase(evt);
 
-         
-         // Phase 5 — Step 6: Lifecycle CLOSE (pass-through)
-         m_lifecycleController.RequestAction(
-            0,               // trade_id not enforced yet
-            ACTION_CLOSE,
-            reject_reason
-         );
 
-         // ✅ Clean up tracker state
-         m_atrTracker.RemoveTicket(ticket);     
+      // Phase 5 — Step 6: Lifecycle CLOSE (pass-through)
+      m_lifecycleController.RequestAction(
+         0,               // trade_id not enforced yet
+         ACTION_CLOSE,
+         reject_reason
+      );
+
+      // ✅ Clean up tracker state
+      m_atrTracker.RemoveTicket(ticket);
    }
 
 

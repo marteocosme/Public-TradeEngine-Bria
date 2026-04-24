@@ -32,10 +32,17 @@ struct MM_SNAPSHOT_BEFORE
    double   planned_entry_price;
    double   stoploss_price;
    double   stoploss_points;
+   double   take_profit;
+   double   floating_pnl;
+
    
    // --- Risk Calculation Inputs ---
    double value_per_point;
    double risk_amount_used;
+   
+   // SCALE_OUT context (MM-LOG-01)
+   double scale_atr_multiple;   // e.g. 1.0, 2.0
+   double scale_fraction;       // e.g. 0.50
 
 };
 
@@ -75,4 +82,8 @@ struct MM_SNAPSHOT_AFTER
    double   stoploss_points;
    double   value_per_point;
    double   risk_amount_used;
+   
+   double   take_profit;
+   double   realized_pnl;
+
 };

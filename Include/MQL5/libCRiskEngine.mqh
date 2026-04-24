@@ -317,7 +317,7 @@ public:
    }
    double GetLastComputedRiskAmount() const
    {
-      return m_lastComputedRiskAmount;
+      return NormalizeDouble(m_lastComputedRiskAmount,2);
    }
 
 };
