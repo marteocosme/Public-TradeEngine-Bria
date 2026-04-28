@@ -31,7 +31,7 @@ public:
    };
 
    bool RequestAction(
-      long trade_id,
+      ulong trade_id,
       LifecycleAction action,
       RejectionReason& reason
    )

@@ -452,7 +452,7 @@ public:
       if(!PositionSelect(symbol)) return;
 
       RejectionReason reject_reason = REJECT_NONE;
-      long ticket = (long)PositionGetInteger(POSITION_TICKET);
+      ulong ticket = (ulong)PositionGetInteger(POSITION_TICKET);
       uint seq = m_atrTracker.NextEventSeq((long)ticket);
 
       // ✅ ADD THIS (REQUIRED)
@@ -504,7 +504,7 @@ public:
             snap.current_position_lots =
                NormalizeDouble(PositionGetDouble(POSITION_VOLUME), 2);
 
-// execution-state observability            
+// execution-state observability
             snap.take_profit   = PositionGetDouble(POSITION_TP);
             snap.floating_pnl  = PositionGetDouble(POSITION_PROFIT);
 
@@ -530,13 +530,13 @@ public:
             if(m_scale.Evaluate(ctx, g_scaleStages[i], closeLots))
                {
 
-               /* Print(
+               Print(
                   "[MM_SNAPSHOT_BEFORE]",
                   " event=", snap.mm_event_intent,
                   " ATRx=", snap.scale_atr_multiple,
                   " close_frac=", snap.scale_fraction
                );
-               */
+
 
                if(m_exec.PartialClose(symbol, closeLots))
                   {
@@ -598,6 +598,47 @@ public:
             reject_reason
          );
 
+// ===============================
+// MM_SNAPSHOT_BEFORE — BREAK EVEN
+// ===============================
+         MM_SNAPSHOT_BEFORE snap;
+         snap.timestamp = TimeCurrent();
+         snap.symbol    = ctx.Symbol;
+         snap.timeframe = ctx.EntryPeriod;
+
+// identity
+         snap.trade_context_id = ticket;
+
+// lifecycle intent
+         snap.mm_phase        = "MM_PHASE_MANAGE";
+         snap.mm_event_intent = "MM_EVENT_BE";
+
+// account state
+         snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
+         snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
+         snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+
+// exposure (unchanged by BE)
+         snap.current_position_lots =
+            PositionGetDouble(POSITION_VOLUME);
+
+         snap.current_risk_exposure =
+            m_risk.GetLastComputedRiskAmount();
+
+// execution‑state observability
+         snap.take_profit  = PositionGetDouble(POSITION_TP);
+         snap.floating_pnl = PositionGetDouble(POSITION_PROFIT);
+
+// geometry (ENTRY‑anchored)
+         snap.stoploss_points =
+            ctx.ATREntry.Value * inpSLxATRxPlier;
+
+         snap.value_per_point =
+            SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
+            SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+
+         EmitSnapshotBefore(snap);
+
 
          if(m_be.Evaluate(ctx, inpBE_ATR, inpBE_ExtraPips, newSL))
             {
@@ -623,6 +664,39 @@ public:
                evt.ticket     = ticket;
 
                m_logger.LogMMEventBase(evt);
+
+
+// ===============================
+// MM_SNAPSHOT_AFTER — BREAK EVEN
+// ===============================
+               MM_SNAPSHOT_AFTER snap_after;
+               snap_after.timestamp = TimeCurrent();
+               snap_after.symbol    = ctx.Symbol;
+               snap_after.timeframe = ctx.EntryPeriod;
+
+// lifecycle intent
+               snap_after.mm_phase        = "MM_PHASE_MANAGE";
+               snap_after.mm_event_result = "MM_EVENT_BE";
+
+// no exposure change
+               snap_after.calculated_lot_size =
+                  PositionGetDouble(POSITION_VOLUME);
+
+// ENTRY risk anchor still valid
+               snap_after.calculated_risk_amount =
+                  m_risk.GetLastComputedRiskAmount();
+
+// updated execution state
+               snap_after.take_profit  = PositionGetDouble(POSITION_TP);
+               snap_after.realized_pnl = PositionGetDouble(POSITION_PROFIT);
+
+// geometry unchanged
+               snap_after.stoploss_points = snap.stoploss_points;
+               snap_after.value_per_point = snap.value_per_point;
+
+               EmitSnapshotAfter(snap_after);
+
+
                }
             // ✅ Stop after BE — no trailing this tick (your original rule)
             return;
@@ -637,6 +711,50 @@ public:
          ACTION_MM,
          reject_reason
       );
+
+
+// ==================================
+// MM_SNAPSHOT_BEFORE — TRAILING STOP
+// ==================================
+      MM_SNAPSHOT_BEFORE snap;
+      snap.timestamp = TimeCurrent();
+      snap.symbol    = ctx.Symbol;
+      snap.timeframe = ctx.EntryPeriod;
+
+// identity
+      snap.trade_context_id = ticket;
+
+// lifecycle intent
+      snap.mm_phase        = "MM_PHASE_MANAGE";
+      snap.mm_event_intent = "MM_EVENT_TRAIL";
+
+// account state
+      snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
+      snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
+      snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+
+// exposure (unchanged by trailing)
+      snap.current_position_lots =
+         PositionGetDouble(POSITION_VOLUME);
+
+      snap.current_risk_exposure =
+         m_risk.GetLastComputedRiskAmount();
+
+// execution‑state observability
+      snap.take_profit  = PositionGetDouble(POSITION_TP);
+      snap.floating_pnl = PositionGetDouble(POSITION_PROFIT);
+
+// geometry (ENTRY‑anchored)
+      snap.stoploss_points =
+         ctx.ATREntry.Value * inpSLxATRxPlier;
+
+      snap.value_per_point =
+         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
+         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+
+      EmitSnapshotBefore(snap);
+
+
 
       if(m_trail.Evaluate(ctx, inpTrailStartATR, inpTrailATR, newSL))
          {
@@ -658,7 +776,44 @@ public:
             evt.ticket     = ticket;
 
             m_logger.LogMMEventBase(evt);
+
+
             }
+
+
+// ==================================
+// MM_SNAPSHOT_AFTER — TRAILING STOP
+// ==================================
+         MM_SNAPSHOT_AFTER snap_after;
+         snap_after.timestamp = TimeCurrent();
+         snap_after.symbol    = ctx.Symbol;
+         snap_after.timeframe = ctx.EntryPeriod;
+
+// lifecycle intent
+         snap_after.mm_phase        = "MM_PHASE_MANAGE";
+         snap_after.mm_event_result = "MM_EVENT_TRAIL";
+
+// exposure remains unchanged
+         snap_after.calculated_lot_size =
+            PositionGetDouble(POSITION_VOLUME);
+
+// ENTRY risk anchor unchanged
+         snap_after.calculated_risk_amount =
+            m_risk.GetLastComputedRiskAmount();
+
+// updated execution state
+         snap_after.take_profit  = PositionGetDouble(POSITION_TP);
+         snap_after.realized_pnl = PositionGetDouble(POSITION_PROFIT);
+
+// geometry unchanged
+         snap_after.stoploss_points = snap.stoploss_points;
+         snap_after.value_per_point = snap.value_per_point;
+
+         EmitSnapshotAfter(snap_after);
+
+
+
+
          }
    }
 
@@ -673,14 +828,6 @@ public:
       ExitPSARParams ps{inpPSAR_Steps, inpPSAR_Max};
       ExitRVIParams rv{(int)inpRVI_Period};
 
-
-      // =====================================================
-      // EXIT DECISION
-      // ====================================================
-
-      if(!m_exit.Update(symbol, inpEntryPeriod, dir, inpExitIndicator, ps, rv, inpExitMode))
-         return;
-
       TradeContext ctx;
       ctx.Symbol = symbol;
       ctx.Time   = iTime(symbol, inpEntryPeriod, BAR_CURRENT);
@@ -688,7 +835,86 @@ public:
       ctx.Exit.Reason    = EXIT_REVERSAL;
       RejectionReason reject_reason = REJECT_NONE;
 
+      // =====================================================
+      // EXIT DECISION
+      // ====================================================
 
+
+// ==========================
+// MM_SNAPSHOT_BEFORE — EXIT
+// ==========================
+      MM_SNAPSHOT_BEFORE snap;
+      snap.timestamp = TimeCurrent();
+      snap.symbol    = ctx.Symbol;
+      snap.timeframe = ctx.EntryPeriod;
+
+// identity
+      snap.trade_context_id = ticket;
+
+// lifecycle intent
+      snap.mm_phase        = "MM_PHASE_EXIT";
+      snap.mm_event_intent = "MM_EVENT_EXIT";
+
+// account state
+      snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
+      snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
+      snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+
+// exposure before exit
+      snap.current_position_lots =
+         PositionGetDouble(POSITION_VOLUME);
+
+      snap.current_risk_exposure =
+         m_risk.GetLastComputedRiskAmount();
+
+// execution‑state observability
+      snap.take_profit  = PositionGetDouble(POSITION_TP);
+      snap.floating_pnl = PositionGetDouble(POSITION_PROFIT);
+
+// geometry (ENTRY‑anchored)
+      snap.stoploss_points =
+         ctx.ATREntry.Value * inpSLxATRxPlier;
+
+      snap.value_per_point =
+         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
+         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+
+      EmitSnapshotBefore(snap);
+
+
+
+      if(!m_exit.Update(symbol, inpEntryPeriod, dir, inpExitIndicator, ps, rv, inpExitMode))
+         return;
+
+
+// =========================
+// MM_SNAPSHOT_AFTER — EXIT
+// =========================
+      MM_SNAPSHOT_AFTER snap_after;
+      snap_after.timestamp = TimeCurrent();
+      snap_after.symbol    = ctx.Symbol;
+      snap_after.timeframe = ctx.EntryPeriod;
+
+// lifecycle intent
+      snap_after.mm_phase        = "MM_PHASE_EXIT";
+      snap_after.mm_event_result = "MM_EVENT_EXIT";
+
+// exposure after exit (zero)
+      snap_after.calculated_lot_size = 0.0;
+
+// entry risk anchor (for final audit)
+      snap_after.calculated_risk_amount =
+         m_risk.GetLastComputedRiskAmount();
+
+// final outcome
+      snap_after.take_profit  = snap.take_profit;
+      snap_after.realized_pnl = snap.floating_pnl;
+
+// geometry unchanged
+      snap_after.stoploss_points = snap.stoploss_points;
+      snap_after.value_per_point = snap.value_per_point;
+
+      EmitSnapshotAfter(snap_after);
 
       // Phase 5 — Step 6: Lifecycle EXIT (pass-through)
       m_lifecycleController.RequestAction(

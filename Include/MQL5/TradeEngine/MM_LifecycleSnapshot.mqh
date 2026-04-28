@@ -8,7 +8,7 @@ struct MM_SNAPSHOT_BEFORE
    datetime timestamp;
    string   symbol;
    ENUM_TIMEFRAMES timeframe;
-   long     trade_context_id;
+   ulong     trade_context_id;
 
    // --- Lifecycle Context ---
    string   mm_phase;           // e.g. MM_PHASE_ENTRY
@@ -56,7 +56,7 @@ struct MM_SNAPSHOT_AFTER
    datetime timestamp;
    string   symbol;
    ENUM_TIMEFRAMES timeframe;
-   long     trade_context_id;
+   ulong     trade_context_id;
 
    // --- Lifecycle Result ---
    string   mm_phase;           // phase after MM completes
