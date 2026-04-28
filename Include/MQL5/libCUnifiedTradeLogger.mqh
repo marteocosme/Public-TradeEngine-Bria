@@ -8,6 +8,7 @@
 #define __LIBC_UNIFIED_TRADE_LOGGER_MQH__
 
 #include <MyInclude\\NNFX\\libEnum.mqh>
+#include <MyInclude\\NNFX\\Core\\Logging\\MM_LogSnapshotRecords.mqh>
 
 // ==================================================================
 // Canonical Money Management Logging Payload (Phase 3 / 4.2)
@@ -74,9 +75,9 @@ private:
    void LogMMEventCSV(const MM_LogEventBase &evt)
    {
       int h = FileOpen(
-         m_csv,
-         FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
-      );
+                 m_csv,
+                 FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
+              );
       if(h == INVALID_HANDLE)
          return;
 
@@ -96,16 +97,16 @@ private:
 
       FileClose(h);
    }
-   
+
    // ================================================================
    // Internal JSON Writer (MM only)
    // ================================================================
    void LogMMEventJSON(const MM_LogEventBase &evt)
    {
       int h = FileOpen(
-         m_json,
-         FILE_READ | FILE_WRITE | FILE_TXT | FILE_COMMON
-      );
+                 m_json,
+                 FILE_READ | FILE_WRITE | FILE_TXT | FILE_COMMON
+              );
       if(h == INVALID_HANDLE)
          return;
 
@@ -126,7 +127,7 @@ private:
       FileWriteString(h, json);
       FileClose(h);
    }
-   
+
 public:
    // ================================================================
    // Signal Logging (Pre-trade, Approved Exception)
@@ -134,9 +135,9 @@ public:
    void LogSignal(const SignalSnapshot &s)
    {
       int h = FileOpen(
-         m_csv,
-         FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
-      );
+                 m_csv,
+                 FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
+              );
       if(h == INVALID_HANDLE)
          return;
 
@@ -159,6 +160,100 @@ public:
 
       FileClose(h);
    }
+
+   // --------------------------------------------------
+   // MM Snapshot Logging (MM-LOG-01 / Schema v1.1)
+   // --------------------------------------------------
+   void LogMMSnapshotBefore(const MM_LogSnapshotBefore &rec)
+   {
+      int h = FileOpen(
+                 m_csv,
+                 FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
+              );
+      if(h == INVALID_HANDLE)
+         return;
+
+      FileSeek(h, 0, SEEK_END);
+
+      FileWrite(
+         h,
+         NextDebugEventId(),            // debug_event_id
+         rec.trade_context_id,          // trade_id
+         0,                             // ticket (snapshot-level)
+         TimeToString(rec.timestamp, TIME_DATE | TIME_SECONDS),
+         rec.symbol,
+         "MM_SNAPSHOT_BEFORE",          // ✅ STRING TAG (not enum)
+         rec.mm_phase,
+         rec.mm_event_intent,
+
+         // --- Account ---
+         rec.balance,
+         rec.equity,
+         rec.free_margin,
+
+         // --- Exposure ---
+         rec.current_position_lots,
+         rec.current_risk_exposure,
+
+         // --- Market Context ---
+         rec.current_price,
+         rec.atr_value,
+
+         // --- Execution State ---
+         rec.take_profit,
+         rec.floating_pnl,
+
+         // --- Risk Geometry ---
+         rec.stoploss_points,
+         rec.value_per_point,
+
+         // --- SCALE_OUT context ---
+         rec.scale_atr_multiple,
+         rec.scale_fraction
+      );
+      FileClose(h);
+
+   }
+
+   void LogMMSnapshotAfter (const MM_LogSnapshotAfter  &rec)
+   {
+      int h = FileOpen(
+                 m_csv,
+                 FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
+              );
+      if(h == INVALID_HANDLE)
+         return;
+
+      FileSeek(h, 0, SEEK_END);
+
+      FileWrite(
+         h,
+         NextDebugEventId(),
+         rec.trade_context_id,
+         0, // ticket
+         TimeToString(rec.timestamp, TIME_DATE | TIME_SECONDS),
+         rec.symbol,
+         "MM_SNAPSHOT_AFTER",           // ✅ STRING TAG
+         "",                            // phase not required here
+         "",                            // intent not required here
+
+         // --- Exposure Result ---
+         rec.calculated_lot_size,
+         rec.calculated_risk_amount,
+
+         // --- Outcome ---
+         rec.take_profit,
+         rec.realized_pnl,
+
+         // --- Risk Geometry ---
+         rec.stoploss_points,
+         rec.value_per_point
+      );
+
+      FileClose(h);
+   }
+
+
 };
 
 // ==================================================================
@@ -168,3 +263,4 @@ ulong CUnifiedTradeLogger::s_globalEventId = 0;
 
 #endif // __LIBC_UNIFIED_TRADE_LOGGER_H__
 
+//+------------------------------------------------------------------+

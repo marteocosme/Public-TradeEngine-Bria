@@ -48,46 +48,9 @@
 // MM Snapshot (Phase 5 / MM-LOG-01 — incremental stub)
 // --------------------------------------------------
 struct MM_SNAPSHOT_BEFORE;
-
-//+------------------------------------------------------------------+
-//|                                                                  |
-//+------------------------------------------------------------------+
-void EmitSnapshotBefore(const MM_SNAPSHOT_BEFORE &snap)
-{
-
-   Print(
-      "[MM_SNAPSHOT_BEFORE]",
-      " event=", snap.mm_event_intent,
-      " phase=", snap.mm_phase,
-      " trade_id=", snap.trade_context_id,
-      " symbol=", snap.symbol,
-      " lots_before=", snap.current_position_lots,
-      " risk_used=", snap.current_risk_exposure,
-      " TP=", snap.take_profit,
-      " floating_PnL=", snap.floating_pnl,
-      " ATRx=", snap.scale_atr_multiple,
-      " close_frac=", snap.scale_fraction
-
-   );
-}
 struct MM_SNAPSHOT_AFTER;
 
-//+------------------------------------------------------------------+
-//|                                                                  |
-//+------------------------------------------------------------------+
-void EmitSnapshotAfter(const MM_SNAPSHOT_AFTER &snap)
-{
-   Print(
-      "[MM_SNAPSHOT_AFTER]",
-      " event=", snap.mm_event_result,
-      " trade_id=", snap.trade_context_id,
-      " symbol=", snap.symbol,
-      " lots_after=", snap.calculated_lot_size,
-      " TP=", snap.take_profit,
-      " realized_PnL=", snap.realized_pnl,
-      " risk_anchor=", snap.calculated_risk_amount
-   );
-}
+
 
 
 // ================================================================
@@ -243,6 +206,66 @@ private:
    // No lifecycle logic here in Step 3
 //}
 
+   void EmitSnapshotBefore(const MM_SNAPSHOT_BEFORE &snap)
+   {
+      MM_LogSnapshotBefore rec;
+
+      rec.timestamp = snap.timestamp;
+      rec.symbol    = snap.symbol;
+      rec.timeframe = snap.timeframe;
+      rec.trade_context_id = snap.trade_context_id;
+
+      rec.mm_phase        = snap.mm_phase;
+      rec.mm_event_intent = snap.mm_event_intent;
+
+      rec.balance     = snap.balance;
+      rec.equity      = snap.equity;
+      rec.free_margin = snap.free_margin;
+
+      rec.current_position_lots = snap.current_position_lots;
+      rec.current_risk_exposure = snap.current_risk_exposure;
+
+      rec.current_price = snap.current_price;
+      rec.atr_value     = snap.atr_value;
+
+      rec.take_profit  = snap.take_profit;
+      rec.floating_pnl = snap.floating_pnl;
+
+      rec.stoploss_points = snap.stoploss_points;
+      rec.value_per_point = snap.value_per_point;
+
+      rec.scale_atr_multiple = snap.scale_atr_multiple;
+      rec.scale_fraction     = snap.scale_fraction;
+
+      m_logger.LogMMSnapshotBefore(rec);
+      
+   }
+   void EmitSnapshotAfter(const MM_SNAPSHOT_AFTER &snap)
+   {
+      MM_LogSnapshotAfter rec;
+
+      // --- Identity & Timing ---
+      rec.timestamp        = snap.timestamp;
+      rec.symbol           = snap.symbol;
+      rec.timeframe        = snap.timeframe;
+      rec.trade_context_id = snap.trade_context_id;
+
+      // --- Exposure Result ---
+      rec.calculated_lot_size   = snap.calculated_lot_size;
+      rec.calculated_risk_amount = snap.calculated_risk_amount;
+
+      // --- Execution Outcome ---
+      rec.take_profit  = snap.take_profit;
+      rec.realized_pnl = snap.realized_pnl;
+
+      // --- Risk Geometry ---
+      rec.stoploss_points = snap.stoploss_points;
+      rec.value_per_point = snap.value_per_point;
+
+      // ✅ Send to UnifiedTradeLogger
+      m_logger.LogMMSnapshotAfter(rec);
+
+   }
 
 public:
    CTradeEngine() : m_lastCandleTime(0) {}

@@ -20,9 +20,9 @@ This checklist defines exactly what must be true before MM‑LOG‑01 can be clo
  - [x] Snapshot logged after Break‑Even execution
  - [x] Snapshot logged before Scale‑Out execution
  - [x] Snapshot logged after Scale‑Out execution
- - [ ] Snapshot logged before Trailing Stop update
- - [ ] Snapshot logged after Trailing Stop update
- - [ ] Snapshot logged before trade exit intent
+ - [x] Snapshot logged before Trailing Stop update
+ - [x] Snapshot logged after Trailing Stop update
+ - [x] Snapshot logged before trade exit intent
  - [ ] Snapshot logged on final trade exit
 
 **✅ Rule:** If the lifecycle point is reached, a snapshot must exist.
@@ -33,7 +33,7 @@ Every lifecycle / MM snapshot includes at least:
  - [x] Trade ID
  - [x] Symbol
  - [x] Lifecycle state
- - [ ] Current price (bid/ask as appropriate)
+ - [x] Current price (bid/ask as appropriate)
  - [x] Stop Loss
  - [x] Take Profit (if applicable)
  - [x] Position size (lots)

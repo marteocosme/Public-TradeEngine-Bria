@@ -4,7 +4,7 @@
 //+------------------------------------------------------------------+
 struct MM_SNAPSHOT_BEFORE
 {
-   // --- Identity ---
+   // --- Identity & Timing ---
    datetime timestamp;
    string   symbol;
    ENUM_TIMEFRAMES timeframe;
@@ -24,6 +24,10 @@ struct MM_SNAPSHOT_BEFORE
    double   current_position_lots;   // 0.0 during ENTRY
    double   current_risk_exposure;    // aggregate risk (% or amount)
 
+   // --- Market Context (Schema v1.1) ---
+   double current_price;   // Bid/Ask at MM decision time
+   double atr_value;       // ATR value actually use
+
    // --- Risk Context ---
    string   risk_model;         // FIXED_PERCENT, FIXED_AMOUNT, etc.
    double   risk_value;         // e.g. 1.0 (%), or fixed amount
@@ -35,11 +39,11 @@ struct MM_SNAPSHOT_BEFORE
    double   take_profit;
    double   floating_pnl;
 
-   
+
    // --- Risk Calculation Inputs ---
    double value_per_point;
    double risk_amount_used;
-   
+
    // SCALE_OUT context (MM-LOG-01)
    double scale_atr_multiple;   // e.g. 1.0, 2.0
    double scale_fraction;       // e.g. 0.50
@@ -82,8 +86,9 @@ struct MM_SNAPSHOT_AFTER
    double   stoploss_points;
    double   value_per_point;
    double   risk_amount_used;
-   
+
    double   take_profit;
    double   realized_pnl;
 
 };
+//+------------------------------------------------------------------+
