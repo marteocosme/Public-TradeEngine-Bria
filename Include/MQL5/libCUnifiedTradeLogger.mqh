@@ -175,6 +175,35 @@ public:
 
       FileSeek(h, 0, SEEK_END);
 
+
+      if(FileIsEmpty(h))
+         {
+         FileWrite(
+            h,
+            "debug_event_id",
+            "trade_id",
+            "ticket",
+            "timestamp",
+            "symbol",
+            "record_type",
+            "mm_phase",
+            "mm_event_intent",
+            "balance",
+            "equity",
+            "free_margin",
+            "current_position_lots",
+            "current_risk_exposure",
+            "current_price",
+            "atr_value",
+            "take_profit",
+            "floating_pnl",
+            "stoploss_points",
+            "value_per_point",
+            "scale_atr_multiple",
+            "scale_fraction"
+         );
+         }
+
       FileWrite(
          h,
          NextDebugEventId(),            // debug_event_id
@@ -221,9 +250,30 @@ public:
                  m_csv,
                  FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
               );
+
       if(h == INVALID_HANDLE)
          return;
 
+      if(FileIsEmpty(h))
+         {
+         FileWrite(
+            h,
+            "debug_event_id",
+            "trade_id",
+            "ticket",
+            "timestamp",
+            "symbol",
+            "record_type",
+            "mm_phase",
+            "mm_event_intent",
+            "current_position_lots",
+            "current_risk_exposure",
+            "take_profit",
+            "floating_pnl",
+            "stoploss_points",
+            "value_per_point"
+         );
+         }
       FileSeek(h, 0, SEEK_END);
 
       FileWrite(

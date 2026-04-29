@@ -238,7 +238,7 @@ private:
       rec.scale_fraction     = snap.scale_fraction;
 
       m_logger.LogMMSnapshotBefore(rec);
-      
+
    }
    void EmitSnapshotAfter(const MM_SNAPSHOT_AFTER &snap)
    {
@@ -316,6 +316,13 @@ public:
 
    void ManageEntry(const string symbol)
    {
+// --------------------------------------------------
+// Cache symbol info once per tick (efficiency)
+// --------------------------------------------------
+      const double bid        = SymbolInfoDouble(symbol, SYMBOL_BID);
+      const double ask        = SymbolInfoDouble(symbol, SYMBOL_ASK);
+      const double tick_value = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
+      const double tick_size  = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
 
       if(PositionsTotal() >= (int)inpMaxOpenPosition)
          {
@@ -363,8 +370,19 @@ public:
       snap.timeframe  = ctx.EntryPeriod;
       snap.trade_context_id = 0; // ticket not yet known
 
-      snap.mm_phase        = "MM_PHASE_ENTRY";
-      snap.mm_event_intent = "MM_EVENT_ENTRY";
+      snap.mm_phase        = ToMMPhaseString(MM_PHASE_ENTRY);
+      snap.mm_event_intent = ToMMEventString(MM_EVENT_ENTRY);
+
+
+// --- Market Context (Schema v1.1) ---
+      snap.current_price =
+         (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+         ? bid
+         : ask;
+
+// ATR value actually used by MM (NOT recomputed)
+      snap.atr_value = ctx.ATREntry.Value;
+
 
       snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
       snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
@@ -376,14 +394,11 @@ public:
 // --- TRUE MM inputs ---
       snap.stoploss_points = ctx.ATREntry.Value * inpSLxATRxPlier;
       snap.value_per_point =
-         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
-         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+         tick_value / tick_size;
 
 // what MM actually risks
       snap.risk_amount_used =
          m_risk.GetLastComputedRiskAmount(); // add getter if needed
-
-      EmitSnapshotBefore(snap); // simple logger only
 
       double lots = m_risk.ComputeLotSize(ctx, rp);
       if(lots <= 0)
@@ -392,13 +407,17 @@ public:
          return;
          }
 
+// ✅ NOW snapshot what MM actually decided
+      snap.current_risk_exposure = m_risk.GetLastComputedRiskAmount();
+      EmitSnapshotBefore(snap);
+
 
 // ✅ MM_SNAPSHOT_AFTER (ENTRY only)
       MM_SNAPSHOT_AFTER snap_after;
       snap_after.timestamp = TimeCurrent();
       snap_after.symbol    = ctx.Symbol;
       snap_after.timeframe = ctx.EntryPeriod;
-      snap_after.mm_event_result = "MM_EVENT_ENTRY";
+      snap_after.mm_event_result = ToMMEventString(MM_EVENT_ENTRY);
 
       snap_after.calculated_lot_size = lots;
       snap_after.calculated_risk_amount =
@@ -472,6 +491,15 @@ public:
 
    void ManageOpenPosition(const string symbol)
    {
+
+// --------------------------------------------------
+// Cache symbol info once per tick (efficiency)
+// --------------------------------------------------
+      const double bid        = SymbolInfoDouble(symbol, SYMBOL_BID);
+      const double ask        = SymbolInfoDouble(symbol, SYMBOL_ASK);
+      const double tick_value = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
+      const double tick_size  = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
+
       if(!PositionSelect(symbol)) return;
 
       RejectionReason reject_reason = REJECT_NONE;
@@ -515,8 +543,17 @@ public:
             snap.trade_context_id = ticket;
 
 // lifecycle intent
-            snap.mm_phase        = "MM_PHASE_MANAGE";
-            snap.mm_event_intent = "MM_EVENT_SCALE_OUT";
+            snap.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
+            snap.mm_event_intent = ToMMEventString(MM_EVENT_SCALE_OUT);
+
+// --- Market Context (Schema v1.1) ---
+            snap.current_price =
+               (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+               ? bid
+               : ask;
+
+// ATR value actually used by MM (NOT recomputed)
+            snap.atr_value = ctx.ATREntry.Value;
 
 // account state
             snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -525,7 +562,7 @@ public:
 
 // exposure BEFORE scale-out
             snap.current_position_lots =
-               NormalizeDouble(PositionGetDouble(POSITION_VOLUME), 2);
+               PositionGetDouble(POSITION_VOLUME);
 
 // execution-state observability
             snap.take_profit   = PositionGetDouble(POSITION_TP);
@@ -539,9 +576,7 @@ public:
             snap.stoploss_points =
                ctx.ATREntry.Value * inpSLxATRxPlier;
 
-            snap.value_per_point =
-               SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
-               SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+            snap.value_per_point = tick_value / tick_size;
 
 // ✅ SCALE_OUT trigger (THIS was missing)
             snap.scale_atr_multiple = g_scaleStages[i].atrMultiple;
@@ -571,7 +606,7 @@ public:
                   snap_after.timestamp = TimeCurrent();
                   snap_after.symbol    = ctx.Symbol;
                   snap_after.timeframe = ctx.EntryPeriod;
-                  snap_after.mm_event_result = "MM_EVENT_SCALE_OUT";
+                  snap_after.mm_event_result = ToMMEventString(MM_EVENT_SCALE_OUT);
 
 // exposure AFTER scale-out
                   snap_after.calculated_lot_size =
@@ -633,8 +668,17 @@ public:
          snap.trade_context_id = ticket;
 
 // lifecycle intent
-         snap.mm_phase        = "MM_PHASE_MANAGE";
-         snap.mm_event_intent = "MM_EVENT_BE";
+         snap.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
+         snap.mm_event_intent = ToMMEventString(MM_EVENT_BE);
+
+// --- Market Context (Schema v1.1) ---
+         snap.current_price =
+            (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+            ? bid
+            : ask;
+
+// ATR value actually used by MM (NOT recomputed)
+         snap.atr_value = ctx.ATREntry.Value;
 
 // account state
          snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -657,8 +701,8 @@ public:
             ctx.ATREntry.Value * inpSLxATRxPlier;
 
          snap.value_per_point =
-            SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
-            SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+            tick_value /
+            tick_size;
 
          EmitSnapshotBefore(snap);
 
@@ -698,8 +742,8 @@ public:
                snap_after.timeframe = ctx.EntryPeriod;
 
 // lifecycle intent
-               snap_after.mm_phase        = "MM_PHASE_MANAGE";
-               snap_after.mm_event_result = "MM_EVENT_BE";
+               snap_after.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
+               snap_after.mm_event_result = ToMMEventString(MM_EVENT_BE);
 
 // no exposure change
                snap_after.calculated_lot_size =
@@ -748,8 +792,17 @@ public:
       snap.trade_context_id = ticket;
 
 // lifecycle intent
-      snap.mm_phase        = "MM_PHASE_MANAGE";
-      snap.mm_event_intent = "MM_EVENT_TRAIL";
+      snap.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
+      snap.mm_event_intent = ToMMEventString(MM_EVENT_TRAIL);
+
+// --- Market Context (Schema v1.1) ---
+      snap.current_price =
+         (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+         ? bid
+         : ask;
+
+// ATR value actually used by MM (NOT recomputed)
+      snap.atr_value = ctx.ATREntry.Value;
 
 // account state
       snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -772,8 +825,8 @@ public:
          ctx.ATREntry.Value * inpSLxATRxPlier;
 
       snap.value_per_point =
-         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
-         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+         tick_value /
+         tick_size;
 
       EmitSnapshotBefore(snap);
 
@@ -813,8 +866,8 @@ public:
          snap_after.timeframe = ctx.EntryPeriod;
 
 // lifecycle intent
-         snap_after.mm_phase        = "MM_PHASE_MANAGE";
-         snap_after.mm_event_result = "MM_EVENT_TRAIL";
+         snap_after.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
+         snap_after.mm_event_result = ToMMEventString(MM_EVENT_TRAIL);
 
 // exposure remains unchanged
          snap_after.calculated_lot_size =
@@ -842,6 +895,13 @@ public:
 
    void ManageExit(const string symbol)
    {
+// --------------------------------------------------
+// Cache symbol info once per tick (efficiency)
+// --------------------------------------------------
+      const double bid        = SymbolInfoDouble(symbol, SYMBOL_BID);
+      const double ask        = SymbolInfoDouble(symbol, SYMBOL_ASK);
+      const double tick_value = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
+      const double tick_size  = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
       if(!PositionSelect(symbol)) return;
 
       ulong ticket = (ulong)PositionGetInteger(POSITION_TICKET);
@@ -851,18 +911,18 @@ public:
       ExitPSARParams ps{inpPSAR_Steps, inpPSAR_Max};
       ExitRVIParams rv{(int)inpRVI_Period};
 
+      // =====================================================
+      // EXIT DECISION
+      // ====================================================
+      if(!m_exit.Update(symbol, inpEntryPeriod, dir, inpExitIndicator, ps, rv, inpExitMode))
+         return;
+
       TradeContext ctx;
       ctx.Symbol = symbol;
       ctx.Time   = iTime(symbol, inpEntryPeriod, BAR_CURRENT);
       ctx.Exit.ShouldExit = true;
       ctx.Exit.Reason    = EXIT_REVERSAL;
       RejectionReason reject_reason = REJECT_NONE;
-
-      // =====================================================
-      // EXIT DECISION
-      // ====================================================
-
-
 // ==========================
 // MM_SNAPSHOT_BEFORE — EXIT
 // ==========================
@@ -875,8 +935,17 @@ public:
       snap.trade_context_id = ticket;
 
 // lifecycle intent
-      snap.mm_phase        = "MM_PHASE_EXIT";
-      snap.mm_event_intent = "MM_EVENT_EXIT";
+      snap.mm_phase        = ToMMPhaseString(MM_PHASE_EXIT);
+      snap.mm_event_intent = ToMMEventString(MM_EVENT_EXIT);
+
+// --- Market Context (Schema v1.1) ---
+      snap.current_price =
+         (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+         ? bid
+         : ask;
+
+// ATR value actually used by MM (NOT recomputed)
+      snap.atr_value = ctx.ATREntry.Value;
 
 // account state
       snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -898,15 +967,19 @@ public:
       snap.stoploss_points =
          ctx.ATREntry.Value * inpSLxATRxPlier;
 
-      snap.value_per_point =
-         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_VALUE) /
-         SymbolInfoDouble(ctx.Symbol, SYMBOL_TRADE_TICK_SIZE);
+      snap.value_per_point = tick_value / tick_size;
 
       EmitSnapshotBefore(snap);
 
+      // Phase 5 — Step 6: Lifecycle EXIT (pass-through)
+      m_lifecycleController.RequestAction(
+         0,               // trade_id not enforced yet
+         ACTION_EXIT,
+         reject_reason
+      );
 
-
-      if(!m_exit.Update(symbol, inpEntryPeriod, dir, inpExitIndicator, ps, rv, inpExitMode))
+      // ✅ ACTUAL CLOSE
+      if(!m_exec.ExecuteExit(ctx))
          return;
 
 
@@ -919,8 +992,8 @@ public:
       snap_after.timeframe = ctx.EntryPeriod;
 
 // lifecycle intent
-      snap_after.mm_phase        = "MM_PHASE_EXIT";
-      snap_after.mm_event_result = "MM_EVENT_EXIT";
+      snap_after.mm_phase        = ToMMPhaseString(MM_PHASE_EXIT);
+      snap_after.mm_event_result = ToMMEventString(MM_EVENT_EXIT);
 
 // exposure after exit (zero)
       snap_after.calculated_lot_size = 0.0;
@@ -938,17 +1011,6 @@ public:
       snap_after.value_per_point = snap.value_per_point;
 
       EmitSnapshotAfter(snap_after);
-
-      // Phase 5 — Step 6: Lifecycle EXIT (pass-through)
-      m_lifecycleController.RequestAction(
-         0,               // trade_id not enforced yet
-         ACTION_EXIT,
-         reject_reason
-      );
-
-      // ✅ ACTUAL CLOSE
-      if(!m_exec.ExecuteExit(ctx))
-         return;
 
       // ✅ EXIT LOGGING — Phase 4.4
       MM_LogEventBase evt;

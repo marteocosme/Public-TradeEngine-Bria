@@ -17,7 +17,7 @@ enum enum_position
    Short     = -1,  // Short trade direction
    Long      = 1,   // Long trade direction
 
-   // Optional: higher-level trend direction (if you explicitly use it)
+// Optional: higher-level trend direction (if you explicitly use it)
    UpTrend   = 2,
    DownTrend = -2
 };
@@ -255,19 +255,50 @@ enum enum_tradeEvent
 
 enum ENUM_MM_EVENT_TYPE
 {
-  MM_EVENT_ENTRY,
-  MM_EVENT_BE,
-  MM_EVENT_SCALE_OUT,
-  MM_EVENT_TRAIL,
-  MM_EVENT_EXIT
+   MM_EVENT_ENTRY,
+   MM_EVENT_BE,
+   MM_EVENT_SCALE_OUT,
+   MM_EVENT_TRAIL,
+   MM_EVENT_EXIT
 };
 
 enum ENUM_MM_PHASE
 {
-MM_PHASE_ENTRY,
-MM_PHASE_MANAGE,
-MM_PHASE_EXIT
+   MM_PHASE_ENTRY,
+   MM_PHASE_MANAGE,
+   MM_PHASE_EXIT
 };
+
+// =====================================================
+// MM Enum → String Helpers (Logging / Snapshots only)
+// =====================================================
+
+// --- MM Event Type ---
+inline string ToMMEventString(ENUM_MM_EVENT_TYPE e)
+{
+   switch(e)
+   {
+      case MM_EVENT_ENTRY:     return "MM_EVENT_ENTRY";
+      case MM_EVENT_BE:        return "MM_EVENT_BE";
+      case MM_EVENT_SCALE_OUT: return "MM_EVENT_SCALE_OUT";
+      case MM_EVENT_TRAIL:     return "MM_EVENT_TRAIL";
+      case MM_EVENT_EXIT:      return "MM_EVENT_EXIT";
+      default:                 return "MM_EVENT_UNKNOWN";
+   }
+}
+
+// --- MM Phase ---
+inline string ToMMPhaseString(ENUM_MM_PHASE p)
+{
+   switch(p)
+   {
+      case MM_PHASE_ENTRY:  return "MM_PHASE_ENTRY";
+      case MM_PHASE_MANAGE: return "MM_PHASE_MANAGE";
+      case MM_PHASE_EXIT:   return "MM_PHASE_EXIT";
+      default:              return "MM_PHASE_UNKNOWN";
+   }
+}
+
 
 
 // ================================================================
