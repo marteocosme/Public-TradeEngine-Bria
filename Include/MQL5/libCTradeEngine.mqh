@@ -200,6 +200,45 @@ private:
    TradeLifecycleController m_lifecycleController;
 
 
+// ============================================================
+// INF-3 Snapshot Enforcement State
+// ============================================================
+   bool m_before_emitted;
+   bool m_after_emitted;
+   ENUM_MM_EVENT_TYPE m_current_event;
+
+
+   void BeginMMCycle(ENUM_MM_EVENT_TYPE evt)
+   {
+      m_current_event = evt;
+      m_before_emitted = false;
+      m_after_emitted  = false;
+   }
+
+   void EndMMCycleCheck()
+   {
+      if(!m_before_emitted)
+         {
+         /* Replace Print()        
+         Alert("INF-3 VIOLATION...");
+         ExpertRemove(); // optional
+         */
+         Print("❌ INF-3 VIOLATION: BEFORE snapshot missing for event: ",
+               EnumToString(m_current_event));
+         }
+
+      if(!m_after_emitted)
+         {
+         /* Replace Print() 
+         Alert("INF-3 VIOLATION...");
+         ExpertRemove(); // optional
+         */
+         Print("❌ INF-3 VIOLATION: AFTER snapshot missing for event: ",
+               EnumToString(m_current_event));
+         }
+   }
+
+
 //CTradeEngine::CTradeEngine()
 //{
    // Existing initialization only
@@ -239,7 +278,10 @@ private:
 
       m_logger.LogMMSnapshotBefore(rec);
 
+      m_before_emitted = true;
+
    }
+
    void EmitSnapshotAfter(const MM_SNAPSHOT_AFTER &snap)
    {
       MM_LogSnapshotAfter rec;
@@ -265,6 +307,7 @@ private:
       // ✅ Send to UnifiedTradeLogger
       m_logger.LogMMSnapshotAfter(rec);
 
+      m_after_emitted = true;
    }
 
 public:
@@ -409,6 +452,8 @@ public:
 
 // ✅ NOW snapshot what MM actually decided
       snap.current_risk_exposure = m_risk.GetLastComputedRiskAmount();
+
+      BeginMMCycle(MM_EVENT_ENTRY);
       EmitSnapshotBefore(snap);
 
 
@@ -427,6 +472,9 @@ public:
       snap_after.value_per_point = snap.value_per_point;
 
       EmitSnapshotAfter(snap_after);
+
+      EndMMCycleCheck();
+
       // --------------------------------------------------
       // Phase 5 — Step 4: Lifecycle CREATE (pass-through)
       // --------------------------------------------------
@@ -582,6 +630,7 @@ public:
             snap.scale_atr_multiple = g_scaleStages[i].atrMultiple;
             snap.scale_fraction     = g_scaleStages[i].closeFraction;
 
+            BeginMMCycle(MM_EVENT_SCALE_OUT);
 
             EmitSnapshotBefore(snap);
 
@@ -620,8 +669,9 @@ public:
                   snap_after.stoploss_points  = snap.stoploss_points;
                   snap_after.value_per_point  = snap.value_per_point;
 
-                  EmitSnapshotAfter(snap_after);
 
+                  EmitSnapshotAfter(snap_after);
+                  EndMMCycleCheck();
 
 
                   // ✅ Track stage application FIRST (prevents re-trigger)
@@ -704,8 +754,8 @@ public:
             tick_value /
             tick_size;
 
+         BeginMMCycle(MM_EVENT_BE);
          EmitSnapshotBefore(snap);
-
 
          if(m_be.Evaluate(ctx, inpBE_ATR, inpBE_ExtraPips, newSL))
             {
@@ -762,7 +812,7 @@ public:
                snap_after.value_per_point = snap.value_per_point;
 
                EmitSnapshotAfter(snap_after);
-
+               EndMMCycleCheck();
 
                }
             // ✅ Stop after BE — no trailing this tick (your original rule)
@@ -828,6 +878,7 @@ public:
          tick_value /
          tick_size;
 
+      BeginMMCycle(MM_EVENT_TRAIL);
       EmitSnapshotBefore(snap);
 
 
@@ -886,9 +937,7 @@ public:
          snap_after.value_per_point = snap.value_per_point;
 
          EmitSnapshotAfter(snap_after);
-
-
-
+         EndMMCycleCheck();
 
          }
    }
@@ -969,6 +1018,7 @@ public:
 
       snap.value_per_point = tick_value / tick_size;
 
+      BeginMMCycle(MM_EVENT_EXIT);
       EmitSnapshotBefore(snap);
 
       // Phase 5 — Step 6: Lifecycle EXIT (pass-through)
@@ -1011,6 +1061,7 @@ public:
       snap_after.value_per_point = snap.value_per_point;
 
       EmitSnapshotAfter(snap_after);
+      EndMMCycleCheck();
 
       // ✅ EXIT LOGGING — Phase 4.4
       MM_LogEventBase evt;
