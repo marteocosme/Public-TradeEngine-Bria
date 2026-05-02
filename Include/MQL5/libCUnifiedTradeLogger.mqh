@@ -32,7 +32,10 @@ struct MM_LogEventBase
 class CUnifiedTradeLogger
 {
 private:
-   string m_csv;
+
+   string m_csv_snapshots;
+   string m_csv_events;
+   string m_csv_signals;
    string m_json;
 
    // Debug-only, non-contractual metadata
@@ -54,14 +57,17 @@ private:
 public:
    CUnifiedTradeLogger(const string baseName = "NNFX_TradeEvents")
    {
-      m_csv  = baseName + ".csv";
+      m_csv_snapshots = baseName + "_MM_Snapshots.csv";
+      m_csv_events = baseName + "_MM_Events.csv";
+      m_csv_signals = baseName + "_Signals.csv";
+
       m_json = baseName + ".json";
    }
 
    // ================================================================
    // Money Management Logging Entry Point (Phase 4.2)
    // ================================================================
-   void LogMMEventBase(const MM_LogEventBase &evt)
+   void              LogMMEventBase(const MM_LogEventBase &evt)
    {
       LogMMEventCSV(evt);
       LogMMEventJSON(evt);
@@ -72,10 +78,10 @@ private:
    // ================================================================
    // Internal CSV Writer (MM only)
    // ================================================================
-   void LogMMEventCSV(const MM_LogEventBase &evt)
+   void              LogMMEventCSV(const MM_LogEventBase &evt)
    {
       int h = FileOpen(
-                 m_csv,
+                 m_csv_events,
                  FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
               );
       if(h == INVALID_HANDLE)
@@ -101,7 +107,7 @@ private:
    // ================================================================
    // Internal JSON Writer (MM only)
    // ================================================================
-   void LogMMEventJSON(const MM_LogEventBase &evt)
+   void              LogMMEventJSON(const MM_LogEventBase &evt)
    {
       int h = FileOpen(
                  m_json,
@@ -135,7 +141,7 @@ public:
    void LogSignal(const SignalSnapshot &s)
    {
       int h = FileOpen(
-                 m_csv,
+                 m_csv_signals,
                  FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
               );
       if(h == INVALID_HANDLE)
@@ -167,38 +173,46 @@ public:
    void LogMMSnapshotBefore(const MM_LogSnapshotBefore &rec)
    {
       int h = FileOpen(
-                 m_csv,
+                 m_csv_snapshots,
                  FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
               );
       if(h == INVALID_HANDLE)
          return;
-
       FileSeek(h, 0, SEEK_END);
-
-
-      if(FileIsEmpty(h))
+      if(FileGetInteger(h, FILE_SIZE) == 0)
          {
          FileWrite(
             h,
             "debug_event_id",
             "trade_id",
-            "ticket",
             "timestamp",
             "symbol",
             "record_type",
             "mm_phase",
-            "mm_event_intent",
+            "mm_event",
+
+            // account
             "balance",
             "equity",
             "free_margin",
+
+            // exposure
             "current_position_lots",
             "current_risk_exposure",
+
+            // market
             "current_price",
             "atr_value",
+
+            // execution
             "take_profit",
-            "floating_pnl",
+            "pnl",
+
+            // geometry
             "stoploss_points",
             "value_per_point",
+
+            // scale context (optional)
             "scale_atr_multiple",
             "scale_fraction"
          );
@@ -238,7 +252,7 @@ public:
 
          // --- SCALE_OUT context ---
          rec.scale_atr_multiple,
-         rec.scale_fraction
+         rec.scale_fraction  
       );
       FileClose(h);
 
@@ -247,14 +261,15 @@ public:
    void LogMMSnapshotAfter (const MM_LogSnapshotAfter  &rec)
    {
       int h = FileOpen(
-                 m_csv,
+                 m_csv_snapshots,
                  FILE_READ | FILE_WRITE | FILE_CSV | FILE_COMMON
               );
 
       if(h == INVALID_HANDLE)
          return;
+      FileSeek(h, 0, SEEK_END);
 
-      if(FileIsEmpty(h))
+      if(FileGetInteger(h, FILE_SIZE) == 0)
          {
          FileWrite(
             h,
@@ -265,17 +280,25 @@ public:
             "symbol",
             "record_type",
             "mm_phase",
-            "mm_event_intent",
+            "mm_event",
+            "balance",
+            "equity",
+            "free_margin",
             "current_position_lots",
             "current_risk_exposure",
+            "current_price"
+            "atr_value"
             "take_profit",
             "floating_pnl",
             "stoploss_points",
             "value_per_point"
+            "scale_atr_multiple",
+            "scale_fraction"
          );
          }
-      FileSeek(h, 0, SEEK_END);
 
+      Print("rec.mm_phase: ", rec.mm_phase);
+      Print("rec.mm_event_result: ", rec.mm_event_result);
       FileWrite(
          h,
          NextDebugEventId(),
@@ -284,13 +307,17 @@ public:
          TimeToString(rec.timestamp, TIME_DATE | TIME_SECONDS),
          rec.symbol,
          "MM_SNAPSHOT_AFTER",           // ✅ STRING TAG
-         "",                            // phase not required here
-         "",                            // intent not required here
+         rec.mm_phase,
+         rec.mm_event_result,
+         "", // balance -- not require
+         "", // equity -- not require
+         "", // free_margin -- not require
 
          // --- Exposure Result ---
-         rec.calculated_lot_size,
-         rec.calculated_risk_amount,
-
+         rec.current_position_lots,
+         rec.current_risk_exposure,
+         "", // current_price -- not require
+         "", // atr_value -- not require
          // --- Outcome ---
          rec.take_profit,
          rec.realized_pnl,

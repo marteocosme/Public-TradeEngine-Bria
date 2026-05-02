@@ -219,7 +219,7 @@ private:
    {
       if(!m_before_emitted)
          {
-         /* Replace Print()        
+         /* Replace Print()
          Alert("INF-3 VIOLATION...");
          ExpertRemove(); // optional
          */
@@ -229,7 +229,7 @@ private:
 
       if(!m_after_emitted)
          {
-         /* Replace Print() 
+         /* Replace Print()
          Alert("INF-3 VIOLATION...");
          ExpertRemove(); // optional
          */
@@ -291,10 +291,13 @@ private:
       rec.symbol           = snap.symbol;
       rec.timeframe        = snap.timeframe;
       rec.trade_context_id = snap.trade_context_id;
+      
+      rec.mm_phase        = snap.mm_phase;
+      rec.mm_event_result = snap.mm_event_result;
 
       // --- Exposure Result ---
-      rec.calculated_lot_size   = snap.calculated_lot_size;
-      rec.calculated_risk_amount = snap.calculated_risk_amount;
+      rec.current_position_lots   = snap.current_position_lots;
+      rec.current_risk_exposure = snap.current_risk_exposure;
 
       // --- Execution Outcome ---
       rec.take_profit  = snap.take_profit;
@@ -464,8 +467,8 @@ public:
       snap_after.timeframe = ctx.EntryPeriod;
       snap_after.mm_event_result = ToMMEventString(MM_EVENT_ENTRY);
 
-      snap_after.calculated_lot_size = lots;
-      snap_after.calculated_risk_amount =
+      snap_after.current_position_lots = lots;
+      snap_after.current_risk_exposure =
          m_risk.GetLastComputedRiskAmount();
 
       snap_after.stoploss_points = snap.stoploss_points;
@@ -565,7 +568,9 @@ public:
       ctx.ATREntry.Value   = m_atrTracker.GetATR(ticket);
       ctx.ATREntry.IsValid = (ctx.ATREntry.Value > 0.0);
 
-      // --- PARTIAL CLOSE
+      // ------------------------------------------------
+      // SCALE_OUT block (PARTIAL CLOSE)
+      // ------------------------------------------------
       if(inpEnableScalingOut)
          {
          for(int i = 0; i < SCALE_STAGE_COUNT; i++)
@@ -579,123 +584,136 @@ public:
 
             double closeLots = 0.0;
 
-// ===============================
-// MM_SNAPSHOT_BEFORE — SCALE_OUT
-// ===============================
+            // ===============================
+            // MM_SNAPSHOT_BEFORE — SCALE_OUT
+            // ===============================
             MM_SNAPSHOT_BEFORE snap;
             snap.timestamp = TimeCurrent();
             snap.symbol    = ctx.Symbol;
             snap.timeframe = ctx.EntryPeriod;
 
-// identity
+            // identity
             snap.trade_context_id = ticket;
 
-// lifecycle intent
+            // lifecycle intent
             snap.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
             snap.mm_event_intent = ToMMEventString(MM_EVENT_SCALE_OUT);
 
-// --- Market Context (Schema v1.1) ---
+            // --- Market Context (Schema v1.1) ---
             snap.current_price =
                (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
-               ? bid
-               : ask;
+               ? bid : ask;
 
-// ATR value actually used by MM (NOT recomputed)
+            // ATR value actually used by MM (NOT recomputed)
             snap.atr_value = ctx.ATREntry.Value;
 
-// account state
+            // account state
             snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
             snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
             snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
 
-// exposure BEFORE scale-out
-            snap.current_position_lots =
-               PositionGetDouble(POSITION_VOLUME);
+            // exposure BEFORE scale-out
+            snap.current_position_lots = PositionGetDouble(POSITION_VOLUME);
+            // reference risk (ENTRY risk anchor)
+            snap.current_risk_exposure = m_risk.GetLastComputedRiskAmount(); // still valid reference
 
-// execution-state observability
+            // execution-state observability
             snap.take_profit   = PositionGetDouble(POSITION_TP);
             snap.floating_pnl  = PositionGetDouble(POSITION_PROFIT);
 
-// reference risk (ENTRY risk anchor)
-            snap.current_risk_exposure =
-               m_risk.GetLastComputedRiskAmount(); // still valid reference
-
-// reconstruction inputs
-            snap.stoploss_points =
-               ctx.ATREntry.Value * inpSLxATRxPlier;
-
+            // reconstruction inputs
+            snap.stoploss_points = ctx.ATREntry.Value * inpSLxATRxPlier;
             snap.value_per_point = tick_value / tick_size;
 
-// ✅ SCALE_OUT trigger (THIS was missing)
+            // scale context
             snap.scale_atr_multiple = g_scaleStages[i].atrMultiple;
             snap.scale_fraction     = g_scaleStages[i].closeFraction;
 
+            // ✅ INF-3 START
             BeginMMCycle(MM_EVENT_SCALE_OUT);
-
             EmitSnapshotBefore(snap);
 
-            if(m_scale.Evaluate(ctx, g_scaleStages[i], closeLots))
+            // =========================
+            // SAFE EXECUTION BLOCK
+            // =========================
+            bool scale_executed = false;
+
+            do
                {
+               if(!m_scale.Evaluate(ctx, g_scaleStages[i], closeLots))
+                  break;
 
-               Print(
-                  "[MM_SNAPSHOT_BEFORE]",
-                  " event=", snap.mm_event_intent,
-                  " ATRx=", snap.scale_atr_multiple,
-                  " close_frac=", snap.scale_fraction
-               );
-
-
-               if(m_exec.PartialClose(symbol, closeLots))
+               if(!m_exec.PartialClose(symbol, closeLots))
                   {
-
-// ===============================
-// MM_SNAPSHOT_AFTER — SCALE_OUT
-// ===============================
-                  MM_SNAPSHOT_AFTER snap_after;
-                  snap_after.timestamp = TimeCurrent();
-                  snap_after.symbol    = ctx.Symbol;
-                  snap_after.timeframe = ctx.EntryPeriod;
-                  snap_after.mm_event_result = ToMMEventString(MM_EVENT_SCALE_OUT);
-
-// exposure AFTER scale-out
-                  snap_after.calculated_lot_size =
-                     snap.current_position_lots - closeLots;
-
-// risk anchor unchanged (ENTRY-based)
-                  snap_after.calculated_risk_amount =
-                     m_risk.GetLastComputedRiskAmount();
-
-// reuse for reconstruction
-                  snap_after.stoploss_points  = snap.stoploss_points;
-                  snap_after.value_per_point  = snap.value_per_point;
-
-
-                  EmitSnapshotAfter(snap_after);
-                  EndMMCycleCheck();
-
-
-                  // ✅ Track stage application FIRST (prevents re-trigger)
-                  m_atrTracker.MarkScaleStageApplied(ticket, g_scaleStages[i].atrMultiple);
-
-                  // ----------------------------------------------------
-                  // SCALE-OUT LOGGING — Phase 4.4
-                  // ----------------------------------------------------
-                  MM_LogEventBase evt;
-                  evt.event_time = ctx.Time;                 // BAR_SIGNAL time
-                  evt.event_type = MM_EVENT_SCALE_OUT;
-                  evt.phase      = MM_PHASE_MANAGE;
-                  evt.symbol     = ctx.Symbol;
-                  evt.timeframe  = ctx.EntryPeriod;
-                  evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-                  evt.ticket     = ticket;
-
-                  m_logger.LogMMEventBase(evt);
+                  Print("⚠️ SCALE_OUT execution failed");
+                  break;
                   }
+
+               scale_executed = true;
+
+               // ✅ tracker (keep this inside success)
+               m_atrTracker.MarkScaleStageApplied(ticket, g_scaleStages[i].atrMultiple);
+
+               // ----------------------------------------------------
+               // SCALE-OUT LOGGING — Phase 4.4
+               // ----------------------------------------------------
+               // ✅ event logging (keep this inside success)
+               MM_LogEventBase evt;
+               evt.event_time = ctx.Time; // BAR_SIGNAL time
+               evt.event_type = MM_EVENT_SCALE_OUT;
+               evt.phase = MM_PHASE_MANAGE;
+               evt.symbol = ctx.Symbol;
+               evt.timeframe = ctx.EntryPeriod;
+               evt.trade_id = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+               evt.ticket = ticket;
+               m_logger.LogMMEventBase(evt);
+
                }
+            while(false);
+
+            // =========================
+            // ✅ ALWAYS RUN THIS
+            // ========================
+
+            // ✅ rebuild AFTER snapshot from LIVE position
+            // ===============================
+            // MM_SNAPSHOT_AFTER — SCALE_OUT
+            // ===============================
+            MM_SNAPSHOT_AFTER snap_after;
+            snap_after.timestamp = TimeCurrent();
+            snap_after.symbol    = ctx.Symbol;
+            snap_after.timeframe = ctx.EntryPeriod;
+
+            // lifecycle
+            snap_after.mm_phase = ToMMPhaseString(MM_PHASE_MANAGE);
+            snap_after.mm_event_result = ToMMEventString(MM_EVENT_SCALE_OUT);
+
+            // 🔥 IMPORTANT: recalc AFTER from live state
+            // exposure AFTER scale-out
+            snap_after.current_position_lots = PositionGetDouble(POSITION_VOLUME);
+            // risk anchor unchanged (ENTRY-based)
+            snap_after.current_risk_exposure = m_risk.GetLastComputedRiskAmount();
+
+            // outcome
+            snap_after.take_profit = PositionGetDouble(POSITION_TP);
+            snap_after.realized_pnl = PositionGetDouble(POSITION_PROFIT);
+
+            // reuse for reconstruction
+            snap_after.stoploss_points  = snap.stoploss_points;
+            snap_after.value_per_point  = snap.value_per_point;
+
+            // ✅ ALWAYS EXECUTE
+            EmitSnapshotAfter(snap_after);
+            EndMMCycleCheck();
+
             }
          }
 
-      // --- BREAK EVEN
+
+
+      // ------------------------------------------------
+      // BREAK EVEN Block
+      // ------------------------------------------------
       double newSL;
       if(!m_atrTracker.IsBEApplied(ticket))
          {
@@ -706,122 +724,122 @@ public:
             reject_reason
          );
 
-// ===============================
-// MM_SNAPSHOT_BEFORE — BREAK EVEN
-// ===============================
+         // ===============================
+         // MM_SNAPSHOT_BEFORE — BREAK EVEN
+         // ===============================
          MM_SNAPSHOT_BEFORE snap;
          snap.timestamp = TimeCurrent();
          snap.symbol    = ctx.Symbol;
          snap.timeframe = ctx.EntryPeriod;
 
-// identity
+         // identity
          snap.trade_context_id = ticket;
 
-// lifecycle intent
+         // lifecycle intent
          snap.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
          snap.mm_event_intent = ToMMEventString(MM_EVENT_BE);
 
-// --- Market Context (Schema v1.1) ---
+         // --- Market Context (Schema v1.1) ---
          snap.current_price =
             (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
-            ? bid
-            : ask;
+            ? bid : ask;
 
-// ATR value actually used by MM (NOT recomputed)
+         // ATR value actually used by MM (NOT recomputed)
          snap.atr_value = ctx.ATREntry.Value;
 
-// account state
+         // account state
          snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
          snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
          snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
 
-// exposure (unchanged by BE)
-         snap.current_position_lots =
-            PositionGetDouble(POSITION_VOLUME);
+         // exposure (unchanged by BE)
+         snap.current_position_lots = PositionGetDouble(POSITION_VOLUME);
+         snap.current_risk_exposure = m_risk.GetLastComputedRiskAmount();
 
-         snap.current_risk_exposure =
-            m_risk.GetLastComputedRiskAmount();
-
-// execution‑state observability
+         // execution‑state observability
          snap.take_profit  = PositionGetDouble(POSITION_TP);
          snap.floating_pnl = PositionGetDouble(POSITION_PROFIT);
 
-// geometry (ENTRY‑anchored)
-         snap.stoploss_points =
-            ctx.ATREntry.Value * inpSLxATRxPlier;
+         // geometry (ENTRY‑anchored)
+         snap.stoploss_points = ctx.ATREntry.Value * inpSLxATRxPlier;
 
-         snap.value_per_point =
-            tick_value /
-            tick_size;
+         snap.value_per_point = tick_value / tick_size;
 
+         // ✅ BEGIN INF-3
          BeginMMCycle(MM_EVENT_BE);
          EmitSnapshotBefore(snap);
 
-         if(m_be.Evaluate(ctx, inpBE_ATR, inpBE_ExtraPips, newSL))
+         // =========================
+         // SAFE EXECUTION BLOCK
+         // =========================
+         bool be_applied = false;
+
+         do
             {
-
+            if(!m_be.Evaluate(ctx, inpBE_ATR, inpBE_ExtraPips, newSL))
+               break;
             double oldSL = PositionGetDouble(POSITION_SL);
-            double tp    = PositionGetDouble(POSITION_TP);
-
-            if(m_exec.ModifyStopLoss(symbol, newSL))
+            if(!m_exec.ModifyStopLoss(symbol, newSL))
                {
-
-               m_atrTracker.MarkBEApplied(ticket); // 1️⃣ Mark BE applied FIRST (prevents double logging)
-               m_viz.DrawBreakEven(symbol, newSL); // 2️⃣ Optional visualization (safe, non‑functional)
-               uint seq = m_atrTracker.NextEventSeq(ticket); // Revisit removal only in Phase 5
-
-               // 3️⃣ BREAK-EVEN LOGGING — Phase 4.4
-               MM_LogEventBase evt;
-               evt.event_time = ctx.Time;              // BAR_SIGNAL time
-               evt.event_type = MM_EVENT_BE;
-               evt.phase      = MM_PHASE_MANAGE;
-               evt.symbol     = ctx.Symbol;
-               evt.timeframe  = ctx.EntryPeriod;
-               evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-               evt.ticket     = ticket;
-
-               m_logger.LogMMEventBase(evt);
-
-
-// ===============================
-// MM_SNAPSHOT_AFTER — BREAK EVEN
-// ===============================
-               MM_SNAPSHOT_AFTER snap_after;
-               snap_after.timestamp = TimeCurrent();
-               snap_after.symbol    = ctx.Symbol;
-               snap_after.timeframe = ctx.EntryPeriod;
-
-// lifecycle intent
-               snap_after.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
-               snap_after.mm_event_result = ToMMEventString(MM_EVENT_BE);
-
-// no exposure change
-               snap_after.calculated_lot_size =
-                  PositionGetDouble(POSITION_VOLUME);
-
-// ENTRY risk anchor still valid
-               snap_after.calculated_risk_amount =
-                  m_risk.GetLastComputedRiskAmount();
-
-// updated execution state
-               snap_after.take_profit  = PositionGetDouble(POSITION_TP);
-               snap_after.realized_pnl = PositionGetDouble(POSITION_PROFIT);
-
-// geometry unchanged
-               snap_after.stoploss_points = snap.stoploss_points;
-               snap_after.value_per_point = snap.value_per_point;
-
-               EmitSnapshotAfter(snap_after);
-               EndMMCycleCheck();
-
+               Print("⚠️ Break-Even execution failed");
+               break;
                }
-            // ✅ Stop after BE — no trailing this tick (your original rule)
-            return;
+
+            m_atrTracker.MarkBEApplied(ticket); // 1️⃣ Mark BE applied FIRST (prevents double logging)
+            m_viz.DrawBreakEven(symbol, newSL); // 2️⃣ Optional visualization (safe, non‑functional)
+
+            // 3️⃣ BREAK-EVEN LOGGING — Phase 4.4
+            MM_LogEventBase evt;
+            evt.event_time = ctx.Time;              // BAR_SIGNAL time
+            evt.event_type = MM_EVENT_BE;
+            evt.phase      = MM_PHASE_MANAGE;
+            evt.symbol     = ctx.Symbol;
+            evt.timeframe  = ctx.EntryPeriod;
+            evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+            evt.ticket     = ticket;
+            m_logger.LogMMEventBase(evt);
+
+            be_applied = true;
+
             }
+         while(false);
+
+         // ===============================
+         // MM_SNAPSHOT_AFTER — BREAK EVEN
+         // ===============================
+         MM_SNAPSHOT_AFTER snap_after;
+         snap_after.timestamp = TimeCurrent();
+         snap_after.symbol    = ctx.Symbol;
+         snap_after.timeframe = ctx.EntryPeriod;
+
+         // lifecycle intent
+         snap_after.mm_phase = ToMMPhaseString(MM_PHASE_MANAGE);
+         snap_after.mm_event_result = ToMMEventString(MM_EVENT_BE);
+         
+         // no exposure change
+         snap_after.current_position_lots = PositionGetDouble(POSITION_VOLUME);
+
+         // ENTRY risk anchor still valid
+         snap_after.current_risk_exposure = m_risk.GetLastComputedRiskAmount();
+
+         // updated execution state
+         snap_after.take_profit  = PositionGetDouble(POSITION_TP);
+         snap_after.realized_pnl = PositionGetDouble(POSITION_PROFIT);
+
+         // geometry unchanged
+         snap_after.stoploss_points = snap.stoploss_points;
+         snap_after.value_per_point = snap.value_per_point;
+         EmitSnapshotAfter(snap_after);
+         EndMMCycleCheck();
+
+         // ✅ preserve your logic: stop after BE
+         if(be_applied)
+            return;
          }
 
-      // --- TRAILING
-
+      // ------------------------------------------------
+      // --- TRAILING Block
+      // ------------------------------------------------
       // Phase 5 — Step 5: Lifecycle MM_ACTION (Trailing Stop pass-through)
       m_lifecycleController.RequestAction(
          0, //ctx.trade_id,
@@ -829,124 +847,131 @@ public:
          reject_reason
       );
 
-
-// ==================================
-// MM_SNAPSHOT_BEFORE — TRAILING STOP
-// ==================================
+      // ==================================
+      // MM_SNAPSHOT_BEFORE — TRAILING STOP
+      // ==================================
       MM_SNAPSHOT_BEFORE snap;
       snap.timestamp = TimeCurrent();
       snap.symbol    = ctx.Symbol;
       snap.timeframe = ctx.EntryPeriod;
 
-// identity
+      // identity
       snap.trade_context_id = ticket;
 
-// lifecycle intent
+      // lifecycle intent
       snap.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
       snap.mm_event_intent = ToMMEventString(MM_EVENT_TRAIL);
 
-// --- Market Context (Schema v1.1) ---
+      // --- Market Context (Schema v1.1) ---
       snap.current_price =
          (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
-         ? bid
-         : ask;
+         ? bid : ask;
 
-// ATR value actually used by MM (NOT recomputed)
+      // ATR value actually used by MM (NOT recomputed)
       snap.atr_value = ctx.ATREntry.Value;
 
-// account state
+      // account state
       snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
       snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
       snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
 
-// exposure (unchanged by trailing)
-      snap.current_position_lots =
-         PositionGetDouble(POSITION_VOLUME);
+      // exposure (unchanged by trailing)
+      snap.current_position_lots = PositionGetDouble(POSITION_VOLUME);
+      snap.current_risk_exposure = m_risk.GetLastComputedRiskAmount();
 
-      snap.current_risk_exposure =
-         m_risk.GetLastComputedRiskAmount();
-
-// execution‑state observability
+      // execution‑state observability
       snap.take_profit  = PositionGetDouble(POSITION_TP);
       snap.floating_pnl = PositionGetDouble(POSITION_PROFIT);
 
-// geometry (ENTRY‑anchored)
-      snap.stoploss_points =
-         ctx.ATREntry.Value * inpSLxATRxPlier;
+      // geometry (ENTRY‑anchored)
+      snap.stoploss_points = ctx.ATREntry.Value * inpSLxATRxPlier;
+      snap.value_per_point = tick_value / tick_size;
 
-      snap.value_per_point =
-         tick_value /
-         tick_size;
-
+      // ✅ INF-3 START
       BeginMMCycle(MM_EVENT_TRAIL);
       EmitSnapshotBefore(snap);
 
-
-
-      if(m_trail.Evaluate(ctx, inpTrailStartATR, inpTrailATR, newSL))
+      // =========================
+      // SAFE EXECUTION BLOCK
+      // =========================
+      bool trail_applied = false;
+      double oldSL = PositionGetDouble(POSITION_SL);
+      do
          {
-         double oldSL = PositionGetDouble(POSITION_SL);
-         double tp    = PositionGetDouble(POSITION_TP);
+         if(!m_trail.Evaluate(ctx, inpTrailStartATR, inpTrailATR, newSL))
+            break;
 
-         if(m_exec.ModifyStopLoss(symbol, newSL))
+         if(!m_exec.ModifyStopLoss(symbol, newSL))
             {
-            // ----------------------------------------------------
-            // TRAILING STOP LOGGING — Phase 4.4
-            // ----------------------------------------------------
-            MM_LogEventBase evt;
-            evt.event_time = ctx.Time;                // BAR_SIGNAL time
-            evt.event_type = MM_EVENT_TRAIL;
-            evt.phase      = MM_PHASE_MANAGE;
-            evt.symbol     = ctx.Symbol;
-            evt.timeframe  = ctx.EntryPeriod;
-            evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-            evt.ticket     = ticket;
-
-            m_logger.LogMMEventBase(evt);
-
-
+            Print("⚠️ TRAILING execution failed");
+            break;
+            }
+         else
+            {
+            Print("✅ TRAILING applied. SL moved from ", oldSL, " to ", newSL);
             }
 
+         trail_applied = true;
 
-// ==================================
-// MM_SNAPSHOT_AFTER — TRAILING STOP
-// ==================================
-         MM_SNAPSHOT_AFTER snap_after;
-         snap_after.timestamp = TimeCurrent();
-         snap_after.symbol    = ctx.Symbol;
-         snap_after.timeframe = ctx.EntryPeriod;
-
-// lifecycle intent
-         snap_after.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
-         snap_after.mm_event_result = ToMMEventString(MM_EVENT_TRAIL);
-
-// exposure remains unchanged
-         snap_after.calculated_lot_size =
-            PositionGetDouble(POSITION_VOLUME);
-
-// ENTRY risk anchor unchanged
-         snap_after.calculated_risk_amount =
-            m_risk.GetLastComputedRiskAmount();
-
-// updated execution state
-         snap_after.take_profit  = PositionGetDouble(POSITION_TP);
-         snap_after.realized_pnl = PositionGetDouble(POSITION_PROFIT);
-
-// geometry unchanged
-         snap_after.stoploss_points = snap.stoploss_points;
-         snap_after.value_per_point = snap.value_per_point;
-
-         EmitSnapshotAfter(snap_after);
-         EndMMCycleCheck();
+         // ----------------------------------------------------
+         // TRAILING STOP LOGGING — Phase 4.4
+         // ----------------------------------------------------
+         // ✅ event log only if success
+         MM_LogEventBase evt;
+         evt.event_time = ctx.Time;                // BAR_SIGNAL time
+         evt.event_type = MM_EVENT_TRAIL;
+         evt.phase      = MM_PHASE_MANAGE;
+         evt.symbol     = ctx.Symbol;
+         evt.timeframe  = ctx.EntryPeriod;
+         evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+         evt.ticket     = ticket;
+         m_logger.LogMMEventBase(evt);
 
          }
+      while(false);
+
+      // ==================================
+      // MM_SNAPSHOT_AFTER — TRAILING STOP
+      // ==================================
+      MM_SNAPSHOT_AFTER snap_after;
+      snap_after.timestamp = TimeCurrent();
+      snap_after.symbol    = ctx.Symbol;
+      snap_after.timeframe = ctx.EntryPeriod;
+
+      // lifecycle intent
+      snap_after.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
+      snap_after.mm_event_result = ToMMEventString(MM_EVENT_TRAIL);
+
+      // exposure remains unchanged
+      snap_after.current_position_lots =
+         PositionGetDouble(POSITION_VOLUME);
+
+      // ENTRY risk anchor unchanged
+      snap_after.current_risk_exposure =
+         m_risk.GetLastComputedRiskAmount();
+
+      // updated execution state
+      snap_after.take_profit  = PositionGetDouble(POSITION_TP);
+      snap_after.realized_pnl = PositionGetDouble(POSITION_PROFIT);
+
+      // geometry unchanged
+      snap_after.stoploss_points = snap.stoploss_points;
+      snap_after.value_per_point = snap.value_per_point;
+
+      // ✅ ALWAYS EXECUTE
+      EmitSnapshotAfter(snap_after);
+      EndMMCycleCheck();
+
    }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
    void ManageExit(const string symbol)
    {
-// --------------------------------------------------
-// Cache symbol info once per tick (efficiency)
-// --------------------------------------------------
+      // --------------------------------------------------
+      // Cache symbol info once per tick (efficiency)
+      // --------------------------------------------------
       const double bid        = SymbolInfoDouble(symbol, SYMBOL_BID);
       const double ask        = SymbolInfoDouble(symbol, SYMBOL_ASK);
       const double tick_value = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
@@ -972,52 +997,48 @@ public:
       ctx.Exit.ShouldExit = true;
       ctx.Exit.Reason    = EXIT_REVERSAL;
       RejectionReason reject_reason = REJECT_NONE;
-// ==========================
-// MM_SNAPSHOT_BEFORE — EXIT
-// ==========================
+
+      // ==========================
+      // MM_SNAPSHOT_BEFORE — EXIT
+      // ==========================
       MM_SNAPSHOT_BEFORE snap;
       snap.timestamp = TimeCurrent();
       snap.symbol    = ctx.Symbol;
       snap.timeframe = ctx.EntryPeriod;
 
-// identity
+      // identity
       snap.trade_context_id = ticket;
 
-// lifecycle intent
+      // lifecycle intent
       snap.mm_phase        = ToMMPhaseString(MM_PHASE_EXIT);
       snap.mm_event_intent = ToMMEventString(MM_EVENT_EXIT);
 
-// --- Market Context (Schema v1.1) ---
+      // --- Market Context (Schema v1.1) ---
       snap.current_price =
          (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
-         ? bid
-         : ask;
+         ? bid : ask;
 
-// ATR value actually used by MM (NOT recomputed)
+      // ATR value actually used by MM (NOT recomputed)
       snap.atr_value = ctx.ATREntry.Value;
 
-// account state
+      // account state
       snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
       snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
       snap.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
 
-// exposure before exit
-      snap.current_position_lots =
-         PositionGetDouble(POSITION_VOLUME);
+      // exposure before exit
+      snap.current_position_lots = PositionGetDouble(POSITION_VOLUME);
+      snap.current_risk_exposure = m_risk.GetLastComputedRiskAmount();
 
-      snap.current_risk_exposure =
-         m_risk.GetLastComputedRiskAmount();
-
-// execution‑state observability
+      // execution‑state observability
       snap.take_profit  = PositionGetDouble(POSITION_TP);
       snap.floating_pnl = PositionGetDouble(POSITION_PROFIT);
 
-// geometry (ENTRY‑anchored)
-      snap.stoploss_points =
-         ctx.ATREntry.Value * inpSLxATRxPlier;
-
+      // geometry (ENTRY‑anchored)
+      snap.stoploss_points = ctx.ATREntry.Value * inpSLxATRxPlier;
       snap.value_per_point = tick_value / tick_size;
 
+      // ✅ INF-3 START
       BeginMMCycle(MM_EVENT_EXIT);
       EmitSnapshotBefore(snap);
 
@@ -1028,73 +1049,97 @@ public:
          reject_reason
       );
 
-      // ✅ ACTUAL CLOSE
-      if(!m_exec.ExecuteExit(ctx))
-         return;
+      // =========================
+      // SAFE EXECUTION BLOCK
+      // =========================
+      bool exit_success = false;
 
+      do
+         {
+         if(!m_exec.ExecuteExit(ctx))
+            {
+            Print("⚠️ EXIT execution failed");
+            break;
+            }
+         exit_success = true;
 
-// =========================
-// MM_SNAPSHOT_AFTER — EXIT
-// =========================
+         // ✅ EXIT LOGGING — Phase 4.4
+         // ✅ log event ONLY on sucess
+         MM_LogEventBase evt;
+         evt.event_time = ctx.Time;
+         evt.event_type = MM_EVENT_EXIT;
+         evt.phase      = MM_PHASE_EXIT;
+         evt.symbol     = ctx.Symbol;
+         evt.timeframe  = ctx.EntryPeriod;
+         evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
+         evt.ticket     = ticket;
+         m_logger.LogMMEventBase(evt);
+
+         }
+      while(false);
+
+      // =========================
+      // MM_SNAPSHOT_AFTER — EXIT
+      // =========================
       MM_SNAPSHOT_AFTER snap_after;
       snap_after.timestamp = TimeCurrent();
       snap_after.symbol    = ctx.Symbol;
       snap_after.timeframe = ctx.EntryPeriod;
 
-// lifecycle intent
+      // lifecycle intent
       snap_after.mm_phase        = ToMMPhaseString(MM_PHASE_EXIT);
       snap_after.mm_event_result = ToMMEventString(MM_EVENT_EXIT);
 
-// exposure after exit (zero)
-      snap_after.calculated_lot_size = 0.0;
+      // ✅ LIVE STATE (CRITICAL)
+      if(PositionSelect(symbol))
+         {
+         // position still exists (exit failed)
+         snap_after.current_position_lots =
+            PositionGetDouble(POSITION_VOLUME);
+         }
+      else
+         {
+         // position closed successfully
+         snap_after.current_position_lots = 0.0;
+         }
 
-// entry risk anchor (for final audit)
-      snap_after.calculated_risk_amount =
+
+// risk anchor remains for audit
+      snap_after.current_risk_exposure =
          m_risk.GetLastComputedRiskAmount();
 
 // final outcome
-      snap_after.take_profit  = snap.take_profit;
+      snap_after.take_profit = snap.take_profit;
       snap_after.realized_pnl = snap.floating_pnl;
 
 // geometry unchanged
       snap_after.stoploss_points = snap.stoploss_points;
       snap_after.value_per_point = snap.value_per_point;
 
+// ✅ ALWAYS EXECUTE
       EmitSnapshotAfter(snap_after);
       EndMMCycleCheck();
 
-      // ✅ EXIT LOGGING — Phase 4.4
-      MM_LogEventBase evt;
-      evt.event_time = ctx.Time;
-      evt.event_type = MM_EVENT_EXIT;
-      evt.phase      = MM_PHASE_EXIT;
-      evt.symbol     = ctx.Symbol;
-      evt.timeframe  = ctx.EntryPeriod;
-      evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-      evt.ticket     = ticket;
-
-
-      m_logger.LogMMEventBase(evt);
-
-
-      // Phase 5 — Step 6: Lifecycle CLOSE (pass-through)
-      m_lifecycleController.RequestAction(
-         0,               // trade_id not enforced yet
-         ACTION_CLOSE,
-         reject_reason
-      );
-
-      // ✅ Clean up tracker state
-      m_atrTracker.RemoveTicket(ticket);
+      if(exit_success)
+         {
+         // lifecycle close
+         // Phase 5 — Step 6: Lifecycle CLOSE (pass-through)
+         m_lifecycleController.RequestAction(
+            0,               // trade_id not enforced yet
+            ACTION_CLOSE,
+            reject_reason
+         );
+         // ✅ Clean up tracker state
+         m_atrTracker.RemoveTicket(ticket);
+         }
    }
 
 
 
-
 private:
-   // ============================================================
-   // Candle detection
-   // ============================================================
+// ============================================================
+// Candle detection
+// ============================================================
    bool IsNewCandle(const string symbol, ENUM_TIMEFRAMES tf)
    {
       datetime t = iTime(symbol, tf, BAR_CURRENT);
@@ -1106,6 +1151,9 @@ private:
       return false;
    }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
    bool BuildTradeContext(TradeContext &ctx, const string symbol)
    {
       ctx.Reset();
@@ -1114,11 +1162,11 @@ private:
       ctx.TopdownPeriod = inpTopdownPeriod;
       ctx.Time    = iTime(symbol, inpEntryPeriod, BAR_SIGNAL);
 
-      // 1) Baseline
+// 1) Baseline
       uint period = (inpBaselineInd == MA ? inpIMA_Period : inpSWMA_Period);
       ENUM_MA_METHOD meth = (inpBaselineInd == MA ? inpIMA_Method : (ENUM_MA_METHOD)0);
       ENUM_APPLIED_PRICE pr = PRICE_CLOSE;
-      // ---- Entry TF baseline ----
+// ---- Entry TF baseline ----
       if(!m_baseline.Update(symbol, inpEntryPeriod, inpBaselineInd, period, inpIMA_Shift, meth, pr, inpATRinterval, inpBLxATRxPlier))
          return false;
 
@@ -1142,7 +1190,7 @@ private:
          {
          ctx.BaselineCrossDirection = Short;
          }
-      // ---- Topdown TF baseline ----
+// ---- Topdown TF baseline ----
       if(!m_baseline.Update(symbol, inpTopdownPeriod, inpBaselineInd, period, inpIMA_Shift, meth, pr, inpATRinterval, inpBLxATRxPlier))
          return false;
 
@@ -1150,7 +1198,7 @@ private:
 
 
 
-      // 2) Volume (TTMS gate)
+// 2) Volume (TTMS gate)
       TTMSParams tp;
       tp.bbPeriod = (int)inpBBperiod;
       tp.bbDev    = inpBBdeviation;
@@ -1164,7 +1212,7 @@ private:
          }
       ctx.VolumeEntry = m_volume.Result();
 
-      // 3) Confirmation
+// 3) Confirmation
       PSARParams ps;
       ps.step = inpPSAR_Steps;
       ps.max = inpPSAR_Max;
@@ -1183,11 +1231,11 @@ private:
          return false;
          };
 
-      // Apply volume to confirmation (gate+boost already inside ApplyVolumeGate in your confirmation file)
+// Apply volume to confirmation (gate+boost already inside ApplyVolumeGate in your confirmation file)
       m_confirm.ApplyVolumeGate(ctx.VolumeEntry);
       ctx.ConfirmEntry = m_confirm.Result();
 
-      // 4) ATR (for sizing)
+// 4) ATR (for sizing)
       if(!m_atr.Update(symbol, inpEntryPeriod, (int)inpATRinterval, BAR_SIGNAL))
          {
          DebugPrint(m_debug, "ATR update failed.", DBG_WARN);
@@ -1195,14 +1243,14 @@ private:
          }
       ctx.ATREntry = m_atr.Result();
 
-      // 5) Decide
+// 5) Decide
       ctx.RequireVolumeGate = true;  // Option A
       ctx.MinConfirmScore   = 60;    // tune if needed
       ctx.EnableTopDown       = inpEnableTopDown;
       ctx.RequireTopDownAlign = inpRequireTopDownAlign;
       ctx.Finalize();
 
-      // 6) SIGNAL SNAPSHOT — exactly once per candle
+// 6) SIGNAL SNAPSHOT — exactly once per candle
       SignalSnapshot snap = BuildSignalSnapshot(ctx);
 
 

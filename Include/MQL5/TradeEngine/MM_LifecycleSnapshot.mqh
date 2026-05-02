@@ -67,8 +67,8 @@ struct MM_SNAPSHOT_AFTER
    string   mm_event_result;    // ENTRY_PLACED, SCALE_OUT_DONE, etc.
 
    // --- MM Output ---
-   double   calculated_risk_amount;
-   double   calculated_lot_size;
+   double   current_risk_exposure;
+   double   current_position_lots;
 
    // --- Constraints Applied ---
    bool     min_lot_applied;

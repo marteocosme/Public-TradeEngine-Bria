@@ -52,10 +52,14 @@ struct MM_LogSnapshotAfter
    string           symbol;
    ENUM_TIMEFRAMES  timeframe;
    ulong             trade_context_id;
+      
+   // --- Lifecycle Intent ---
+   string           mm_phase;         // ENTRY / MANAGE / EXIT
+   string           mm_event_result;  // ENTRY / SCALE_OUT / BE / TRAIL / EXIT
 
    // --- Exposure Result ---
-   double           calculated_lot_size;
-   double           calculated_risk_amount; // ENTRY-anchored risk
+   double           current_position_lots;
+   double           current_risk_exposure; // ENTRY-anchored risk
 
    // --- Execution Outcome ---
    double           take_profit;
