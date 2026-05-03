@@ -1,3 +1,16 @@
+
+## Phase Status
+
+Phase: Phase 4 — Logging & Observability  
+Status: Functionally Complete ✅ → Hardening Phase 🔄
+
+Notes:
+- Core logging pipeline is working
+- Snapshot enforcement (INF-3) verified
+- Header issues resolved
+- Moving into structural improvements (schema locking)
+
+
 # MM‑LOG‑01 — Logging Completion & Validation Checklist
 ## Objective:
 Restore full analytical observability of Money Management and trade lifecycle behavior.
@@ -41,6 +54,34 @@ Every lifecycle / MM snapshot includes at least:
  - [x] Floating P/L
  - [x] Realized P/L
  - [x] MM action context (NONE / BE / SCALE / TRAIL)
+
+
+### Snapshot Logging
+
+- [x] BEFORE snapshot emitted
+- [x] AFTER snapshot emitted
+- [x] BEFORE/AFTER always paired
+- [x] INF-3 enforcement (no violations)
+
+### Header Handling
+
+- [x] Headers written to file
+- [x] Header detection works (content-based)
+- [ ] Header logic centralized (dispatcher)
+- [ ] No duplication across log types
+
+### Schema Consistency
+
+- [ ] Single schema definition (code)
+- [ ] BEFORE/AFTER share exact contract
+- [ ] Column order enforced
+
+## Data Completeness
+
+- [x] current_price populated
+- [x] atr_value populated
+- [ ] No blank mm_phase in AFTER
+- [ ] No blank mm_event in AFTER
 
 **✅ Rule:** Missing fields are considered a defect.
 
