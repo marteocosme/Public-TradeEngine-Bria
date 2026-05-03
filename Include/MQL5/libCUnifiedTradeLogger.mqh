@@ -9,6 +9,7 @@
 
 #include <MyInclude\\NNFX\\libEnum.mqh>
 #include <MyInclude\\NNFX\\Core\\Logging\\MM_LogSnapshotRecords.mqh>
+#include <MyInclude\\NNFX\\Core\\Logging\\libCLogHeaderDispatcher.mqh>
 
 // ==================================================================
 // Canonical Money Management Logging Payload (Phase 3 / 4.2)
@@ -32,7 +33,7 @@ struct MM_LogEventBase
 class CUnifiedTradeLogger
 {
 private:
-
+   CLogHeaderDispatcher m_header;
    string m_csv_snapshots;
    string m_csv_events;
    string m_csv_signals;
@@ -67,7 +68,7 @@ public:
    // ================================================================
    // Money Management Logging Entry Point (Phase 4.2)
    // ================================================================
-   void              LogMMEventBase(const MM_LogEventBase &evt)
+   void LogMMEventBase(const MM_LogEventBase &evt)
    {
       LogMMEventCSV(evt);
       LogMMEventJSON(evt);
@@ -78,7 +79,7 @@ private:
    // ================================================================
    // Internal CSV Writer (MM only)
    // ================================================================
-   void              LogMMEventCSV(const MM_LogEventBase &evt)
+   void LogMMEventCSV(const MM_LogEventBase &evt)
    {
       int h = FileOpen(
                  m_csv_events,
@@ -178,13 +179,18 @@ public:
               );
       if(h == INVALID_HANDLE)
          return;
+
+      // ✅ NOW move to end
       FileSeek(h, 0, SEEK_END);
-      if(FileGetInteger(h, FILE_SIZE) == 0)
+
+      // ✅ Centralized header control
+      if(m_header.NeedsHeader(m_csv_snapshots))
          {
          FileWrite(
             h,
             "debug_event_id",
             "trade_id",
+            "ticket"
             "timestamp",
             "symbol",
             "record_type",
@@ -206,7 +212,7 @@ public:
 
             // execution
             "take_profit",
-            "pnl",
+            "floating_pnl",
 
             // geometry
             "stoploss_points",
@@ -216,8 +222,11 @@ public:
             "scale_atr_multiple",
             "scale_fraction"
          );
-         }
 
+
+         // ✅ IMPORTANT: mark as written
+         m_header.MarkHeaderWritten(m_csv_snapshots);
+         }
       FileWrite(
          h,
          NextDebugEventId(),            // debug_event_id
@@ -252,7 +261,7 @@ public:
 
          // --- SCALE_OUT context ---
          rec.scale_atr_multiple,
-         rec.scale_fraction  
+         rec.scale_fraction
       );
       FileClose(h);
 
@@ -267,9 +276,11 @@ public:
 
       if(h == INVALID_HANDLE)
          return;
+
       FileSeek(h, 0, SEEK_END);
 
-      if(FileGetInteger(h, FILE_SIZE) == 0)
+      // ✅ Centralized header control
+      if(m_header.NeedsHeader(m_csv_snapshots))
          {
          FileWrite(
             h,
@@ -281,24 +292,38 @@ public:
             "record_type",
             "mm_phase",
             "mm_event",
+
+            // account
             "balance",
             "equity",
             "free_margin",
+
+            // exposure
             "current_position_lots",
             "current_risk_exposure",
-            "current_price"
-            "atr_value"
+
+            // market
+            "current_price",
+            "atr_value",
+
+            // execution
             "take_profit",
             "floating_pnl",
+
+            // geometry
             "stoploss_points",
-            "value_per_point"
+            "value_per_point",
+
+            // scale context
             "scale_atr_multiple",
             "scale_fraction"
          );
-         }
 
-      Print("rec.mm_phase: ", rec.mm_phase);
-      Print("rec.mm_event_result: ", rec.mm_event_result);
+
+         // ✅ IMPORTANT: mark as written
+         m_header.MarkHeaderWritten(m_csv_snapshots);
+
+         }
       FileWrite(
          h,
          NextDebugEventId(),
@@ -330,6 +355,18 @@ public:
       FileClose(h);
    }
 
+   bool NeedsHeader(string file_name)
+   {
+      int h = FileOpen(file_name, FILE_READ | FILE_CSV | FILE_COMMON);
+
+      if(h == INVALID_HANDLE)
+         return true;
+
+      string first_col = FileReadString(h);
+      FileClose(h);
+
+      return (first_col != "debug_event_id");
+   }
 
 };
 
