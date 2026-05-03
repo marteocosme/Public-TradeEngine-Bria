@@ -190,7 +190,7 @@ public:
             h,
             "debug_event_id",
             "trade_id",
-            "ticket"
+            "ticket",
             "timestamp",
             "symbol",
             "record_type",

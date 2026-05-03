@@ -465,6 +465,7 @@ public:
       snap_after.timestamp = TimeCurrent();
       snap_after.symbol    = ctx.Symbol;
       snap_after.timeframe = ctx.EntryPeriod;
+      snap_after.mm_phase = ToMMPhaseString(MM_PHASE_ENTRY);
       snap_after.mm_event_result = ToMMEventString(MM_EVENT_ENTRY);
 
       snap_after.current_position_lots = lots;
@@ -475,7 +476,6 @@ public:
       snap_after.value_per_point = snap.value_per_point;
 
       EmitSnapshotAfter(snap_after);
-
       EndMMCycleCheck();
 
       // --------------------------------------------------
