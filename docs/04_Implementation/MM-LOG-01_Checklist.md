@@ -1,3 +1,12 @@
+## 🔗 Dependencies
+
+### Snapshot Schema
+→ /docs/02_Specs/00_Core/MM_Snapshot_Schema_v1.2.md
+
+All snapshot fields referenced in this document must conform to the schema above.
+
+⚠️ This file does NOT define or override schema fields.
+
 
 ## Phase Status
 
