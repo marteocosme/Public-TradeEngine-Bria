@@ -2,10 +2,8 @@
 # MM Snapshot Schema v1.2
 
 ## Status
-Active ✅
-
-## Version
-v1.2
+Version: v1.2
+Status: ✅ Active ✅  LOCKED  
 
 ## Supersedes
 - MM_Snapshot_Schema_v1.1.md
