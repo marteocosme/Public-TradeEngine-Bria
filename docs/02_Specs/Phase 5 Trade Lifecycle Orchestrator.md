@@ -8,6 +8,29 @@
 
 **Depends On:** Phase 4 — Execution & Money Management Logging (✅ Complete)
 
+
+## Change Log
+
+### Alignment Update (Post Phase 4B) (05/04/2026)
+
+- Added logging integration (MM-LOG-01 v1.2)
+- Added lifecycle → execution outcome mapping
+- Added traceability requirements
+- Added state transition enforcement rules
+
+No functional behavior changes.
+No version bump required.
+
+
+## Alignment Note
+
+This document has been updated to align with:
+
+- MM-LOG-01 v1.2 (snapshot logging schema)
+- Logging Hardening Phase (Phase 4B)
+
+These updates improve traceability and enforceability without changing lifecycle behavior.
+
 ---
 
 ## 📌 1. Purpose of Phase 5
@@ -222,7 +245,124 @@ Any gaps discovered between snapshot requirements and the existing `TradeContext
 
 --- 
 
-## 🚨 8. Guardrails & Failure Scenarios
+## 8. Logging Integration
+
+All lifecycle actions MUST comply with MM-LOG-01 logging contract.
+
+For every lifecycle-triggered MM action:
+
+The system MUST emit:
+
+1. BEFORE snapshot  
+2. Execution Outcome  
+3. AFTER snapshot  
+
+These MUST conform to:
+
+→ MM_Snapshot_Schema_v1.2.md
+
+
+## 9. Lifecycle and Execution Outcome
+
+Each lifecycle action MUST produce an execution outcome:
+
+- ACTION_CREATE → no MM outcome (state initialization)
+- ACTION_ENTER → entry snapshot validation
+- ACTION_MM → triggers MM execution outcome:
+  - SCALE_OUT
+  - BREAK-EVEN
+  - TRAILING
+- ACTION_EXIT → exit outcome and position closure
+
+All outcomes MUST be traceable via MM-LOG-01 fields:
+- action_executed
+- execution_reason
+
+
+## 10. State Transition Rules
+
+Valid lifecycle sequence:
+
+CREATE → ENTER → MANAGE → EXIT → CLOSE
+
+Constraints:
+
+- ENTER cannot occur before CREATE
+- MANAGE cannot occur before ENTER
+- EXIT must terminate active trade
+- CLOSE finalizes lifecycle
+
+Invalid transitions MUST be rejected and logged.
+
+
+## 11. Traceability Requirement
+
+The lifecycle system MUST ensure:
+
+- Each lifecycle action is linked to a snapshot event
+- Each MM action is traceable via:
+  - BEFORE state
+  - Execution Outcome
+  - AFTER state
+
+This ensures full reconstruction of trade lifecycle.
+
+
+## 12. Implementation Binding
+
+Lifecycle orchestration is implemented in:
+
+- TradeLifecycleController
+- CTradeEngine (integration layer)
+
+Logging is handled by:
+
+- CUnifiedTradeLogger
+- MM_LogSchema_v1_2.mqh
+
+All lifecycle decisions MUST produce schema-compliant logs.
+
+
+## 13. Rejection Handling
+
+If a lifecycle action cannot be executed:
+
+- The action MUST be rejected
+- A rejection reason MUST be recorded
+- Logging MUST reflect:
+  - action_executed = false
+  - execution_reason populated
+
+Examples:
+- Invalid state transition
+- MM condition not met
+- Trade context invalid
+
+
+## 14. Terminology Alignment
+
+Lifecycle actions integrate with MM schema fields:
+
+| Lifecycle Concept | Schema Field |
+|------------------|-------------|
+| Position Volume | current_position_lots |
+| Risk Exposure | current_risk_exposure |
+| SL Adjustment | previous_stoploss → new_stoploss |
+| Partial Close | closed_lots |
+
+All logs MUST use schema-defined field names.
+
+
+## 15. Lifecycle to MM Event Mapping
+
+| Lifecycle Action | MM Event |
+|------------------|----------|
+| ACTION_ENTER | ENTRY |
+| ACTION_MM | SCALE_OUT / BE / TRAIL |
+| ACTION_EXIT | EXIT |
+
+
+## 🚨 16. Guardrails & Failure Scenarios
 Phase 5 defines explicit behavior for:
 
 - Exit requested before ENTRY
@@ -238,7 +378,7 @@ All scenarios must be:
 
 ---
 
-## 🚫 9. Non‑Goals (Explicitly Out of Scope)
+## 🚫 17. Non‑Goals (Explicitly Out of Scope)
 Phase 5 will not:
 
 - Modify Phase 4 logging contracts
@@ -249,7 +389,7 @@ Phase 5 will not:
 
 ---
 
-## 📦 10. Phase 5 Deliverables
+## 📦 18. Phase 5 Deliverables
 Phase 5 is considered complete when:
 
 - ✅ Trade Lifecycle Orchestrator exists
@@ -259,7 +399,7 @@ Phase 5 is considered complete when:
 
 ---
 
-## ➡️ 11. Next Phase Preview
+## ➡️ 19. Next Phase Preview
 **Phase 6 — Strategy Stabilization & Replay Analysis** (tentative)
 
 Phase 6 will leverage the deterministic lifecycle introduced in Phase 5 to:
