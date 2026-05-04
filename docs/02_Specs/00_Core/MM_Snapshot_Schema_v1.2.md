@@ -1,7 +1,19 @@
 
+## ✅ STATUS: ACTIVE — SINGLE SOURCE OF TRUTH
+
+This is the authoritative MM Snapshot Schema (latest version).
+
+All implementations and logging must follow this schema.
+
+Previous versions are stored in:
+/00_Core/_archive/
+
+
+
+
 # MM Snapshot Schema v1.2
 
-## Status
+## Status ✅ Active
 Version: v1.2
 Status: ✅ Active ✅  LOCKED  
 
