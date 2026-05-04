@@ -4,12 +4,50 @@
 ## Status
 Active ✅
 
+## Version
+v1.2
+
 ## Supersedes
 - MM_Snapshot_Schema_v1.1.md
 
 ## Change Summary
 - Added Execution Outcome fields
 - Improved observability for MM actions
+
+## Change Log
+
+### v1.2
+- Added Execution Outcome fields
+- Introduced causal MM logging:
+  - action_executed
+  - previous_stoploss / new_stoploss
+  - closed_lots
+- Separated:
+  - Execution State vs Execution Outcome
+- Added enforcement rules for schema and validation
+
+### v1.1
+- Initial snapshot schema
+- BEFORE / AFTER state logging
+
+
+## Scope
+
+This schema defines:
+
+- Money Management (MM) snapshot logging
+- Trade state BEFORE and AFTER MM actions
+- Exposure and risk tracking
+- Execution State (resulting system state)
+- Execution Outcome (MM action results)
+
+This schema does NOT cover:
+
+- Broker execution logging (OrderSend / OrderModify)
+- External execution responses or broker errors
+
+→ Covered under: EXEC-LOG-01
+
 
 
 ## Implementation Status
@@ -18,20 +56,19 @@ Status: Implemented ✅
 Phase: Phase 4 — Logging & Observability  
 Validation: Partial (manual log inspection)
 
-
 ## Implementation Binding
 
 This schema is implemented in:
 
 /MyInclude/NNFX/Core/Logging/MM_LogSchema_v1_2.mqh
 
-All header definitions in code MUST match this document exactly.
+All logging output MUST:
 
-Any updates to this schema require:
-1. Updating this document
-2. Updating the implementation file
-3. Verifying log output consistency
+- Match field names exactly
+- Follow column order exactly
+- Pass runtime validation checks
 
+Any deviation invalidates the schema contract.
 
 ### Notes
 - BEFORE / AFTER snapshot pairing enforced (INF-3)
@@ -47,8 +84,8 @@ Any updates to this schema require:
 - Apply Logging Hardening (header dispatcher integration)
 - Add schema validation checks
 
-# MM Snapshot Schema v1.0
-**Document ID:** MM-SNAPSHOT-SCHEMA-v1.1
+# MM Snapshot Schema v1.2
+**Document ID:** MM-SNAPSHOT-SCHEMA-v1.2
 
 **Applies** To: TradeEngine-Bria (NNFX)
 
@@ -82,6 +119,23 @@ Two snapshot types exist and are used uniformly across all MM actions:
 - **MM_SNAPSHOT_AFTER —** Captures state immediately after an MM decision
 
 Both snapshots are **purely observational.**
+
+
+### BEFORE vs AFTER Snapshot Rules
+
+#### BEFORE Snapshot
+
+- Represents system state BEFORE MM action
+- MUST NOT contain Execution Outcome values
+- Execution Outcome fields MUST be empty
+
+
+#### AFTER Snapshot
+
+- Represents system state AFTER MM action
+- MUST include Execution State values
+- MUST include Execution Outcome fields
+
 
 
 ## 3. MM Actions Covered
@@ -187,19 +241,48 @@ This schema applies to the following MM paths:
 | 2 | current_risk_exposure |	double |	ENTRY-anchored risk amount	| All |
 
 
+#### Notes
+
+- current_position_lots reflects LIVE position size at snapshot time
+- current_risk_exposure is anchored to ENTRY risk
+- current_risk_exposure does NOT change during:
+  - BREAK-EVEN
+  - TRAILING
+  - SCALE_OUT
+
+This ensures risk consistency for reconstruction analysis.
+
+
+
 
 ### 5.3 Execution State
+
+These fields represent the resulting trade state AFTER a Money Management (MM) action is applied.
+
+They describe the resulting system state rather than the decision process itself.
+
 
 |  | Field |	Type |	Description |	Used By |
 | --- | --- | --- |	--- | --- |
 | 1 | take_profit |	double |	TP after MM action	| MANAGE / EXIT |
 | 2 | realized_pnl |	double	| Realized P/L after MM action |	SCALE_OUT / EXIT |
 
+
 #### Notes
-- These fields represent the resulting trade/account state.
-- They reflect the system AFTER MM actions have been applied.
+
+- These values reflect the system AFTER execution.
+- They are required for reconstructing trade outcomes.
+
 
 ### 5.4 Execution Outcome
+
+These fields represent the outcome of the Money Management decision process.
+
+They describe:
+- Whether an action was executed
+- What change occurred
+- Why an action was not executed (if applicable)
+
 
 |  | Field | Type | Description | Used By |
 |--- |------|------|-------------|--------|
@@ -209,10 +292,15 @@ This schema applies to the following MM paths:
 | 4 | new_stoploss | double | New SL after modification | BE, TRAIL |
 | 5 | closed_lots | double | Lots closed during scale-out | SCALE_OUT |
 
-####  Notes
-- Execution Outcome fields are populated ONLY in AFTER snapshots.
-- BEFORE snapshots MUST leave these fields empty.
-- These fields capture the RESULT of the MM decision logic.
+
+#### Execution Outcome Rules
+
+- action_executed MUST be TRUE or FALSE (not empty)
+- execution_reason MUST be populated when action_executed = FALSE
+- previous_stoploss and new_stoploss apply ONLY to BE and TRAIL
+- closed_lots applies ONLY to SCALE_OUT
+
+
 
 ### 5.5 Risk Geometry (Unchanged)
 
@@ -220,8 +308,6 @@ This schema applies to the following MM paths:
 | --- | --- | --- |	--- | --- |
 | 1 | stoploss_points |	double |	SL distance (unchanged)	| All |
 | 2 | value_per_point |	double |	Value per point (unchanged) |	All |
-
-
 
 ## 6. Field Population Rules (Strict)
 
@@ -244,6 +330,60 @@ This schema applies to the following MM paths:
 ✅ MM decisions are fully reconstructable from logs alone.
 
 ✅ This schema satisfies MM-LOG-01 observability requirements.
+
+## 9. Column Order Guarantee
+
+All logs MUST follow the exact column order defined in this schema.
+
+- Column order MUST NOT change
+- Missing or extra columns invalidate the log
+- Column integrity MUST be enforced at runtime
+
+This is required for machine parsing and validation.
+
+
+## 10. Reconstruction Guarantee
+
+This schema guarantees that:
+
+- Every MM decision is captured
+- Every state transition can be reconstructed
+- Every action outcome is traceable
+
+Each event must provide:
+
+1. BEFORE state
+2. Execution Outcome
+3. AFTER state
+
+All three layers are REQUIRED for valid reconstruction.
+
+
+## 11. Event Field Mapping
+
+### SCALE_OUT
+- action_executed
+- closed_lots
+
+### BREAK-EVEN
+- action_executed
+- previous_stoploss
+- new_stoploss
+
+### TRAILING
+- action_executed
+- previous_stoploss
+- new_stoploss
+
+
+## 12 Immutability Rule
+
+This schema version is locked.
+
+- No structural changes allowed after approval
+- Any modification requires a new version (v1.3+)
+- Historical versions must remain unchanged
+
 
 --- 
 #### End of Document — MM_Snapshot_Schema_v1.2
