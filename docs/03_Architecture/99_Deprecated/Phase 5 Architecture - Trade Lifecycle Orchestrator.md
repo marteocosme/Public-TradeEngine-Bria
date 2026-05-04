@@ -6,10 +6,29 @@ This document has been replaced by:
 
 👉 Trade Lifecycle Orchestrator_Architecture_v1.2.md
 
-Reason:
-- Schema v1.2 alignment
-- Execution outcome integration
-- Lifecycle flow update
+## 📌 Reason
+
+This version is based on the older lifecycle model which:
+
+- Does NOT include execution outcome stage
+- Does NOT reflect Schema v1.2 alignment
+- Does NOT enforce updated responsibility separation (INF‑3)
+
+---
+
+## ✅ Current Architecture
+
+Refer to:
+
+- /03_Architecture/01_Execution/Trade_Lifecycle_Orchestrator_v1.2.md
+- /03_Architecture/00_Core/Snapshot_DataFlow_Architecture_v1.0.md
+
+---
+
+## 📚 Historical Note
+
+This file is retained for reference and audit trail purposes only.
+
 
 
 # 🏗️ Phase 5 Architecture — Trade Lifecycle Orchestrator
