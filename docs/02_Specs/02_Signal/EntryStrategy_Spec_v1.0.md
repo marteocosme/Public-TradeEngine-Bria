@@ -1,6 +1,44 @@
 
 # 📘 Entry Strategy Specification v1.0
 
+
+## ⚠️ Status: PLANNED / NOT ACTIVE
+
+---
+
+## 🔒 Document Status
+
+Version: v1.0  
+Status: 🚧 PLANNED (Signal Module)  
+Last Updated: 2026-05-04  
+
+---
+
+## 🎯 Purpose
+
+Defines the entry signal generation logic used to identify valid trade setups.
+
+---
+
+## 🚧 Current System Status
+
+This specification is NOT currently enforced in the system.
+
+The system currently operates using:
+
+- Trade Lifecycle Orchestrator (v1.2)
+- Money Management modules
+- Snapshot-based execution
+
+---
+
+## ✅ Future Integration
+
+This document will be used in:
+
+👉 Phase 6 — Signal Engine Implementation
+
+
 ## Purpose
 The Entry Strategy module determines whether market conditions permit the opening of a new trade based on predefined NNFX entry rules.
 
@@ -25,6 +63,32 @@ It explicitly excludes:
 - Evaluated once per closed candle
 - All conditions are evaluated using historical, closed‑bar data
 - The result is deterministic per candle
+
+
+## ✅ Signal Conditions
+
+- Baseline indicator conditions
+- Confirmation indicators
+- Volume/volatility checks
+
+---
+
+## ✅ Entry Criteria
+
+- All conditions must align
+- No conflicting signals
+
+---
+
+## ✅ Output
+
+If valid:
+
+- Emit: MM_EVENT_ENTRY
+- Provide:
+    - entry price
+    - SL
+    - risk % (optional)
 
 
 ## Inputs

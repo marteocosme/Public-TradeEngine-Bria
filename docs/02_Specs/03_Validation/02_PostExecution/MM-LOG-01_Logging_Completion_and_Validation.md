@@ -36,6 +36,24 @@ Excluded:
 
 ---
 
+
+## ✅ Validation Categories
+
+### Trade Constraints
+- Lot size must be within broker limits
+- SL/TP distances must meet minimum stop level
+
+
+### Risk Constraints
+- Lot size must match risk model
+- Exposure must not exceed allowed %
+
+### Execution Constraints
+- Symbol must be tradable
+- Market conditions must allow execution
+
+---
+
 ## Validation Success Criteria
 
 MM-LOG-01 is considered VALIDATED when:

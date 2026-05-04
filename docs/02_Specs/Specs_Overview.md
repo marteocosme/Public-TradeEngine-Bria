@@ -1,6 +1,11 @@
 # Specifications Overview
 
----
+
+## 🔒 Status
+
+Version: v1.1  
+Last Updated: 2026-05-04  
+
 
 ## 🎯 Purpose
 
@@ -14,46 +19,84 @@ Defines all system specifications, including:
 
 ---
 
-# ✅ Structure
+## ✅ 🧠 Specification Layers
 
-## ✅ Core Specifications
+### ✅ 1. Core Specifications
 
 Location: `/00_Core/`
 
-Includes:
+#### Includes:
 - Snapshot Schema
 - Event Definitions
 - Logging Contract
 
+#### Responsibility:
+- Defines system-wide data and contracts
+- Acts as Single Source of Truth (SSOT)
+
 ---
 
-## ✅ Money Management
+### ✅ 2. Money Management
 
 Location: `/01_MM/`
 
-Includes:
+#### Includes:
 - Money Management behavior specification
+
+#### Responsibility:
+- Defines trade management logic
+- Controls lifecycle actions:
+  - SCALE_OUT
+  - BREAK_EVEN
+  - TRAIL
+  - EXIT
 
 ---
 
-## ✅ Validation
+### ✅ 3. Signal Specifications (Future Phase)
+
+Location: `/02_Signal/`
+
+#### Includes:
+- EntryStrategy_Spec
+
+#### Responsibility:
+- Defines entry signal generation
+- Evaluates indicators and conditions
+- Produces trade entry intent
+
+#### ⚠️ Status
+
+Signal module is not currently active.
+
+System currently operates using:
+- Lifecycle Orchestrator
+- MM Modules
+
+
+
+### ✅ 4. Validation
 
 Location: `/02_Validation/`
 
-### ✅ Pre-Execution Validation
 
-Location: `/02_Validation/01_PreExecution/`
+#### ✅ 4.1 Pre-Execution Validation
 
-Includes:
+ Location: `/02_Validation/01_PreExecution/`
+
+#### Includes:
 - Entry Parameter Validation
 - Any future MM action pre-checks
 
+#### Responsibility:
+- Validates inputs BEFORE execution
+- Ensures trade constraints are satisfied
 
-### ✅ Post-Execution Validation
+#### ✅ 4.2 Post-Execution Validation
 
 Location: `/02_Validation/02_PostExecution/`
 
-Includes:
+#### Includes:
 - MM-LOG-01 logging validation
 - Snapshot/log correctness verification
 
@@ -82,10 +125,24 @@ This separation ensures:
 
 ---
 
+# ✅ 🔗 Traceability Note
+
+All specifications must map to:
+
+- Architecture (`/03_Architecture`)
+- Implementation (code)
+- Logging output
+- Validation rules
+
+No behavior should exist in code that is not defined in this folder.
+
+---
+
 ## ✅ Design Principles
 
-- Single Source of Truth
+- Single Source of Truth (SSOT)
 - Schema-first design
+- Contract-driven logging
 - Strict contract enforcement
 - Version-controlled updates
 
@@ -95,19 +152,20 @@ This separation ensures:
 
 All changes must follow:
 
-1. Schema update
-2. Contract update
-3. Validation update
-4. Then implementation
+1. Update Schema (if applicable)
+2. Update Contract
+3. Update Validation
+4. Update Architecture
+5. Then update implementation
 
+---
 
-## 🔗 Traceability Note
+# ✅ 📌 Notes
 
-All specifications in this folder must map to:
+- Signal module is currently planned (Phase 6)
+- Execution system is already active and validated
+- Logging and snapshot system must remain consistent at all times
 
-- Architecture documents (/03_Architecture)
-- Implementation modules
-- Validation rules
+---
 
-No logic should exist in code that is not defined here.
 
