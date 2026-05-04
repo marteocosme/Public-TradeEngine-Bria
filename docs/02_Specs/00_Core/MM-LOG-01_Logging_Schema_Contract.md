@@ -3,9 +3,9 @@
 
 ## 🔒 Document Status
 
-Version: v1.0  
+Version: v1.3
 Status: ✅ ACTIVE (SSOT)  
-Last Updated: 2026-05-04  
+Last Updated: 2026-05-05 
 
 ---
 
@@ -25,14 +25,15 @@ Ensures logs are:
 ---
 
 ## Status
-✅ Approved (Schema v1.2 Active)
+✅ Approved (Schema v1.3 Active)
 
 ---
 
 ## Version
-v1.2
+v1.3
 
 ### Supersedes
+- v1.2
 - v1.1
 
 ---
@@ -113,6 +114,55 @@ All logging output MUST conform to:
 
 Previous versions:
 - v1.1 (superseded, retained for reference)
+
+
+---
+
+## 🔭 Lifecycle Grouping (cycle_id)
+
+### 🔹 cycle_id
+
+**Type:** integer  
+**Required:** ✅ YES  
+**Scope:** Per trade lifecycle  
+
+---
+
+## Definition
+
+A unique identifier assigned to each trade lifecycle.
+
+A lifecycle is defined as:
+
+ENTRY → (SCALE_OUT / BREAK_EVEN / TRAIL) → EXIT
+
+---
+
+## Rules
+
+- MUST increment on every ENTRY event
+- MUST remain constant for all events in the same lifecycle
+- MUST be included in:
+  - Event logs
+  - Snapshot logs
+
+---
+
+## Purpose
+
+- Enables grouping of events into a single trade lifecycle
+- Allows full reconstruction of trade behavior
+- Supports validation, debugging, and backtesting analysis
+
+---
+
+## ✅ Contract Requirement
+
+All MM-LOG-01 logs MUST include `cycle_id`.
+
+Logs without `cycle_id` are considered INVALID for lifecycle traceability.
+
+---
 
 
 ## Schema Requirements
@@ -322,6 +372,12 @@ All violations must:
 - Be treated as system failures
 
 ## Change Log
+
+#### v1.3
+- Introduced `cycle_id` for lifecycle grouping
+- Defined lifecycle-based logging structure (ENTRY → MANAGE → EXIT)
+- Added requirement for all logs to include cycle_id
+- Enables full trade lifecycle traceability and grouping
 
 ### v1.2
 - Added Execution Outcome fields

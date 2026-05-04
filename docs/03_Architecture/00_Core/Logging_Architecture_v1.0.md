@@ -2,9 +2,9 @@
 
 ## 🔒 Document Status
 
-Version: v1.0  
+Version: v1.1 
 Status: ✅ ACTIVE  
-Last Updated: 2026-05-04  
+Last Updated: 2026-05-05  
 
 ### 📂 Location Note
 
@@ -14,10 +14,6 @@ Path:
 docs/03_Architecture/00_Core/
 
 ---
-
-
-
-
 
 ## 🔗 Traceability
 
@@ -63,6 +59,71 @@ File Output (CSV)
 ```
 
 ---
+
+## 🔭 Observability Layer — Lifecycle Grouping
+
+### Overview
+
+To improve traceability and auditability, the logging system introduces **lifecycle grouping** using `cycle_id`.
+
+This enables reconstruction of full trade lifecycles across MM events and snapshots.
+
+---
+
+### Lifecycle Definition
+
+A trade lifecycle consists of:
+
+ENTRY  
+→ MM actions (SCALE_OUT / BREAK_EVEN / TRAIL)  
+→ EXIT
+
+---
+
+### cycle_id Behavior
+
+- A new `cycle_id` is generated at ENTRY
+- The same `cycle_id` is reused for all subsequent MM actions
+- The lifecycle ends at EXIT
+
+---
+
+### Integration into Logging Pipeline
+
+TradeEngine detects ENTRY  
+→ cycle_id is incremented  
+→ BEFORE snapshot emitted with cycle_id  
+→ Execution performed  
+→ AFTER snapshot emitted with cycle_id  
+
+During MM management:
+
+- SCALE_OUT / BE / TRAIL reuse the same cycle_id
+- All logs (events and snapshots) are tagged with cycle_id
+
+At EXIT:
+
+- Final BEFORE and AFTER snapshots are emitted
+- Lifecycle completes
+
+---
+
+### Result
+
+All log records can be grouped by `cycle_id` to reconstruct:
+
+- Full trade lifecycle
+- State transitions
+- MM decisions and execution outcomes
+
+---
+
+### Benefits
+
+- Enables end-to-end trade traceability
+- Simplifies debugging and validation
+- Provides structured grouping for analysis and backtesting
+
 
 # ✅ 📄 File Structure
 
@@ -175,6 +236,13 @@ Logger ONLY:
 ---
 
 # ✅ 📌 Version Notes
+
+#### v1.1 (2026-05-05)
+
+- Introduced `cycle_id` for lifecycle grouping
+- Defined lifecycle-based logging structure (ENTRY → MANAGE → EXIT)
+- Added requirement for all logs to include cycle_id
+- Enables full trade lifecycle traceability and grouping
 
 ### v1.0 (2026-05-04)
 
