@@ -1,3 +1,45 @@
+
+## ⚠️ Status: RESERVED FOR SIGNAL MODULE
+
+This document is NOT part of the current execution architecture.
+
+---
+
+## 📌 Purpose (Reclassified)
+
+This document defines the **signal timing and trigger model**, including:
+
+- Candle-based evaluation
+- Timing of signal checks
+- OnTick vs NewBar logic
+
+---
+
+## 🚧 Current Status
+
+This is NOT actively used in the current system.
+
+The system currently uses:
+
+- Trade Lifecycle Orchestrator (v1.2)
+- Snapshot-based execution
+
+---
+
+## ✅ Future Use
+
+This document will be used in:
+
+👉 Phase 6+ — Signal Engine Implementation
+
+---
+
+## 🔗 Related Future Components
+
+- Signal Generator
+- Indicator Engine
+- Entry Validation Layer
+
 ## Purpose
 This document defines the end‑to‑end execution flow of the trading system per candle, ensuring consistent behavior across live trading, backtesting, and replay.
 
