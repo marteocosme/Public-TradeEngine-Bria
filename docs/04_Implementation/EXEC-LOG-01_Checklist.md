@@ -4,10 +4,16 @@
 
 Scope:
 - Order execution
-- Trade requests
-- Broker responses
+- Trade requests and responses
+- Broker interaction
+- Fill verification
 
-This is separate from MM-LOG-01 (position lifecycle logging).
+
+
+⚠️ This is separate from MM-LOG-01:
+- MM-LOG-01 handles position lifecycle logging
+- EXEC-LOG-01 handles execution-level logging
+
 
 ## Status: 
 - NOT STARTED
