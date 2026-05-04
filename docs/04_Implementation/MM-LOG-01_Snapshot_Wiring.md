@@ -95,4 +95,27 @@ Immediately after executing MM action
 - MUST follow schema v1.2
 - MUST NOT redefine fields
 
+
+---
+
+### 🔹 Lifecycle Association Rule
+
+All snapshots MUST include `cycle_id` corresponding to the active trade lifecycle.
+
+---
+
+### Requirements
+
+- BEFORE and AFTER snapshots MUST share the same cycle_id
+- cycle_id MUST match the associated MM event
+- cycle_id MUST remain constant from ENTRY → EXIT
+
+---
+
+### Purpose
+
+- Ensures snapshots can be grouped into a complete lifecycle
+- Enables correct pairing of MM actions and state transitions
+
+
 ---

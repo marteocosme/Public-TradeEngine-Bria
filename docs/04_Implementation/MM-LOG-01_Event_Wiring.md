@@ -43,6 +43,8 @@ Scope:
 
     `m_logger.LogMMEventBase(...)`
 
+    (Includes cycle_id for lifecycle grouping as required by MM-LOG-01 v1.3)
+
 
 ---
 
