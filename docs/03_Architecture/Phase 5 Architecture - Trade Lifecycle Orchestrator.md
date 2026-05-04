@@ -4,7 +4,7 @@
 
 This document has been replaced by:
 
-👉 Phase 5  Architecture - Trade Lifecycle Orchestrator_v1.2.md
+👉 Trade Lifecycle Orchestrator_Architecture_v1.2.md
 
 Reason:
 - Schema v1.2 alignment
