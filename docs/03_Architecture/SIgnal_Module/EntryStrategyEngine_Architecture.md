@@ -1,3 +1,50 @@
+
+## ⚠️ Status: RESERVED FOR SIGNAL MODULE
+
+This document is NOT part of the current execution architecture.
+
+---
+
+## 📌 Purpose (Reclassified)
+
+This document defines the Entry Strategy Engine, responsible for:
+
+- Generating trade entry signals
+- Evaluating indicators and conditions
+- Producing signal outputs for lifecycle consumption
+
+---
+
+## 🚧 Current Status
+
+This component is NOT currently implemented in the system.
+
+The system currently operates using:
+
+- Trade Lifecycle Orchestrator (v1.2)
+- Money Management (MM) modules
+- Snapshot-based execution
+
+---
+
+## ✅ Future Use
+
+This document will be used in:
+
+👉 Phase 6+ — Signal Engine Implementation
+
+---
+
+## 🔗 Future Integration Flow
+
+Signal Engine
+    ↓
+Lifecycle Controller
+    ↓
+MM Modules
+    ↓
+Execution Layer
+
 ## Purpose
 The Entry Strategy Engine evaluates whether a trade is eligible for entry based on the Entry Strategy Specification v1.0.
 
