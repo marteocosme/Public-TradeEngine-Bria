@@ -107,6 +107,26 @@ This phase completes **observability**, not logic.
 - Risk model changes
 - Performance optimization
 
+## Phase 4.5 — System Alignment & Contract Finalization
+
+### Objective
+Ensure full consistency across:
+- Snapshot Schema
+- Money Management Spec
+- Logging Contract
+
+### Scope
+- Resolve field mismatches
+- Complete missing modules (TRAIL)
+- Remove duplicate/legacy contracts
+- Finalize architecture coverage
+
+### Exit Criteria
+- [ ] 1:1 Schema ↔ Spec ↔ Contract alignment achieved
+- [ ] TRAIL module defined
+- [ ] Single logging contract enforced (MM-LOG-01)
+- [ ] Architecture documents complete
+
 ### Completion Criteria
 MM‑LOG‑01 is complete ONLY when:
 - A full trade lifecycle is reconstructable from logs alone
@@ -115,6 +135,17 @@ MM‑LOG‑01 is complete ONLY when:
 - Validation evidence is documented
 
 ✅ Completion of MM‑LOG‑01 restores Phase 5 completeness.
+
+
+## Phase 5 Readiness Gate
+
+Before entering Phase 5 (Implementation):
+
+- [ ] Specs fully aligned
+- [ ] Architecture complete
+- [ ] No open inconsistencies
+- [ ] Design freeze document created
+
 
 ---
 ## Phase 6 – Post‑Validation Observability & Replay Enablement
@@ -205,6 +236,71 @@ Phase 6 is considered complete when:
 - Logging guarantees are documented and enforced
 
 ---
+
+## Phase 7 — Forward Testing (Demo)
+
+### Objective
+Validate system under live market conditions without capital risk
+
+### Focus
+- Execution behavior
+- Logging integrity
+- Lifecycle correctness
+
+---
+
+## Phase 8 — Controlled Live Deployment
+
+### Objective
+Test with real capital under low risk
+
+### Focus
+- Broker behavior
+- Execution reliability
+- Risk model validation
+
+---
+
+## Phase 9 — Performance Analysis & Optimization
+
+### Objective
+Use structured logs to refine system performance
+
+### Focus
+- Risk efficiency
+- Trade lifecycle optimization
+- Parameter tuning (non-curve fitting)
+
+---
+
+## Phase 10 — Production Hardening
+
+### Objective
+Prepare system for real-world robustness
+
+### Scope
+- Error handling
+- Recovery mechanisms
+- Monitoring / alerting
+
+---
+
+## Phase 11 — Strategy / Signal Integration
+
+### Objective
+Integrate signal generation into a fully validated engine
+
+### Scope
+- Entry logic
+- Indicator framework
+- Signal → MM interface
+
+### Rule
+Signals must remain independent of:
+- Lot sizing
+- SL/TP logic
+- Trade management
+
 ## Relationship to Roadmap v1
 
 - Roadmap v1 remains a historical planning artifact
@@ -214,12 +310,15 @@ Phase 6 is considered complete when:
 - Roadmap v2 exists to formally close those obligations
 
 ---
-## Governance Rules (Re‑stated)
 
-1. No MM logic re‑implementation
-2. No silent logging shortcuts
-3. No phase closure without explicit validation evidence
-4. Logging correctness precedes analytics
+## Roadmap Governance Rules
+
+- Specs → must always align with implementation
+- Architecture → must reflect actual system design
+- No phase progression without meeting exit criteria
+- Money Management must be validated BEFORE signal integration
+- Logging (MM-LOG-01) is mandatory across all lifecycle actions
+
 
 ---
 ### Final Statement
