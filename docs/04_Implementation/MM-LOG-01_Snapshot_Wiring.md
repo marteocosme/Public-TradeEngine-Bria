@@ -29,10 +29,8 @@ Scope:
 ## Snapshot Builder
 
 - Function Name:
-    - `BuildTradeContext(...)`
-    - `BuildPositionSnapshot(...)`
-    - `BeginMMCycle(...)`
-    - `EndMMCycleCheck(...)`
+    
+    -   Snapshot Builder (implementation-defined)
 
 - Source Data:
   - Position data (PositionGet*)
@@ -43,7 +41,9 @@ Scope:
 
 - Notes:
 
-  Aggregates all required data into a snapshot struct conforming to schema v1.2.
+  This represents the logical construction of a snapshot.
+  The actual implementation may vary across phases.
+
 
 ---
 
@@ -79,10 +79,13 @@ Immediately after executing MM action
 
 # 🔄 Snapshot Flow
 
-1. Build BEFORE snapshot
-2. Execute MM action
-3. Build AFTER snapshot
-4. Emit to logger
+
+1. Capture BEFORE snapshot
+2. Execute MM action (via handler)
+3. Capture AFTER snapshot
+4. Log via:
+   `m_logger.LogMMEventBase(...)`
+
 
 ---
 
