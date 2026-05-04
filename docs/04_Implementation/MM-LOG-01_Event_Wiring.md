@@ -33,17 +33,13 @@ Scope:
 
 - Trigger Location: 
 
-    `CTradeEngine::ManageEntry(...)`
+    `CTradeEngine::ManageEntry(...)` → `CEntryStrategyEngine::Evaluate(...)` (entry strategy decision)
 
 - Handler:
 
     `CTradeExecution::ExecuteEntry(...)`   
 
 - Logger Call:
-
-    `EmitSnapshotBefore(..)`
-    
-    `EmitSnapshotAfter(...)`
 
     `m_logger.LogMMEventBase(...)`
 
@@ -54,16 +50,12 @@ Scope:
 
 - Trigger Location:
 
-    `CTradeEngine::ManageOpenPosition(...)`
+    `CTradeEngine::ManageOpenPosition(...)` → `CPartialCloseEngine::Evaluate(...)` (evaluate scaling-out condition)
 
 - Handler:
 
     `CPartialCloseEngine::PartialClose(...)`
 - Logger Call:
-
-    `EmitSnapshotBefore(..)`
-    
-    `EmitSnapshotAfter(...)`
 
     `m_logger.LogMMEventBase(...)`
 ---
@@ -72,17 +64,13 @@ Scope:
 
 - Trigger Location:
 
-    `CTradeEngine::ManageOpenPosition(...)`
+    `CTradeEngine::ManageOpenPosition(...)` → `CBreakEvenEngine::Evaluate(...)` (evaluate Break-Even condition)
 
 - Handler:
 
     `CTradeExecution::ModifyStopLoss(...)`
 
 - Logger Call:
-
-    `EmitSnapshotBefore(..)`
-    
-    `EmitSnapshotAfter(...)`
 
     `m_logger.LogMMEventBase(...)`
 
@@ -93,16 +81,12 @@ Scope:
 
 - Trigger Location:
 
-    `CTradeEngine::ManageOpenPosition(...)`
+    `CTradeEngine::ManageOpenPosition(...)` → `CTrailingStopEngine::Evaluate(...)`  (evaluate trailing stop condition)
 - Handler:
 
     `CTradeExecution::ModifyStopLoss(...)`
 
 - Logger Call:
-
-    `EmitSnapshotBefore(..)`
-    
-    `EmitSnapshotAfter(...)`
 
     `m_logger.LogMMEventBase(...)`
 ---
@@ -111,16 +95,12 @@ Scope:
 
 - Trigger Location:
 
-    `CTradeEngine::ManageExit(...)`
+    `CTradeEngine::ManageExit(...)` →  `CExitSignal::Update(...)` (evaluate exit condition)
 
 - Handler:
-
-    `CExitSignal::Update(...)`
+    
+    `CTradeExecution::ExecuteExit(...)`
 
 - Logger Call:
-
-    `EmitSnapshotBefore(..)`
-    
-    `EmitSnapshotAfter(...)`
 
     `m_logger.LogMMEventBase(...)`
