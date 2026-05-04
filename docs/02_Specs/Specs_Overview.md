@@ -34,6 +34,28 @@ Location: `/00_Core/`
 - Defines system-wide data and contracts
 - Acts as Single Source of Truth (SSOT)
 
+
+    ### 1.1 📚 Schema Version Archive
+
+    Location: `/00_Core/_archive/`
+
+    #### Includes:
+    - Previous schema versions (v1.0, v1.1, etc.)
+
+    #### Purpose:
+    - Preserve schema evolution history
+    - Support debugging and backtesting audits
+    - Enable version comparison
+
+#### ⚠️ Important Rule
+
+Only ONE schema version is ACTIVE at a time.
+
+All previous versions must be archived and must NOT be used for:
+- Implementation
+- Logging
+- Validation
+
 ---
 
 ### ✅ 2. Money Management

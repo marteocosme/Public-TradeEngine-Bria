@@ -1,18 +1,91 @@
 
-# MM Snapshot Schema v1.0
-> ⚠️ **SUPERSEDED NOTICE**
->
-> This document (**MM_Snapshot_Schema_v1.0**) has been **superseded** by:
->
-> **MM_Snapshot_Schema_v1.1**
->
-> Reason for supersession:
-> - Added `current_price` and `atr_value` fields to improve market‑context observability
->
-> ✅ v1.0 remains valid for historical log parsing  
-> ❌ v1.0 should NOT be used for new development
 
-**Document ID:** MM-SNAPSHOT-SCHEMA-v1.0
+## ⚠️ Status: ARCHIVED (SUPERSEDED)
+
+---
+
+## 📌 Current Version
+
+This schema has been superseded by:
+
+👉 MM_Snapshot_Schema_v1.2.md
+
+---
+
+## 📌 Evolution Context
+
+v1.1 represents an intermediate version between:
+
+- v1.0 (initial schema)
+- v1.2 (current active schema)
+
+---
+
+## 🚀 Differences from v1.2
+
+v1.2 introduces:
+
+- Execution outcome fields
+- Full lifecycle alignment
+- Improved logging compatibility
+
+---
+
+## 🚫 Usage Restriction
+
+This version MUST NOT be used for:
+
+- Implementation
+- Logging validation
+- Schema enforcement
+
+---
+
+## ✅ Allowed Usage
+
+- Historical reference
+- Schema comparison
+- Debugging evolution issues
+
+---
+
+## Implementation Status
+
+Status: Implemented ✅  
+Phase: Phase 4 — Logging & Observability  
+Validation: Partial (manual log inspection)
+
+
+## Implementation Binding
+
+This schema is implemented in:
+
+/MyInclude/NNFX/Core/Logging/MM_LogSchema_v1_1.mqh
+
+All header definitions in code MUST match this document exactly.
+
+Any updates to this schema require:
+1. Updating this document
+2. Updating the implementation file
+3. Verifying log output consistency
+
+
+### Notes
+- BEFORE / AFTER snapshot pairing enforced (INF-3)
+- Header generation implemented (content-based detection)
+- Schema not yet centralized in code (duplication exists)
+- Automated validation layer not yet implemented
+- `current_position_lots` reflects the actual live position size at the time of snapshot.
+- `current_risk_exposure` remains anchored to ENTRY risk and does not change during BE, TRAIL, or SCALE_OUT.
+
+
+### Next Steps
+- Introduce Single Schema Definition (code-level enforcement)
+- Apply Logging Hardening (header dispatcher integration)
+- Add schema validation checks
+
+# MM Snapshot Schema v1.0
+**Document ID:** MM-SNAPSHOT-SCHEMA-v1.1
 
 **Applies** To: TradeEngine-Bria (NNFX)
 
@@ -20,10 +93,18 @@
 
 **Status:** ✅ Frozen (Do not modify without version bump)
 
+
 ## 1. Purpose
 This document defines the frozen snapshot contract used to make all Money Management (MM) decisions **fully observable, reconstructable, and auditable from logs alone.**
 
 The snapshot system captures state-before and state-after every MM action, without influencing MM logic itself.
+
+
+Version v1.1 extends v1.0 by explicitly logging market context required for precise reconstruction:
+
+Current market price
+ATR value actually used by MM
+
 
 ``` 
 ⚠️ Rule: Once frozen, no fields may be added, removed, or repurposed without incrementing the schema version.
@@ -86,12 +167,17 @@ This schema applies to the following MM paths:
 
 |  | Field |	Type |	Description |	Used By |
 | --- | --- | --- |	--- | --- |
-| 1 | current_position_lots	|  double	| Current open volume |	All
-| 2 | current_risk_exposure	| double | ENTRY-anchored risk amount |	All
+| 1 | current_position_lots	|  double	| Current open volume |	All |
+| 2 | current_risk_exposure	| double | ENTRY-anchored risk amount |	All |
 
+### 4.5 Market Context (NEW in v1.1)
 
+|  | Field |	Type |	Description |	Used By |
+| --- | --- | --- |	--- | --- |
+| 1 | current_price  |	double | Market price at MM decision time (Bid/Ask as appropriate) | All |
+| 2 | atr_value  |	double | ATR value actually used by MM at decision time | All |
 
-### 4.5 Execution-State Observability
+### 4.6 Execution-State Observability
 
 |  | Field |	Type |	Description |	Used By |
 | --- | --- | --- |	--- | --- |
@@ -119,8 +205,6 @@ This schema applies to the following MM paths:
 ⚠️ These fields must be zero for non-SCALE_OUT snapshots.
 ```
 
-
-
 ## 5. MM_SNAPSHOT_AFTER Schema
 ### 5.1 Identity & Timing
 
@@ -136,8 +220,8 @@ This schema applies to the following MM paths:
 
 |  | Field |	Type |	Description |	Used By |
 | --- | --- | --- |	--- | --- |
-| 1 | calculated_lot_size |	double |	Resulting position volume |	All |
-| 2 | calculated_risk_amount |	double |	ENTRY-anchored risk amount	| All |
+| 1 | current_position_lot |	double |	Current position volume after MM action |	All |
+| 2 | current_risk_exposure |	double |	ENTRY-anchored risk amount	| All |
 
 
 
@@ -182,4 +266,4 @@ This schema applies to the following MM paths:
 ✅ This schema satisfies MM-LOG-01 observability requirements.
 
 --- 
-#### End of Document — MM_Snapshot_Schema_v1.0
+#### End of Document — MM_Snapshot_Schema_v1.1

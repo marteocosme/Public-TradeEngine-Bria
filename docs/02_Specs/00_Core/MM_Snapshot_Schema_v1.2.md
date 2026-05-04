@@ -8,6 +8,16 @@ Status: ✅ Active ✅  LOCKED
 ## Supersedes
 - MM_Snapshot_Schema_v1.1.md
 
+
+## 📚 Previous Versions
+
+- v1.0 → Initial schema version (archived)
+- v1.1 → Intermediate version (archived)
+
+Location: `/00_Core/_archive/`
+
+
+
 ## Change Summary
 - Added Execution Outcome fields
 - Improved observability for MM actions
