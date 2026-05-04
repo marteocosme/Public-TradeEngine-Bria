@@ -1,4 +1,15 @@
 
+⚠️ STATUS: DEPRECATED — HISTORICAL (PHASE 4)
+
+This document was part of Phase 4 implementation and is no longer the authoritative reference.
+
+Replaced by:
+- Logging_Architecture_v1.0.md
+- MM-LOG-01 Implementation files
+
+Do not use for current development.
+
+
 # 📘 Phase 4.2 — Logger Structural Changes
 
 > ✅ Status: COMPLETED  
