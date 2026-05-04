@@ -1,3 +1,28 @@
+
+⚠️ STATUS: DEPRECATED — REPLACED BY STRUCTURED DOCUMENTS
+
+This document has been superseded by:
+
+- MM-LOG-01_Event_Wiring.md (event trigger and handling)
+- MM-LOG-01_Snapshot_Wiring.md (snapshot construction and flow)
+
+---
+
+## Reason
+
+This file previously combined:
+- Event mapping (WHEN/WHERE)
+- Snapshot logic (HOW)
+
+These responsibilities are now separated to improve:
+- Clarity
+- Maintainability
+- Alignment with system architecture
+
+---
+
+⚠️ Do NOT use this document for new development.
+
 # MM‑LOG‑01 — Execution Mapping
 
 ## 🔗 Dependencies
