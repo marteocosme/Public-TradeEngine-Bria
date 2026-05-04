@@ -1,5 +1,19 @@
 
+
+## ⚠️ Status: SUPERSEDED
+
+This document has been replaced by:
+
+👉 Phase 5  Architecture - Trade Lifecycle Orchestrator_v1.2.md
+
+Reason:
+- Schema v1.2 alignment
+- Execution outcome integration
+- Lifecycle flow update
+
+
 # 🏗️ Phase 5 Architecture — Trade Lifecycle Orchestrator
+
 **Project:** Public-TradeEngine-Bria
 
 **Phase:** 5 (Architecture)
