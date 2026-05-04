@@ -1,6 +1,27 @@
 
 # MM-LOG-01 Logging Schema Contract
 
+## 🔒 Document Status
+
+Version: v1.0  
+Status: ✅ ACTIVE (SSOT)  
+Last Updated: 2026-05-04  
+
+---
+
+## 🎯 Purpose
+
+Defines the contract between:
+
+- Trade Lifecycle
+- Snapshot Schema
+- Logging System
+
+Ensures logs are:
+- Complete
+- Consistent
+- Auditable (MM-LOG-01 compliant)
+
 ---
 
 ## Status
@@ -15,6 +36,22 @@ v1.2
 - v1.1
 
 ---
+
+
+## 🔗 Dependency
+
+This contract depends on:
+
+- MM_Snapshot_Schema_v1.2.md
+- TradeLifecycleEvents.md
+- Trade_Lifecycle_Orchestrator_v1.2.md
+
+---
+
+## ⚠️ Rule
+
+If schema changes → contract MUST be updated before implementatio
+
 
 ## Phase Mapping
 
