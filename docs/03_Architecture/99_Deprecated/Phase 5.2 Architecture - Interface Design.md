@@ -1,4 +1,45 @@
 
+## ⚠️ Status: SUPERSEDED / DEPRECATED
+
+---
+
+## 📌 Replacement
+
+This design is no longer used in the current architecture.
+
+Replaced by:
+
+- Trade_Lifecycle_Orchestrator_v1.2.md
+- Snapshot_DataFlow_Architecture_v1.0.md
+- Logging_Architecture_v1.0.md
+
+---
+
+## 📌 Reason
+
+This interface design reflects an earlier system version:
+
+- Pre-Schema v1.2
+- Pre-Execution Outcome integration
+- Pre-INF-3 responsibility separation
+
+---
+
+## 🚫 Current Status
+
+This file is not aligned with the current architecture and should not be used for implementation reference.
+
+---
+
+## 📚 Historical Context
+
+This document represented an earlier attempt to define module interfaces before:
+
+- Lifecycle orchestration was finalized
+- Snapshot schema was stabilized
+
+Retained for reference only.
+
 # 🔌 Phase 5.2 — Trade Lifecycle Orchestrator Interface Design
 **Project:** Public-TradeEngine-Bria
 
