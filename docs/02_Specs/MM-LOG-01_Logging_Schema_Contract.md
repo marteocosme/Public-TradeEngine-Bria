@@ -1,5 +1,5 @@
 # MM‑LOG‑01 — Logging Schema Contract
-**Status:** Draft 
+**Status:** ✅ Approved (v1.2 Active) 
 
 **Scope:** Money Management & Trade Lifecycle observability
 

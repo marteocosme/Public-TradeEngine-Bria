@@ -1,11 +1,15 @@
 
-# ⚠️ Superseded
+# MM Snapshot Schema v1.2
 
-This schema version has been superseded by:
+## Status
+Active ✅
 
-➡️ MM_Snapshot_Schema_v1.2.md
+## Supersedes
+- MM_Snapshot_Schema_v1.1.md
 
-This version is retained for historical reference only.
+## Change Summary
+- Added Execution Outcome fields
+- Improved observability for MM actions
 
 
 ## Implementation Status
@@ -19,7 +23,7 @@ Validation: Partial (manual log inspection)
 
 This schema is implemented in:
 
-/MyInclude/NNFX/Core/Logging/MM_LogSchema_v1_1.mqh
+/MyInclude/NNFX/Core/Logging/MM_LogSchema_v1_2.mqh
 
 All header definitions in code MUST match this document exactly.
 
@@ -184,16 +188,33 @@ This schema applies to the following MM paths:
 
 
 
-### 5.3 Execution Outcome
+### 5.3 Execution State
 
 |  | Field |	Type |	Description |	Used By |
 | --- | --- | --- |	--- | --- |
 | 1 | take_profit |	double |	TP after MM action	| MANAGE / EXIT |
 | 2 | realized_pnl |	double	| Realized P/L after MM action |	SCALE_OUT / EXIT |
 
+#### Notes
+- These fields represent the resulting trade/account state.
+- They reflect the system AFTER MM actions have been applied.
 
+### 5.4 Execution Outcome
 
-### 5.4 Risk Geometry (Unchanged)
+|  | Field | Type | Description | Used By |
+|--- |------|------|-------------|--------|
+| 1 | action_executed | bool | Whether the MM action was executed | All |
+| 2 | execution_reason | string | Reason if action was skipped or failed | All |
+| 3 | previous_stoploss | double | Previous SL before modification | BE, TRAIL |
+| 4 | new_stoploss | double | New SL after modification | BE, TRAIL |
+| 5 | closed_lots | double | Lots closed during scale-out | SCALE_OUT |
+
+####  Notes
+- Execution Outcome fields are populated ONLY in AFTER snapshots.
+- BEFORE snapshots MUST leave these fields empty.
+- These fields capture the RESULT of the MM decision logic.
+
+### 5.5 Risk Geometry (Unchanged)
 
 |  | Field |	Type |	Description |	Used By |
 | --- | --- | --- |	--- | --- |
@@ -225,4 +246,4 @@ This schema applies to the following MM paths:
 ✅ This schema satisfies MM-LOG-01 observability requirements.
 
 --- 
-#### End of Document — MM_Snapshot_Schema_v1.1
+#### End of Document — MM_Snapshot_Schema_v1.2

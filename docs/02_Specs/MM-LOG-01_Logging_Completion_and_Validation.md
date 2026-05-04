@@ -1,6 +1,6 @@
 # MM‑LOG‑01
 # Money Management Logging Completion & Validation Specification
-**Status:** 📄 Draft
+**Status:** ✅ Complete (MM-LOG-01 v1.2 Verified)
 
 **Phase Type:** Mandatory catch‑up (Phase 5 closure requirement)
 
@@ -59,9 +59,19 @@ This phase covers **logging and validation** only for:
 
 ### 3.3 Execution Outcomes
 
-- OrderSend results
-- OrderModify results
-- Failure paths and error codes
+
+This section refers to **Money Management execution outcomes only**:
+
+- SCALE_OUT
+- BREAK-EVEN
+- TRAILING
+
+These are implemented via snapshot enhancements in schema v1.2.
+
+Broker-level execution (OrderSend / OrderModify results) is handled in:
+
+➡️ EXEC_Logging_Spec_v1.0.md
+
 
 
 ## ❌ Out of Scope

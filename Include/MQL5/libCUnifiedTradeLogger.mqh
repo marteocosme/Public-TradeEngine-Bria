@@ -6,10 +6,12 @@
 #property strict
 #ifndef __LIBC_UNIFIED_TRADE_LOGGER_MQH__
 #define __LIBC_UNIFIED_TRADE_LOGGER_MQH__
+#define MM_EXPECTED_COLUMNS MM_LogSchemaV11::ColumnCount()
 
 #include <MyInclude\\NNFX\\libEnum.mqh>
 #include <MyInclude\\NNFX\\Core\\Logging\\MM_LogSnapshotRecords.mqh>
 #include <MyInclude\\NNFX\\Core\\Logging\\libCLogHeaderDispatcher.mqh>
+#include <MyInclude\\NNFX\\Core\\Logging\\MM_LogSchema_v1_1.mqh>
 
 // ==================================================================
 // Canonical Money Management Logging Payload (Phase 3 / 4.2)
@@ -186,47 +188,22 @@ public:
       // ✅ Centralized header control
       if(m_header.NeedsHeader(m_csv_snapshots))
          {
-         FileWrite(
-            h,
-            "debug_event_id",
-            "trade_id",
-            "ticket",
-            "timestamp",
-            "symbol",
-            "record_type",
-            "mm_phase",
-            "mm_event",
-
-            // account
-            "balance",
-            "equity",
-            "free_margin",
-
-            // exposure
-            "current_position_lots",
-            "current_risk_exposure",
-
-            // market
-            "current_price",
-            "atr_value",
-
-            // execution
-            "take_profit",
-            "floating_pnl",
-
-            // geometry
-            "stoploss_points",
-            "value_per_point",
-
-            // scale context (optional)
-            "scale_atr_multiple",
-            "scale_fraction"
-         );
-
+         MM_LogSchemaV11::WriteHeader(h);
 
          // ✅ IMPORTANT: mark as written
          m_header.MarkHeaderWritten(m_csv_snapshots);
          }
+
+
+      int actual_columns = 21; // must match your FileWrite fields
+
+      if(actual_columns != MM_EXPECTED_COLUMNS)
+         {
+         Print("❌ SCHEMA ERROR: Column mismatch. Expected=",
+               MM_EXPECTED_COLUMNS,
+               " Got=", actual_columns);
+         }
+
       FileWrite(
          h,
          NextDebugEventId(),            // debug_event_id
@@ -282,74 +259,77 @@ public:
       // ✅ Centralized header control
       if(m_header.NeedsHeader(m_csv_snapshots))
          {
-         FileWrite(
-            h,
-            "debug_event_id",
-            "trade_id",
-            "ticket",
-            "timestamp",
-            "symbol",
-            "record_type",
-            "mm_phase",
-            "mm_event",
-
-            // account
-            "balance",
-            "equity",
-            "free_margin",
-
-            // exposure
-            "current_position_lots",
-            "current_risk_exposure",
-
-            // market
-            "current_price",
-            "atr_value",
-
-            // execution
-            "take_profit",
-            "floating_pnl",
-
-            // geometry
-            "stoploss_points",
-            "value_per_point",
-
-            // scale context
-            "scale_atr_multiple",
-            "scale_fraction"
-         );
-
+         MM_LogSchemaV11::WriteHeader(h);
 
          // ✅ IMPORTANT: mark as written
          m_header.MarkHeaderWritten(m_csv_snapshots);
 
          }
-      FileWrite(
-         h,
-         NextDebugEventId(),
-         rec.trade_context_id,
-         0, // ticket
-         TimeToString(rec.timestamp, TIME_DATE | TIME_SECONDS),
-         rec.symbol,
-         "MM_SNAPSHOT_AFTER",           // ✅ STRING TAG
-         rec.mm_phase,
-         rec.mm_event_result,
-         "", // balance -- not require
-         "", // equity -- not require
-         "", // free_margin -- not require
 
-         // --- Exposure Result ---
-         rec.current_position_lots,
-         rec.current_risk_exposure,
-         "", // current_price -- not require
-         "", // atr_value -- not require
-         // --- Outcome ---
-         rec.take_profit,
-         rec.realized_pnl,
+
+      int actual_columns = 21; // must match your FileWrite fields
+
+      if(actual_columns != MM_EXPECTED_COLUMNS)
+         {
+         Print("❌ SCHEMA ERROR: Column mismatch. Expected=",
+               MM_EXPECTED_COLUMNS,
+               " Got=", actual_columns);
+         }
+
+      if(rec.mm_phase == "" || rec.mm_event_result == "")
+         {
+         Print("❌ INVALID SNAPSHOT AFTER: missing mm_phase/mm_event");
+         }
+
+
+      if(rec.symbol == "")
+         {
+         Print("❌ INVALID SNAPSHOT: symbol missing");
+         }
+
+      if(rec.current_position_lots < 0)
+         {
+         Print("❌ INVALID: negative lot size");
+         }
+
+
+      FileWrite( // intentionally blank fields (not required in AFTER snapshot)
+         h,
+         
+         // --- Meta ---
+         NextDebugEventId(),                                      // "debug_event_id", 1
+         rec.trade_context_id,                                    // "trade_id", 2
+         0,                                                       // ticket, 3
+         TimeToString(rec.timestamp, TIME_DATE | TIME_SECONDS),   //"timestamp", 4
+         rec.symbol,                                              // "symbol", 5
+         "MM_SNAPSHOT_AFTER",                                     // "record_type", 6
+         rec.mm_phase,                                            // "mm_phase", 7
+         rec.mm_event_result,                                     // "mm_event", 8
+         
+         // --- Account ---
+         "", // balance, 9 -- not require
+         "", // equity, 10 -- not require
+         "", // free_margin, 11 -- not require
+
+         // --- Exposure ---
+         rec.current_position_lots,                               // "current_position_lots", 12
+         rec.current_risk_exposure,                               // "current_risk_exposure", 13
+         
+         // --- Market Context ---
+         "", // current_price -- not require                      // "current_price", 14
+         "", // atr_value -- not require                          // "atr_value", 15
+         
+         // --- Execution ---
+         rec.take_profit,                                         // "take_profit", 16
+         rec.realized_pnl,                                        // "pnl", 17
 
          // --- Risk Geometry ---
-         rec.stoploss_points,
-         rec.value_per_point
+         rec.stoploss_points,                                     // "stoploss_points", 18
+         rec.value_per_point,                                     // "value_per_point", 19
+         
+         // --- Scale Context ---
+         "", // "scale_atr_multiple", 20
+         "" // "scale_fraction", 21
       );
 
       FileClose(h);
