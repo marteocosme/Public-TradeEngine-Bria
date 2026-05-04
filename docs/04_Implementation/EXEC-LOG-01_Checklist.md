@@ -1,5 +1,14 @@
 # EXEC‑LOG‑01
 
+✅ STATUS: ACTIVE — EXECUTION LOGGING
+
+Scope:
+- Order execution
+- Trade requests
+- Broker responses
+
+This is separate from MM-LOG-01 (position lifecycle logging).
+
 ## Status: 
 - NOT STARTED
 - FUTURE PHASE
