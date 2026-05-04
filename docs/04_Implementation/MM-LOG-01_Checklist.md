@@ -36,6 +36,22 @@ Status:
 Restore full analytical observability of Money Management and trade lifecycle behavior.
 This checklist defines exactly what must be true before MM‑LOG‑01 can be closed.
 
+
+## 🎯 Validation Objective
+
+The MM-LOG-01 system is considered valid when:
+
+- All MM lifecycle events (ENTRY, SCALE_OUT, BREAK_EVEN, TRAIL, EXIT) generate logs
+- Each event produces BOTH:
+  - BEFORE snapshot
+  - AFTER snapshot
+- Snapshots conform to schema v1.2
+- Logs are emitted via m_logger.LogMMEventBase(...)
+- Event flow follows documented wiring (Event Wiring + Snapshot Wiring)
+
+This ensures full traceability and auditability of all position lifecycle changes.
+
+
 ## ✅ Section 1 — Preconditions (Gate Check)
 
  - [x] Phase‑4 is closed and tagged
