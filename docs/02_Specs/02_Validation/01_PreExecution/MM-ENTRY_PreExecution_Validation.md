@@ -1,17 +1,30 @@
 
 # Execution Engine – Entry Parameter Validation Rules
 
-## Purpose
-This document formally defines entry parameter validation rules enforced by `CTradeExecution::ExecuteEntry()` to prevent invalid trade construction and to allow controlled, spec-compliant flexibility for exits.
+## 🔒 Document Status
+
+Version: v1.0  
+Status: ✅ ACTIVE  
+Last Updated: 2026-05-04  
+
+---
+
+## 🎯 Purpose
+Defines validation rules that must be satisfied BEFORE executing an ENTRY action. It formally defines entry parameter validation rules enforced by `CTradeExecution::ExecuteEntry()` to prevent invalid trade construction and to allow controlled, spec-compliant flexibility for exits.
+
 These rules are mandatory, engine-level guardrails and apply to all strategies and signal sources using the Trade Execution Engine.
 
+---
 
-## Scope
+## ⚠️ Scope
 
+- Occurs BEFORE OrderSend
 - Component: `libCTradeExecution.mqh`
 - Class: `CTradeExecution`
 - Method: `ExecuteEntry()`
 - Applies to: Market entries (BUY / SELL)
+- Does NOT handle logging validation
+- Is separate from MM-LOG-01 validation
 
 ## Design Principles
 

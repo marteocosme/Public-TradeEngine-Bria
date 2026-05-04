@@ -32,7 +32,7 @@ Includes:
 Location: `/01_MM/`
 
 Includes:
-- MM behavior rules
+- Money Management behavior specification
 
 ---
 
@@ -40,12 +40,49 @@ Includes:
 
 Location: `/02_Validation/`
 
+### ✅ Pre-Execution Validation
+
+Location: `/02_Validation/01_PreExecution/`
+
 Includes:
-- MM-LOG-01 validation checklist
+- Entry Parameter Validation
+- Any future MM action pre-checks
+
+
+### ✅ Post-Execution Validation
+
+Location: `/02_Validation/02_PostExecution/`
+
+Includes:
+- MM-LOG-01 logging validation
+- Snapshot/log correctness verification
+
+### ✅ Responsibility Separation
+
+- Pre-Execution → validates inputs BEFORE execution
+- Post-Execution → validates outputs AFTER execution
+
+
+### 🔁 Validation Separation Model
+
+Validation is divided into two layers:
+
+1. Pre-Execution Validation
+   - Ensures correctness BEFORE any trade action
+   - Prevents invalid executions
+
+2. Post-Execution Validation
+   - Ensures logs and snapshots are correct
+   - Enforces auditability (MM-LOG-01)
+
+This separation ensures:
+- Cleaner debugging
+- Stronger system guarantees
+- No mixing of responsibilities
 
 ---
 
-# ✅ Design Principles
+## ✅ Design Principles
 
 - Single Source of Truth
 - Schema-first design
@@ -54,7 +91,7 @@ Includes:
 
 ---
 
-# ✅ Change Policy
+## ✅ Change Policy
 
 All changes must follow:
 
@@ -62,4 +99,15 @@ All changes must follow:
 2. Contract update
 3. Validation update
 4. Then implementation
+
+
+## 🔗 Traceability Note
+
+All specifications in this folder must map to:
+
+- Architecture documents (/03_Architecture)
+- Implementation modules
+- Validation rules
+
+No logic should exist in code that is not defined here.
 
