@@ -103,7 +103,60 @@ Once triggered, break even must not be reverted
 
 **Intent** Capital preservation and emotional risk reduction.
 
-### 3. Scaling Out (Partial Close) Module
+#### Logging Requirement
+
+This action MUST be logged with:
+
+- previous_stoploss (before change)
+- new_stoploss (after change)
+- action_executed (true/false)
+- execution_reason (if not executed)
+
+### 3. Trailing Stop (TRAIL)
+
+#### Objective
+
+To dynamically lock in profits as price moves in favor of the position, while allowing the trade to continue capturing trend movement.
+
+#### Trigger Condition
+
+Trailing stop is evaluated when:
+
+- Price has moved sufficiently in profit (based on ATR threshold)
+- Break-even has already been applied (if required by system logic)
+- Trailing conditions meet defined ATR-based rules
+
+#### Behavior
+
+- The stop loss is adjusted incrementally based on ATR movement
+- Stop loss MUST only move in the direction of profit
+- Stop loss MUST NOT move backward
+
+#### Constraints
+
+- Trailing stop must NOT be applied before break-even (if BE dependency enforced)
+- Trailing must not override a better existing SL
+- Trailing must not reduce locked-in profit
+
+#### Logging Requirement
+
+This action MUST be logged according to MM-LOG-01:
+
+- action_executed (true/false)
+- previous_stoploss (before modification)
+- new_stoploss (after modification)
+- execution_reason (if not executed)
+
+Logs must conform to:
+
+→ MM_Snapshot_Schema_v1.2.md
+
+#### Parameters
+
+- inpTrailStartATR → threshold before trailing activates
+- inpTrailATR → trailing step distance
+
+### 4. Scaling Out (Partial Close) Module
 **Responsibility**
 
 Manages partial profit realization while allowing a portion of the trade to continue.
@@ -118,8 +171,16 @@ Manages partial profit realization while allowing a portion of the trade to cont
 - Scaling out must not violate minimum lot constraints
 - Remaining position must remain valid and manageable
 
+#### Logging Requirement
 
-### 4. Exit Management Module
+This action MUST be logged with:
+
+- action_executed (true/false)
+- closed_lots (volume reduced)
+- execution_reason (if not executed)
+
+
+### 5. Exit Management Module
 **Responsibility**
 
 Determines when and how an open trade is fully closed.
@@ -226,11 +287,39 @@ The Money Management module does not:
 
 Those responsibilities belong to the Entry Strategy system.
 
+
+## Terminology Alignment (Schema Integration)
+
+To ensure consistency between Money Management logic and logging schema (MM-LOG-01), the following standardized terms are used in implementation and logs.
+
+This specification may describe concepts in general terms, while the logging system uses canonical field names defined in:
+
+→ MM_Snapshot_Schema_v1.2.md
+
+### 
+
+| Concept | Schema Field | Description |
+|--------|-------------|------------|
+| Position Size | current_position_lots | Actual position volume at snapshot time |
+| Risk Exposure | current_risk_exposure | ENTRY-anchored risk value used for MM |
+| Stop Loss Modification | previous_stoploss → new_stoploss | SL change applied during BE or TRAIL |
+| Scale-Out Volume | closed_lots | Volume reduced during scaling |
+
+### Notes
+
+- The Money Management logic defines behavior, while the schema defines how results are recorded.
+- All logging MUST use schema-defined field names.
+- No alternate naming is allowed in logs.
+
+
 ## Versioning Notes
 - v1.0 — Initial risk and sizing definition
 - v1.1 — Added Break Even, Scaling Out, and Exit Management formalization
-    - UPDATE 1 — ADD LOGGING REQUIREMENT SECTION
-    - UPDATE 2 — ADD TRACEABILITY REQUIREMENT
-    - UPDATE 3 — ADD SPEC ↔ LOG LINK
-    - UPDATE 5 — ADD NON-FUNCTIONAL REQUIREMENT
+    - UPDATE 05/04/2026
+        - Update 1 — ADD LOGGING REQUIREMENT SECTION
+        - Update 2 — ADD TRACEABILITY REQUIREMENT
+        - Update 3 — ADD SPEC ↔ LOG LINK
+        - Update 4 — ADD Terminology Alignment (Schema Integration) & Standardized Terms
+        - Update 5 — ADD NON-FUNCTIONAL REQUIREMENT
+        - Update 6 — ADD TRAIL Section under the Core Modules.
 
