@@ -1,4 +1,42 @@
 
+## 🔒 Document Status
+
+Version: v1.0  
+Status: ✅ ACTIVE  
+Last Updated: 2026-05-04  
+
+---
+
+## 🔗 Purpose
+
+Defines all standardized lifecycle and MM event identifiers used across the system.
+
+This file serves as the single source of truth for:
+
+- Event naming
+- Event definitions
+- Cross-module consistency
+
+## 🔒 Document Status
+
+Version: v1.0  
+Status: ✅ ACTIVE  
+Last Updated: 2026-05-04  
+
+---
+
+## 🔗 Purpose
+
+Defines all standardized lifecycle and MM event identifiers used across the system.
+
+This file serves as the single source of truth for:
+
+- Event naming
+- Event definitions
+- Cross-module consistency
+
+
+
 ## 🔹 1. Pre‑Trade Events
 ### ✅ MM_TradeValidated
 When
