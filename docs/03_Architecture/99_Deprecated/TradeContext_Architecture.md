@@ -1,3 +1,47 @@
+## ⚠️ Status: SUPERSEDED / DEPRECATED
+
+---
+
+## 📌 Replacement
+
+This document is superseded by:
+
+- MM_Snapshot_Schema_v1.2.md
+- Snapshot_DataFlow_Architecture_v1.0.md
+
+---
+
+## 📌 Reason
+
+The system has migrated to a Snapshot-based architecture.
+
+TradeContext as a separate data abstraction is no longer required because:
+
+- All data fields are defined in the Snapshot Schema
+- Data flow is explicitly defined via BEFORE → AFTER snapshots
+- Logging system enforces structure and consistency
+
+---
+
+## 🚫 Current Status
+
+This document should not be used for implementation.
+
+All runtime data handling must follow:
+
+- Snapshot Schema
+- Snapshot Data Flow Architecture
+
+---
+
+## 📚 Historical Context
+
+TradeContext represented an earlier abstraction for managing trade state prior to:
+
+- Schema standardization
+- Snapshot lifecycle introduction
+
+
 ## Purpose
 The TradeContext is the immutable, per‑candle data structure that represents the complete decision state required to evaluate entry eligibility and trade management actions.
 
