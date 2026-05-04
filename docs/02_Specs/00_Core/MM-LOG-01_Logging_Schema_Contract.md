@@ -50,7 +50,7 @@ This contract depends on:
 
 ## ⚠️ Rule
 
-If schema changes → contract MUST be updated before implementatio
+If schema changes → contract MUST be updated before implementation
 
 
 ## Phase Mapping
@@ -79,6 +79,8 @@ This specification does NOT cover:
 
 → Broker-level execution is handled in:
 EXEC-LOG-01 (separate contract)
+
+
 
 ---
 
@@ -125,6 +127,8 @@ Previous versions:
 
 ---
 
+
+
 ### Field Consistency
 
 - All fields MUST match:
@@ -155,6 +159,31 @@ These fields represent MM action results:
 - new_stoploss
 - closed_lots
 
+
+
+## ✅ Execution Outcome Contract
+
+For every MM action:
+
+- Execution MUST be attempted through Execution Layer
+- Result MUST be captured and written in AFTER snapshot
+
+---
+
+### ✅ Required Fields
+
+- execution_result (success/failure)
+- execution_type (OrderSend / Modify)
+- error_code (if failure)
+
+---
+
+### ❌ Invalid State
+
+The following is NOT allowed:
+
+- Action logged without execution result
+- AFTER snapshot without execution status
 ---
 
 ### Rules
@@ -164,6 +193,16 @@ These fields represent MM action results:
 - State fields MUST reflect post-action values
 
 ---
+
+## ✅ Event to Snapshot Mapping
+
+| Event | BEFORE | AFTER | Execution Required |
+|------|--------|------|------------------|
+| MM_EVENT_ENTRY | ✅ | ✅ | ✅ |
+| MM_EVENT_SCALE_OUT | ✅ | ✅ | ✅ |
+| MM_EVENT_BE | ✅ | ✅ | ✅ |
+| MM_EVENT_TRAIL | ✅ | ✅ | ✅ |
+| MM_EVENT_EXIT | ✅ | ✅ | ✅ |
 
 ## Column Integrity
 
@@ -215,6 +254,72 @@ The logging system guarantees that:
 This enables deterministic reconstruction and audit.
 
 ---
+
+
+## ✅ Contract Enforcement Rules
+
+The following rules are MANDATORY:
+
+1. Every MM event MUST produce:
+   - MM_SNAPSHOT_BEFORE
+   - MM_SNAPSHOT_AFTER
+
+2. MM_SNAPSHOT_AFTER MUST include execution outcome fields:
+   - execution_result
+   - error_code (if applicable)
+
+3. All snapshots MUST comply with MM_Snapshot_Schema_v1.2:
+   - No missing fields
+   - No extra fields
+   - Fixed column order
+
+4. Snapshot pairing is STRICT:
+   - One BEFORE → One AFTER
+   - No orphan records allowed
+
+5. mm_event_intent MUST:
+   - Be populated BEFORE execution
+   - Persist in AFTER snapshot
+   - NEVER be empty
+
+
+## 🔗 Dependencies
+
+This contract depends on:
+
+- MM_Snapshot_Schema_v1.2.md
+- TradeLifecycleEvents.md
+- Trade_Lifecycle_Orchestrator_v1.2.md
+
+---
+
+## ⚠️ Change Rule
+
+If any dependency changes:
+
+1. Schema → Contract MUST update
+2. Contract → Validation MUST update
+3. Only then → Code update allowed
+
+
+## 🚫 Contract Violations
+
+The following are considered system violations:
+
+- Missing execution_result in AFTER snapshot
+- Missing mm_event_intent
+- Snapshot column mismatch vs schema
+- Orphan BEFORE or AFTER snapshot
+- Event executed without corresponding snapshot pair
+
+---
+
+## ✅ Handling
+
+All violations must:
+
+- Be detected during MM-LOG-01 validation
+- Be treated as system failures
 
 ## Change Log
 
