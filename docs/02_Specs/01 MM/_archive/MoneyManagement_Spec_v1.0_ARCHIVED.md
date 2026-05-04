@@ -1,3 +1,47 @@
+
+## ⚠️ Status: ARCHIVED (SUPERSEDED)
+
+---
+
+## 📌 Current Version
+
+This specification has been superseded by:
+
+👉 MoneyManagement_Spec_v1.1.md
+
+---
+
+## 📌 Evolution Context
+
+v1.0 represents the initial version of the Money Management design.
+
+v1.1 introduces refinements including:
+
+- Improved lifecycle alignment
+- Updated MM action definitions
+- Additional module support (e.g., TRAIL)
+
+---
+
+## 🚫 Usage Restriction
+
+This version MUST NOT be used for:
+
+- Implementation
+- Decision logic reference
+- Validation rules
+
+---
+
+## ✅ Allowed Usage
+
+- Historical reference
+- MM logic evolution tracking
+- Debugging discrepancies in older runs
+
+
+
+
 > ⚠️ Deprecated
 > This document is superseded by MoneyManagement_Spec_v1.1.md  
 > Retained for historical reference only.

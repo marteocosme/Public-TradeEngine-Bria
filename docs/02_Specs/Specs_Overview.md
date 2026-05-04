@@ -19,6 +19,44 @@ Defines all system specifications, including:
 
 ---
 
+
+## ✅ 🔒 Single Source of Truth (SSOT)
+
+Each type of system knowledge must exist in ONLY ONE place:
+
+| Concern | Source of Truth |
+|--------|---------------|
+| Data structure | MM_Snapshot_Schema |
+| Event definitions | TradeLifecycleEvents |
+| Logging mapping | Logging Schema Contract |
+| MM behavior | MoneyManagement_Spec |
+| Signal logic | EntryStrategy_Spec |
+| Validation rules | Validation Specs |
+
+---
+
+
+## ✅ 🔗 Spec to Architecture Relationship
+
+All specification documents must map directly to Architecture documents.
+
+| Spec | Architecture |
+|------|-------------|
+| Snapshot Schema | Snapshot_DataFlow_Architecture |
+| Logging Contract | Logging_Architecture |
+| MM Spec | MM_Architecture |
+| Signal Spec | Signal Architecture (future) |
+| Events | Lifecycle Orchestrator |
+
+---
+
+
+
+## ⚠️ Rule
+
+Architecture MUST NOT define behavior not present in Specs.
+
+
 ## ✅ 🧠 Specification Layers
 
 ### ✅ 1. Core Specifications
@@ -147,6 +185,29 @@ This separation ensures:
 
 ---
 
+# ✅ 💻 Spec to Implementation Rule
+
+All implemented logic must originate from a spec.
+
+---
+
+## ✅ Requirements
+
+- No hardcoded logic outside specs
+- No hidden rules in code
+- All constants (events, fields) must be defined in specs
+
+---
+
+## ❌ Violations
+
+- Adding logic directly in code
+- Using undefined fields
+- Logging fields not in schema
+
+---
+
+
 # ✅ 🔗 Traceability Note
 
 All specifications must map to:
@@ -191,3 +252,64 @@ All changes must follow:
 ---
 
 
+# ✅ 🔁 Versioning Policy
+
+Each spec category must follow version control rules.
+
+---
+
+## ✅ Rules
+
+- Only ONE active version per spec
+- Older versions must be archived
+- Archived versions must not be used in implementation
+
+---
+
+## ✅ Locations
+
+- Active specs → main folder
+- Historical versions → `_archive/`
+
+---
+
+## ✅ Example
+
+MM_Snapshot_Schema:
+- v1.2 → ACTIVE
+- v1.1 → ARCHIVED
+- v1.0 → ARCHIVED
+
+---
+
+# ✅ 🔄 Specification Dependency Flow
+
+```
+Signal Spec (EntryStrategy)
+        ↓
+Lifecycle (uses Events)
+        ↓
+Money Management Spec
+        ↓
+Execution Layer
+        ↓
+Snapshot Schema
+        ↓
+Logging Contract
+        ↓
+Validation (MM-LOG-01)
+```
+
+# ⚠️ Common Pitfalls
+
+- Mixing signal logic with MM logic
+- Duplicating schema fields in contracts
+- Writing logging rules inside lifecycle specs
+- Adding behavior without updating specs
+
+---
+
+## ✅ Resolution Rule
+
+If unsure:
+→ Always update Specs FIRST before coding
