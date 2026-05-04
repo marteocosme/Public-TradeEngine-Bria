@@ -1,219 +1,209 @@
-# MM‑LOG‑01 — Logging Schema Contract
-**Status:** ✅ Approved (v1.2 Active) 
 
-**Scope:** Money Management & Trade Lifecycle observability
+# MM-LOG-01 Logging Schema Contract
 
-**Applies to:** Phase 5 closure (MM‑LOG‑01 execution)
+---
 
-**Non‑Goal:** Analytics, dashboards, replay tools
+## Status
+✅ Approved (Schema v1.2 Active)
 
+---
 
-## 1. Purpose
-This document defines the minimum authoritative logging schema required to satisfy **MM‑LOG‑01**.
+## Version
+v1.2
 
-Its purpose is to ensure that:
+### Supersedes
+- v1.1
 
-- All lifecycle and Money Management (MM) decisions are observable
-- A trade can be fully reconstructed from logs alone
-- Logging is consistent, deterministic, and audit‑safe
+---
 
-This is a **contract**, not an implementation guide.
+## Phase Mapping
 
-## 2. Design Principles
-All logs produced under this contract MUST be:
+Phase: Phase 4 — Logging & Observability  
+Extended in: Phase 4B — Logging Hardening  
 
+This contract represents the final state of Phase 4 logging.
 
-1. **Deterministic**
-    - Log what actually happened, not what was intended
-2. **Snapshot‑based**
-    - Values must come from captured context, not recomputed later
-3. **Structured**
-    - Flat, machine‑readable fields (CSV‑safe)
-4. **Complete**
-- If a lifecycle or MM decision is evaluated, it must log
-5. **Minimal**
-- Only fields required for reconstruction and validation
+---
 
+## Scope
 
-## 3. Log Entry Types
-All logging events under MM‑LOG‑01 fall into exactly four types:
+This specification covers:
 
-| Log Type | Purpose |
-| --- | --- |
-| LIFECYCLE | State transitions & lifecycle milestones | 
-| MM_DECISION | Evaluation of MM rules (even if no action taken) |
-| MM_ACTION | Executed MM actions (BE, Scale, Trail) |
-| EXECUTION | OrderSend / OrderModify outcomes |
+- Money Management (MM) snapshot logging
+- BEFORE and AFTER snapshot structure
+- Exposure and risk tracking
+- Execution State (resulting system state)
+- Execution Outcome (MM decision results)
 
-No other custom types are allowed during MM‑LOG‑01.
+This specification does NOT cover:
 
+- Broker execution logging (OrderSend / OrderModify)
+- External execution responses or errors
 
-## 4. Common Fields (Required for ALL Logs)
-Every log entry MUST include the following fields.
+→ Broker-level execution is handled in:
+EXEC-LOG-01 (separate contract)
 
-```cpp
-timestamp
-trade_id
-symbol
-log_type
-lifecycle_state
-mm_action
-```
+---
 
-### Field Definitions
+## Terminology Clarification
 
+**Execution Outcome (MM Context):**
+- Refers to the result of MM actions
+- Includes:
+  - SCALE_OUT
+  - BREAK-EVEN
+  - TRAILING
 
-`timestamp`
-Event timestamp (strategy tester / terminal time)
+**Execution Outcome (Broker Context):**
+- Refers to order execution results
+- Includes:
+  - OrderSend
+  - OrderModify
 
+✅ Broker execution logging is OUT OF SCOPE for MM-LOG-01
 
-`trade_id`
-Stable, unique ID for the trade
+---
 
+## Active Schema Version
 
-`symbol`
-Instrument being traded
+Current Active Version: v1.2
 
+All logging output MUST conform to:
 
-`log_type`
-One of: LIFECYCLE, MM_DECISION, MM_ACTION, EXECUTION
+➡️ MM_Snapshot_Schema_v1.2.md
+
+Previous versions:
+- v1.1 (superseded, retained for reference)
 
 
-`lifecycle_state`
-Current lifecycle state at time of logging
+## Schema Requirements
 
+### Snapshot Integrity
 
-`mm_action`
-One of: NONE, BE, SCALE, TRAIL
+- Every MM event MUST produce:
+  - One BEFORE snapshot
+  - One AFTER snapshot
 
+- BEFORE and AFTER MUST be paired
 
+---
 
-## 5. Snapshot Fields (Required for Snapshot Logs)
-Snapshot logs represent state evidence and MUST include the following.
+### Field Consistency
 
-```cpp
-price
-stop_loss
-take_profit
-position_size
-risk_percent
-floating_pnl
-realized_pnl
-```
+- All fields MUST match:
+  - Name
+  - Order
+  - Type
 
-### Snapshot Rules
+as defined in the schema file.
 
-- Snapshot values must reflect exact runtime values
-- Snapshots MUST be taken:
+---
 
-    - Before MM action
-    - After MM action
-    - At lifecycle boundaries
-    - At final trade exit
+### Execution State (Section 5.3)
 
-## 6. Lifecycle Logging Contract
-### Required Lifecycle Events
-For every trade, the following MUST be logged as LIFECYCLE entries:
+These fields represent resulting system state AFTER MM action:
 
-- Trade opened
-- Each lifecycle state transition
-- Invalid transition attempt (with reason)
-- Trade exit intent
-- Final trade exit
+- take_profit
+- realized_pnl
 
-### Additional Required Fields
-```cpp
-prev_lifecycle_state
-next_lifecycle_state
-reason
-```
+---
 
-## 7. Money Management Decision Logging
-### MM_DECISION Logs
-Every MM rule evaluation MUST emit a MM_DECISION log, even if no action is taken.
-```cpp
-rule_id
-decision_result   // TRIGGERED | SKIPPED
-reason
-```
+### Execution Outcome (Section 5.4)
 
-Examples:
+These fields represent MM action results:
 
-- BE evaluated but conditions not met
-- Trailing stop evaluated but no update made
+- action_executed
+- execution_reason
+- previous_stoploss
+- new_stoploss
+- closed_lots
 
-Silent MM evaluations are forbidden.
+---
 
-## 8. Money Management Action Logging
-### MM_ACTION Logs
-When an MM action is executed, an explicit MM_ACTION log MUST be emitted.
+### Rules
 
-Additional required fields:
-```cpp
-old_stop_loss
-new_stop_loss
-old_position_size
-new_position_size
-```
+- Execution Outcome fields MUST be present in AFTER snapshots
+- Execution Outcome fields MUST be empty in BEFORE snapshots
+- State fields MUST reflect post-action values
 
-Rules:
+---
 
-- Before‑snapshot → MM_ACTION → After‑snapshot is mandatory
-- Partial information is considered invalid
+## Column Integrity
 
+- Column count MUST match schema definition
+- Column order MUST NOT change
 
-## 9. Execution Outcome Logging
-### EXECUTION Logs
-All trade execution actions MUST be logged.
-```cpp
-execution_type    // OrderSend | OrderModify
-result            // SUCCESS | FAILURE
-error_code
-error_message
-```
-Rules:
-- Failures must never be silent
- -Blocked execution paths must log explicitly
+Any mismatch MUST trigger a runtime validation error.
 
+---
 
-## 10. Snapshot Enforcement Rules
-The following are **hard guarantees:**
+## Validation Requirements
 
-- No lifecycle transition without a snapshot
-- No MM action without before & after snapshots
-- No trade exit without a terminal snapshot
-- Violations must:
-    - Emit an error log
-    - Fail deterministically
+Logging system MUST enforce:
 
+- Column count validation
+- Required field checks
+- BEFORE / AFTER pairing
+- Non-empty critical fields:
+  - symbol
+  - mm_phase
+  - mm_event
 
-## 11. Contract Versioning
+---
 
-- This schema is versioned
-- Breaking changes require:
-    - Schema version bump
-    - Explicit mention in Phase documentation
+## Implementation Binding
 
-Current version:
-```cpp
-MM-LOG-01_SCHEMA_VERSION = 1
-```
+This contract is enforced by:
 
-## 12. Out of Scope (Explicit)
-This contract does not define:
+- `MM_LogSchema_v1_2.mqh` (schema definition)
+- `CUnifiedTradeLogger` (logging engine)
 
-- Replay tooling
-- Analytics queries
-- Dashboards
-- Storage formats beyond structured logs
+All logging output MUST:
 
-Those belong to **Phase 6** only.
+- Use `MM_LogSchema_v1_2.mqh` as single source of truth
+- Match schema exactly
+- Pass runtime validation checks
 
-## 13. Final Assertion
+---
 
-If a lifecycle or Money Management action cannot be reconstructed
-using only logs conforming to this schema,
-**MM‑LOG‑01 is not complete.**
+## Traceability Guarantee
+
+The logging system guarantees that:
+
+- Every MM decision is captured
+- Every state transition is reconstructable
+- Every action outcome is recorded
+- Every log row maps to a defined schema
+
+This enables deterministic reconstruction and audit.
+
+---
+
+## Change Log
+
+### v1.2
+- Added Execution Outcome fields
+- Introduced:
+  - action_executed
+  - previous_stoploss / new_stoploss
+  - closed_lots
+- Separated:
+  - Execution State vs Execution Outcome
+- Added schema enforcement rules
+
+### v1.1
+- Initial snapshot schema
+- BEFORE / AFTER state logging
+
+---
+
+## Immutability Rule
+
+This document is version-locked.
+
+- No structural changes allowed after approval
+- Any modification requires a new version (v1.3+)
+- Historical versions must remain unchanged
 
 ---
 ✅ End of Logging Schema Contract
