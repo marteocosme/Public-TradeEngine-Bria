@@ -275,11 +275,11 @@ Do NOT rely only on this:
 
 ### ✅ Event Coverage
 
-- [ ] ENTRY event produces a log
-- [ ] SCALE_OUT event produces a log
-- [ ] BREAK_EVEN event produces a log
-- [ ] TRAIL event produces a log
-- [ ] EXIT event produces a log
+- [x] ENTRY event produces a log
+- [x] SCALE_OUT event produces a log
+- [x] BREAK_EVEN event produces a log
+- [x] TRAIL event produces a log
+- [x] EXIT event produces a log
 
 ---
 
@@ -287,45 +287,45 @@ Do NOT rely only on this:
 
 For EVERY logged event:
 
-- [ ] BEFORE snapshot exists
-- [ ] AFTER snapshot exists
+- [x] BEFORE snapshot exists
+- [x] AFTER snapshot exists
 
 ---
 
 ### ✅ Snapshot Consistency
 
-- [ ] BEFORE snapshot reflects state BEFORE modification
-- [ ] AFTER snapshot reflects state AFTER modification
+- [x] BEFORE snapshot reflects state BEFORE modification
+- [x] AFTER snapshot reflects state AFTER modification
 - [ ] Changes between BEFORE and AFTER match the MM action
 
 ---
 
 ### ✅ Schema Compliance
 
-- [ ] All required fields from Snapshot Schema v1.2 are present
+- [x] All required fields from Snapshot Schema v1.2 are present
 - [ ] No missing critical fields (e.g., price, SL, ATR, volume)
 
 ---
 
 ### ✅ Event Accuracy
 
-- [ ] Logged event_type matches actual MM action performed
-- [ ] No incorrect or mislabeled events
+- [x] Logged event_type matches actual MM action performed
+- [x] No incorrect or mislabeled events
 
 ---
 
 ### ✅ Execution Order (Critical)
 
-- [ ] BEFORE snapshot is captured BEFORE handler execution
-- [ ] AFTER snapshot is captured AFTER handler execution
-- [ ] Logger is called after snapshot capture
+- [x] BEFORE snapshot is captured BEFORE handler execution
+- [x] AFTER snapshot is captured AFTER handler execution
+- [x] Logger is called after snapshot capture
 
 ---
 
 ### ✅ Logging Consistency
 
-- [ ] All events use `m_logger.LogMMEventBase(...)`
-- [ ] No direct or bypass logging mechanisms
+- [x] All events use `m_logger.LogMMEventBase(...)`
+- [x] No direct or bypass logging mechanisms
 
 ---
 
@@ -412,24 +412,24 @@ Every lifecycle / MM snapshot includes at least:
 ## ✅ Section 4 — MM Action Logging (Decision‑Level)
 ### Break‑Even
 
- - [x] BE evaluation logged even when not triggered
- - [x] BE trigger condition logged
- - [x] Old SL → new SL logged
- - [x] Execution result logged (success/failure)
+ - [ ] BE evaluation logged even when not triggered
+ - [ ] BE trigger condition logged
+ - [ ] Old SL → new SL logged
+ - [ ] Execution result logged (success/failure)
 
 ### Scale‑Out
 
- - [x] Scale‑out evaluation logged
- - [x] Volume scaled‑out logged
- - [x] Remaining position size logged
- - [x] Execution result logged
+ - [ ] Scale‑out evaluation logged
+ - [ ] Volume scaled‑out logged
+ - [ ] Remaining position size logged
+ - [ ] Execution result logged
 
 ### Trailing Stop
 
- - [x] Trailing evaluation logged
- - [x] Old SL → new SL logged (or no‑update reason)
- - [x] Rule identifier logged
- - [x] Execution result logged
+ - [ ] Trailing evaluation logged
+ - [ ] Old SL → new SL logged (or no‑update reason)
+ - [ ] Rule identifier logged
+ - [ ] Execution result logged
 
 **✅ Rule:** No MM decision may occur silently.
 
@@ -445,12 +445,12 @@ Every lifecycle / MM snapshot includes at least:
 
 ## ✅ Section 6 — Snapshot Enforcement Rules
 
- - [x] Lifecycle transition blocked if snapshot is missing
- - [x] MM action blocked if before‑snapshot is missing
- - [x] MM action blocked if after‑snapshot is missing
- - [x] Trade exit blocked if final snapshot is missing
- - [x] All violations explicitly logged
- - [x] Violations fail deterministically (no fallback)
+ - [ ] Lifecycle transition blocked if snapshot is missing
+ - [ ] MM action blocked if before‑snapshot is missing
+ - [ ] MM action blocked if after‑snapshot is missing
+ - [ ] Trade exit blocked if final snapshot is missing
+ - [ ] All violations explicitly logged
+ - [ ] Violations fail deterministically (no fallback)
 
 
 ## ✅ Section 7 — Replay Completeness Validation
@@ -469,7 +469,7 @@ Using Strategy Tester logs only:
  - [x] At least one BE scenario tested
  - [x] At least one Scale‑Out scenario tested
  - [x] At least one Trailing‑Stop‑only scenario tested
- - [x] At least one “no MM triggered” scenario tested
+ - [ ] At least one “no MM triggered” scenario tested
  - [x] Logs reviewed outside the EA (e.g. Excel)
  - [x] No unexplained discrepancies found
 

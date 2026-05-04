@@ -291,7 +291,7 @@ private:
       rec.symbol           = snap.symbol;
       rec.timeframe        = snap.timeframe;
       rec.trade_context_id = snap.trade_context_id;
-      
+
       rec.mm_phase        = snap.mm_phase;
       rec.mm_event_result = snap.mm_event_result;
 
@@ -460,23 +460,8 @@ public:
       EmitSnapshotBefore(snap);
 
 
-// ✅ MM_SNAPSHOT_AFTER (ENTRY only)
-      MM_SNAPSHOT_AFTER snap_after;
-      snap_after.timestamp = TimeCurrent();
-      snap_after.symbol    = ctx.Symbol;
-      snap_after.timeframe = ctx.EntryPeriod;
-      snap_after.mm_phase = ToMMPhaseString(MM_PHASE_ENTRY);
-      snap_after.mm_event_result = ToMMEventString(MM_EVENT_ENTRY);
 
-      snap_after.current_position_lots = lots;
-      snap_after.current_risk_exposure =
-         m_risk.GetLastComputedRiskAmount();
 
-      snap_after.stoploss_points = snap.stoploss_points;
-      snap_after.value_per_point = snap.value_per_point;
-
-      EmitSnapshotAfter(snap_after);
-      EndMMCycleCheck();
 
       // --------------------------------------------------
       // Phase 5 — Step 4: Lifecycle CREATE (pass-through)
@@ -495,11 +480,31 @@ public:
                    inpSLxATRxPlier,
                    inpTPxATRxPlier
                 );
+
+      // ✅ MM_SNAPSHOT_AFTER (ENTRY only)
+      MM_SNAPSHOT_AFTER snap_after;
+      snap_after.timestamp = TimeCurrent();
+      snap_after.symbol    = ctx.Symbol;
+      snap_after.timeframe = ctx.EntryPeriod;
+      snap_after.mm_phase = ToMMPhaseString(MM_PHASE_ENTRY);
+      snap_after.mm_event_result = ToMMEventString(MM_EVENT_ENTRY);
+
+      snap_after.current_position_lots = lots;
+      snap_after.current_risk_exposure =
+         m_risk.GetLastComputedRiskAmount();
+
+      snap_after.stoploss_points = snap.stoploss_points;
+      snap_after.value_per_point = snap.value_per_point;
+
+      EmitSnapshotAfter(snap_after);
+      EndMMCycleCheck();
+      
       if(!ok)
          {
          DebugPrint(m_debug, "Trade execution failed.", DBG_ERROR);
          return;
          }
+
 
       // ✅ Broker accepted the order — position must exist now
 
@@ -815,7 +820,7 @@ public:
          // lifecycle intent
          snap_after.mm_phase = ToMMPhaseString(MM_PHASE_MANAGE);
          snap_after.mm_event_result = ToMMEventString(MM_EVENT_BE);
-         
+
          // no exposure change
          snap_after.current_position_lots = PositionGetDouble(POSITION_VOLUME);
 
