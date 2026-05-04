@@ -52,6 +52,284 @@ The MM-LOG-01 system is considered valid when:
 This ensures full traceability and auditability of all position lifecycle changes.
 
 
+---
+
+## 🔍 Validation Workflow (Backtesting)
+
+### Step 1 — Run Backtest
+
+- Execute EA in Strategy Tester
+- Ensure logging is enabled
+- Use a dataset that triggers multiple MM events (ENTRY, BE, TRAIL, EXIT)
+
+---
+
+### Step 2 — Locate Logs
+
+- Navigate to:
+  - Experts tab (MT5)
+  - Log files (if exporting to CSV/JSON)
+
+- Filter for MM log entries:
+  - Event logs emitted via `m_logger.LogMMEventBase(...)`
+
+---
+
+### Step 3 — Event-by-Event Validation
+
+For each detected event:
+
+#### ✅ 3.1 Identify Event
+
+- Confirm event_type:
+  - ENTRY / SCALE_OUT / BREAK_EVEN / TRAIL / EXIT
+
+---
+
+#### ✅ 3.2 Validate BEFORE Snapshot
+
+- Extract BEFORE snapshot block
+- Confirm:
+  - Matches position state BEFORE action
+  - SL, TP, price, ATR reflect correct pre-state
+
+---
+
+#### ✅ 3.3 Validate AFTER Snapshot
+
+- Extract AFTER snapshot block
+- Confirm:
+  - Reflects updated state AFTER action
+  - Changes align with expected MM behavior
+
+---
+
+#### ✅ 3.4 Compare BEFORE vs AFTER
+
+- Identify what changed:
+  - SL moved → BE/TRAIL
+  - Volume reduced → SCALE_OUT
+  - Position closed → EXIT
+
+- Confirm change is:
+  - Correct
+  - Expected
+  - Consistent with MM rules
+
+---
+
+### Step 4 — Sequence Validation (CRITICAL)
+
+For each event:
+
+- Confirm log order:
+
+  BEFORE snapshot  
+  → Execution occurs  
+  → AFTER snapshot  
+  → Logger entry  
+
+- Ensure:
+  - No reversed order
+  - No missing step
+
+---
+
+### Step 5 — Schema Validation
+
+For each snapshot:
+
+- Verify all required fields exist
+- Cross-check with:
+  → MM_Snapshot_Schema_v1.2.md
+
+---
+
+### Step 6 — Spot Anomalies
+
+Look for:
+
+- Missing AFTER snapshot ❌
+- Incorrect event_type ❌
+- No visible change between BEFORE/AFTER ❌
+- Unexpected field values ❌
+
+---
+
+### Step 7 — Repeat Across Test Cases
+
+- Run multiple scenarios:
+  - Trending market (test TRAIL)
+  - Break-even conditions
+  - Partial exits (SCALE_OUT)
+  - Immediate stop-outs (EXIT)
+
+---
+
+## ✅ Validation Outcome
+
+The system is considered VALID when:
+
+- All events are logged correctly
+- All snapshots (BEFORE/AFTER) are present
+- Snapshot data is accurate and consistent
+- Event flow matches documented architecture
+
+---
+
+## ⚡ Fast Validation (Quick Scan Method)
+
+This method allows rapid validation of MM-LOG-01 without full deep inspection.
+
+---
+
+### ✅ 1. Event Presence Check
+
+Quickly verify:
+
+- ENTRY logs exist
+- BREAK_EVEN logs exist
+- TRAIL logs exist
+- EXIT logs exist
+
+⚠️ If any event is missing → immediate failure
+
+---
+
+### ✅ 2. BEFORE / AFTER Pattern Check
+
+Scan logs visually:
+
+Expected pattern:
+
+BEFORE → AFTER → LOG
+
+Red flags:
+
+- Missing BEFORE ❌
+- Missing AFTER ❌
+- Duplicate or unordered logs ❌
+
+---
+
+### ✅ 3. Change Visibility Check
+
+For each event, confirm obvious changes:
+
+- BE → SL moves to BE level
+- TRAIL → SL moves progressively
+- SCALE_OUT → volume decreases
+- EXIT → position disappears
+
+⚠️ If no visible change → investigate
+
+---
+
+### ✅ 4. Event-Type Sanity Check
+
+Quick scan:
+
+- ENTRY should not log as EXIT ❌
+- BE should not log as TRAIL ❌
+
+---
+
+### ✅ 5. Repetition / Noise Check
+
+Look for:
+
+- Duplicate logs for same event ❌
+- Logs firing too frequently ❌ (possible loop issue)
+
+---
+
+### ✅ 6. ATR / Key Value Spot Check
+
+Randomly inspect a few logs:
+
+- ATR should not be zero or missing
+- Price values should look realistic
+
+---
+
+## ✅ When To Use Fast Validation
+
+Use this method:
+
+- During development
+- After small code changes
+- For quick regression checks
+
+---
+
+## ⚠️ When NOT to Use
+
+Do NOT rely only on this:
+
+- Before production release
+- When debugging complex issues
+
+→ Use full Step 3C workflow instead
+
+## 🧪 Validation Checks
+
+### ✅ Event Coverage
+
+- [ ] ENTRY event produces a log
+- [ ] SCALE_OUT event produces a log
+- [ ] BREAK_EVEN event produces a log
+- [ ] TRAIL event produces a log
+- [ ] EXIT event produces a log
+
+---
+
+### ✅ Snapshot Integrity
+
+For EVERY logged event:
+
+- [ ] BEFORE snapshot exists
+- [ ] AFTER snapshot exists
+
+---
+
+### ✅ Snapshot Consistency
+
+- [ ] BEFORE snapshot reflects state BEFORE modification
+- [ ] AFTER snapshot reflects state AFTER modification
+- [ ] Changes between BEFORE and AFTER match the MM action
+
+---
+
+### ✅ Schema Compliance
+
+- [ ] All required fields from Snapshot Schema v1.2 are present
+- [ ] No missing critical fields (e.g., price, SL, ATR, volume)
+
+---
+
+### ✅ Event Accuracy
+
+- [ ] Logged event_type matches actual MM action performed
+- [ ] No incorrect or mislabeled events
+
+---
+
+### ✅ Execution Order (Critical)
+
+- [ ] BEFORE snapshot is captured BEFORE handler execution
+- [ ] AFTER snapshot is captured AFTER handler execution
+- [ ] Logger is called after snapshot capture
+
+---
+
+### ✅ Logging Consistency
+
+- [ ] All events use `m_logger.LogMMEventBase(...)`
+- [ ] No direct or bypass logging mechanisms
+
+---
+
+
 ## ✅ Section 1 — Preconditions (Gate Check)
 
  - [x] Phase‑4 is closed and tagged
