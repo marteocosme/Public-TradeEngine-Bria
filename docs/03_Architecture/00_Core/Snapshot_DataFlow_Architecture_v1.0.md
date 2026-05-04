@@ -1,12 +1,17 @@
 # Snapshot & Data Flow Architecture
 
----
-
 ## 🔒 Document Status
 
 Version: v1.0  
 Status: ✅ ACTIVE  
 Last Updated: 2026-05-04  
+
+###  📂 Location Note
+
+This file is part of the Core Architecture layer.
+
+Path:
+docs/03_Architecture/00_Core/
 
 ---
 
