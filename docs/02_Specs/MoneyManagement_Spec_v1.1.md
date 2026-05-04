@@ -135,6 +135,76 @@ Determines when and how an open trade is fully closed.
 - Once an exit is issued, no further management actions are allowed
 
 
+## Logging and Observability Requirements
+
+All Money Management actions MUST comply with MM-LOG-01 logging contract.
+
+For every MM action (ENTRY, SCALE_OUT, BREAK-EVEN, TRAILING, EXIT):
+
+The system MUST emit:
+
+1. BEFORE snapshot  
+2. Execution Outcome  
+3. AFTER snapshot  
+
+These must conform to:
+
+→ MM_Snapshot_Schema_v1.2.md
+
+---
+
+### Execution Outcome Requirements
+
+Each MM action MUST define:
+
+- Whether the action was executed
+- The resulting change applied
+- The reason if not executed
+
+Examples:
+
+- SCALE_OUT → closed_lots
+- BREAK-EVEN → previous_stoploss → new_stoploss
+- TRAILING → previous_stoploss → new_stoploss
+
+
+## Traceability Requirement
+
+All MM operations MUST be fully traceable.
+
+This requires:
+
+- State BEFORE action  
+- Action Outcome  
+- State AFTER action  
+
+These three components MUST be sufficient to reconstruct:
+
+- Position state changes
+- Risk exposure changes
+- Stop-loss behavior
+
+
+## Non-Functional Requirement — Logging Integrity
+
+The MM system MUST ensure:
+
+- No silent failures in execution
+- All decisions are logged
+- All logs are schema-compliant
+- Logging errors are detectable at runtime
+
+
+## Logging Contract Reference
+
+This specification integrates with:
+
+- MM-LOG-01_Logging_Schema_Contract.md
+- MM_Snapshot_Schema_v1.2.md
+
+Any MM behavior MUST produce logs compliant with these contracts.
+
+
 ## Invariants
 The following rules must always hold true:
 - Risked capital must never exceed configured limits
@@ -159,4 +229,8 @@ Those responsibilities belong to the Entry Strategy system.
 ## Versioning Notes
 - v1.0 — Initial risk and sizing definition
 - v1.1 — Added Break Even, Scaling Out, and Exit Management formalization
+    - UPDATE 1 — ADD LOGGING REQUIREMENT SECTION
+    - UPDATE 2 — ADD TRACEABILITY REQUIREMENT
+    - UPDATE 3 — ADD SPEC ↔ LOG LINK
+    - UPDATE 5 — ADD NON-FUNCTIONAL REQUIREMENT
 
