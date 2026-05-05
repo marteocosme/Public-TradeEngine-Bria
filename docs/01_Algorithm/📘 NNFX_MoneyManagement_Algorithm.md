@@ -40,32 +40,25 @@ The **No Nonsense Forex** money management model is designed to:
 | :--- |
 
 ```mermaid
-| flowchart TD    
-    A\[Open Trade] --&gt; B\[Place Order #1 and #2]    
-    B --&gt; C\[Set SL = 1.5×ATR for both]    
-    C --&gt; D\[Set TP for Order #1 = 1×ATR]    
-    
-    D --&gt; E{Order #1 hits TP?}    
-    E --&gt;\|Yes\| F\[Move Order #2 SL to Break Even]    
-    E --&gt;\|No\| G\[Wait]    
-    
-    F --&gt; H{Order #2 Profit &gt;= 2×ATR?}    
-    H --&gt;\|Yes\| I\[Activate Trailing Stop]    
-    H --&gt;\|No\| G    
-    
-    I --&gt; J\[Trail SL at 1.5×ATR distance]    
-    J --&gt; K\[Adjust every +0.5×ATR move]    
-    
-    K --&gt; L{Exit Condition?}    
-    L --&gt;\|Yes\| M\[Close Trade]    
-    L --&gt;\|No\| J | 
-```
+flowchart TD
+    A[Open Trade] --> B[Place Order #1 and #2]
+    B --> C[Set SL = 1.5×ATR for both]
+    C --> D[Set TP for Order #1 = 1×ATR]
 
-```mermaid
-flowchart LR
-    A[User] --> B{Decision}
-    B -->|Yes| C[Proceed]
-    B -->|No| D[Stop]
+    D --> E{Order #1 hits TP?}
+    E -->|Yes| F[Move Order #2 SL to Break Even]
+    E -->|No| G[Wait]
+
+    F --> H{Order #2 Profit >= 2×ATR?}
+    H -->|Yes| I[Activate Trailing Stop]
+    H -->|No| G
+
+    I --> J[Trail SL at 1.5×ATR distance]
+    J --> K[Adjust every +0.5×ATR move]
+
+    K --> L{Exit Condition?}
+    L -->|Yes| M[Close Trade]
+    L -->|No| J
 ```
 
 **💰 5. Risk Management Model** 
