@@ -189,9 +189,18 @@ private:
 
    CTradeVisualizer     m_viz;
    CUnifiedTradeLogger  m_logger;
-   //CContextLogger       m_logger;
 
+   int                  m_cycle_id;
    datetime             m_lastCandleTime;
+
+   //Lifecycle Summary Event
+   int                  m_scale_count;
+   int                  m_trail_count;
+   bool                 m_be_triggered;
+
+   double               m_entry_price;
+   datetime             m_entry_time;
+
 
    // --------------------------------------------------
    // Phase 5 — Trade Lifecycle Orchestration
@@ -324,6 +333,7 @@ public:
 
    void Init()
    {
+      m_cycle_id = 0;
 
       // ✅ Entry strategy selection (v1.1)
       m_activeStrategy = ENTRY_STANDARD;
@@ -383,7 +393,6 @@ public:
          return;
          }
 
-
 // ----------------------------------------
 // Entry Strategy Override (v1.1)
 // ----------------------------------------
@@ -408,13 +417,14 @@ public:
       rp.MaxRiskPercent = inpRiskMax;
       rp.StopATRMultiplier = inpSLxATRxPlier;
 
-
+      m_cycle_id++;
 // --- MM Snapshot BEFORE (complete risk inputs) ---
       MM_SNAPSHOT_BEFORE snap;
       snap.timestamp  = TimeCurrent();
       snap.symbol     = ctx.Symbol;
       snap.timeframe  = ctx.EntryPeriod;
       snap.trade_context_id = 0; // ticket not yet known
+      snap.cycle_id = m_cycle_id;
 
       snap.mm_phase        = ToMMPhaseString(MM_PHASE_ENTRY);
       snap.mm_event_intent = ToMMEventString(MM_EVENT_ENTRY);
@@ -425,6 +435,7 @@ public:
          (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
          ? bid
          : ask;
+
 
 // ATR value actually used by MM (NOT recomputed)
       snap.atr_value = ctx.ATREntry.Value;
@@ -452,6 +463,14 @@ public:
          DebugPrint(m_debug, "Lot size computation failed. Entry blocked.", DBG_WARN);
          return;
          }
+
+      //Lifecycle Summary Event
+      m_scale_count = 0;
+      m_trail_count = 0;
+      m_be_triggered = false;
+
+      m_entry_price = snap.current_price;
+      m_entry_time  = TimeCurrent();
 
 // ✅ NOW snapshot what MM actually decided
       snap.current_risk_exposure = m_risk.GetLastComputedRiskAmount();
@@ -498,7 +517,7 @@ public:
 
       EmitSnapshotAfter(snap_after);
       EndMMCycleCheck();
-      
+
       if(!ok)
          {
          DebugPrint(m_debug, "Trade execution failed.", DBG_ERROR);
@@ -534,9 +553,14 @@ public:
 
       // ✅ ENTRY LOGGING — Phase 4.4 (single source of truth)
       MM_LogEventBase evt;
+      ZeroMemory(evt);   // ✅ if already using (recommended)
+      evt.cycle_id = m_cycle_id;
       evt.event_time = ctx.Time;                 // BAR_SIGNAL time
       evt.event_type = MM_EVENT_ENTRY;
       evt.phase      = MM_PHASE_ENTRY;
+      evt.action_summary = "Open new trade";
+      evt.scale_steps = 0;
+      evt.scale_fraction_total = 0;
       evt.symbol     = ctx.Symbol;
       evt.timeframe  = ctx.EntryPeriod;
       evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
@@ -578,6 +602,10 @@ public:
       // ------------------------------------------------
       if(inpEnableScalingOut)
          {
+
+         int    scale_steps = 0;
+         double total_closed_fraction = 0.0;
+
          for(int i = 0; i < SCALE_STAGE_COUNT; i++)
             {
             // Phase 5 — Step 5: Lifecycle MM_ACTION (Scale-Out pass-through)
@@ -655,10 +683,14 @@ public:
                   }
 
                scale_executed = true;
+               scale_steps++;
+               m_scale_count++;
+               total_closed_fraction += g_scaleStages[i].closeFraction;
 
                // ✅ tracker (keep this inside success)
                m_atrTracker.MarkScaleStageApplied(ticket, g_scaleStages[i].atrMultiple);
 
+               
                // ----------------------------------------------------
                // SCALE-OUT LOGGING — Phase 4.4
                // ----------------------------------------------------
@@ -667,6 +699,11 @@ public:
                evt.event_time = ctx.Time; // BAR_SIGNAL time
                evt.event_type = MM_EVENT_SCALE_OUT;
                evt.phase = MM_PHASE_MANAGE;
+               evt.action_summary = "Close " + DoubleToString(total_closed_fraction * 100, 1) + "% of position";
+
+               evt.scale_steps = scale_steps;
+               evt.scale_fraction_total = total_closed_fraction;
+
                evt.symbol = ctx.Symbol;
                evt.timeframe = ctx.EntryPeriod;
                evt.trade_id = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
@@ -693,6 +730,7 @@ public:
             snap_after.mm_phase = ToMMPhaseString(MM_PHASE_MANAGE);
             snap_after.mm_event_result = ToMMEventString(MM_EVENT_SCALE_OUT);
 
+
             // 🔥 IMPORTANT: recalc AFTER from live state
             // exposure AFTER scale-out
             snap_after.current_position_lots = PositionGetDouble(POSITION_VOLUME);
@@ -711,7 +749,7 @@ public:
             EmitSnapshotAfter(snap_after);
             EndMMCycleCheck();
 
-            }
+            } //if
          }
 
 
@@ -798,6 +836,9 @@ public:
             evt.event_time = ctx.Time;              // BAR_SIGNAL time
             evt.event_type = MM_EVENT_BE;
             evt.phase      = MM_PHASE_MANAGE;
+            evt.action_summary = "Move SL to Break Even";
+            evt.scale_steps = 0;
+            evt.scale_fraction_total = 0 ;
             evt.symbol     = ctx.Symbol;
             evt.timeframe  = ctx.EntryPeriod;
             evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
@@ -805,7 +846,8 @@ public:
             m_logger.LogMMEventBase(evt);
 
             be_applied = true;
-
+            m_be_triggered = true;
+            
             }
          while(false);
 
@@ -917,6 +959,7 @@ public:
             }
 
          trail_applied = true;
+         m_trail_count++;
 
          // ----------------------------------------------------
          // TRAILING STOP LOGGING — Phase 4.4
@@ -926,6 +969,9 @@ public:
          evt.event_time = ctx.Time;                // BAR_SIGNAL time
          evt.event_type = MM_EVENT_TRAIL;
          evt.phase      = MM_PHASE_MANAGE;
+         evt.action_summary = "Trail Stop Loss";
+         evt.scale_steps = 0;
+         evt.scale_fraction_total = 0;
          evt.symbol     = ctx.Symbol;
          evt.timeframe  = ctx.EntryPeriod;
          evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
@@ -1074,6 +1120,9 @@ public:
          evt.event_time = ctx.Time;
          evt.event_type = MM_EVENT_EXIT;
          evt.phase      = MM_PHASE_EXIT;
+         evt.action_summary = "Close remaining position";
+         evt.scale_steps = 0;
+         evt.scale_fraction_total = 0;
          evt.symbol     = ctx.Symbol;
          evt.timeframe  = ctx.EntryPeriod;
          evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)

@@ -38,7 +38,8 @@ The **No Nonsense Forex** money management model is designed to:
 **🔄**** 4. Trade Lifecycle****
 📊**** UML Activity Diagram (Lifecycle)**
 | :--- |
-| **Code \</&gt; Mermaid** | 
+
+```mermaid
 | flowchart TD    
     A\[Open Trade] --&gt; B\[Place Order #1 and #2]    
     B --&gt; C\[Set SL = 1.5×ATR for both]    
@@ -58,29 +59,39 @@ The **No Nonsense Forex** money management model is designed to:
     K --&gt; L{Exit Condition?}    
     L --&gt;\|Yes\| M\[Close Trade]    
     L --&gt;\|No\| J | 
+```
 
+```mermaid
+flowchart LR
+    A[User] --> B{Decision}
+    B -->|Yes| C[Proceed]
+    B -->|No| D[Stop]
+```
 
-**💰 5. Risk Management Model****📉 5.1 Position Sizing Logic**  
-    - Risk per order is calculated using:  
-        - Account equity  
-        - Stop-loss distance (ATR-based)
-    👉 Result:  
-    - Position size adjusts automatically to volatility**
+**💰 5. Risk Management Model** 
     
-    📌 Key Behavior**  
-    - Larger ATR → smaller position size  
-    - Smaller ATR → larger position size
+**📉 5.1 Position Sizing Logic**  
+- Risk per order is calculated using:  
+    - Account equity  
+    - Stop-loss distance (ATR-based)
+
+👉 Result:  
+- Position size adjusts automatically to volatility**
+    
+📌 Key Behavior**  
+- Larger ATR → smaller position size  
+- Smaller ATR → larger position size
     
 **✂️ 6. Scaling Out (Partial Take Profit)**
 
-    **📊 Mechanism**  
-        - **Order #1 closes at +1×ATR **  
-        - Locks in **guaranteed profit**   
-        - Reduces overall trade risk
+**📊 Mechanism**  
+- **Order #1 closes at +1×ATR **  
+- Locks in **guaranteed profit**   
+- Reduces overall trade risk
     
-    **🧠 Purpose**  
-        - Converts trade into **low-risk / risk-free scenario**   
-        - Allows second position to run freely**📊 UML Sequence (Scaling Out)**
+**🧠 Purpose**  
+- Converts trade into **low-risk / risk-free scenario**   
+- Allows second position to run freely**📊 UML Sequence (Scaling Out)**
         
 |  A |
 | :--- |
