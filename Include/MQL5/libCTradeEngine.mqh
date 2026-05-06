@@ -690,7 +690,7 @@ public:
                // ✅ tracker (keep this inside success)
                m_atrTracker.MarkScaleStageApplied(ticket, g_scaleStages[i].atrMultiple);
 
-               
+
                // ----------------------------------------------------
                // SCALE-OUT LOGGING — Phase 4.4
                // ----------------------------------------------------
@@ -847,7 +847,7 @@ public:
 
             be_applied = true;
             m_be_triggered = true;
-            
+
             }
          while(false);
 
@@ -1173,6 +1173,58 @@ public:
 // ✅ ALWAYS EXECUTE
       EmitSnapshotAfter(snap_after);
       EndMMCycleCheck();
+
+// Summary Emit
+      long   summary_trade_id   = 0;
+      double summary_exit_price = 0.0;
+      double summary_total_pnl  = 0.0;
+
+// Trade ID fallback.
+// If you already have a deterministic trade id member, replace this with that member.
+      summary_trade_id = (long)m_cycle_id;
+
+// Exit price fallback.
+// Use current market price at exit time.
+//double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
+//double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
+
+// If position type is not available in this scope yet, use bid as conservative default.
+// Later we can refine this using POSITION_TYPE.
+      summary_exit_price = bid;
+
+// PnL fallback.
+// If position is still selected before final close, use POSITION_PROFIT.
+// If already closed, this may be 0.0 and can be refined later from deal history.
+      if(PositionSelect(symbol))
+         {
+         summary_total_pnl = PositionGetDouble(POSITION_PROFIT);
+         }
+
+      if (exit_success)
+         {
+         MM_LogCycleSummary summary;
+         ZeroMemory(summary);
+         summary.cycle_id   = m_cycle_id;
+         summary.trade_id   = summary_trade_id;
+         summary.symbol     = symbol;
+
+         summary.entry_time = m_entry_time;
+         summary.exit_time  = TimeCurrent();
+
+         summary.entry_price = m_entry_price;
+         summary.exit_price  = summary_exit_price;
+
+         summary.pnl = summary_total_pnl;
+
+         summary.scale_count = m_scale_count;
+         summary.trail_count = m_trail_count;
+
+         summary.be_triggered = m_be_triggered;
+
+// ✅ Emit
+         m_logger.LogCycleSummary(summary);
+         }
+
 
       if(exit_success)
          {
