@@ -69,34 +69,34 @@ Pending validation:
 
 ### 1. Event Coverage
 
-- [ ] ENTRY events are logged
-- [ ] SCALE_OUT events are logged
-- [ ] BREAK_EVEN events are logged
-- [ ] TRAIL events are logged
-- [ ] EXIT events are logged
+- [x] ENTRY events are logged
+  [x] SCALE_OUT events are logged
+- [x] BREAK_EVEN events are logged
+- [x] TRAIL events are logged
+- [x] EXIT events are logged
 
 ---
 
 ### 2. Lifecycle Grouping Validation
 
-- [ ] Every event log includes cycle_id
-- [ ] Every snapshot log includes cycle_id
-- [ ] cycle_id increments only on ENTRY
-- [ ] cycle_id remains constant from ENTRY to EXIT
-- [ ] No event appears with an incorrect cycle_id
-- [ ] All lifecycle rows can be grouped by cycle_id
+- [x] Every event log includes cycle_id
+- [x] Every snapshot log includes cycle_id
+- [x] cycle_id increments only on ENTRY
+- [x] cycle_id remains constant from ENTRY to EXIT
+- [x] No event appears with an incorrect cycle_id
+- [x] All lifecycle rows can be grouped by cycle_id
 
 ---
 
 ### 3. Snapshot Integrity Validation
 
-- [ ] Every MM event has a BEFORE snapshot
-- [ ] Every MM event has an AFTER snapshot
-- [ ] BEFORE and AFTER snapshots share the same cycle_id
-- [ ] BEFORE and AFTER snapshots share the same mm_event
-- [ ] No orphan BEFORE snapshot exists
-- [ ] No orphan AFTER snapshot exists
-- [ ] Snapshot rows conform to MM_Snapshot_Schema_v1.2.md
+- [x] Every MM event has a BEFORE snapshot
+- [x] Every MM event has an AFTER snapshot
+- [x] BEFORE and AFTER snapshots share the same cycle_id
+- [x] BEFORE and AFTER snapshots share the same mm_event
+- [x] No orphan BEFORE snapshot exists
+- [x] No orphan AFTER snapshot exists
+- [x] Snapshot rows conform to MM_Snapshot_Schema_v1.2.md
 - [ ] No garbage or uninitialized numeric values appear
 
 ---
