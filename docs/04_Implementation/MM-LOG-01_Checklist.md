@@ -13,6 +13,29 @@ All snapshot fields referenced in this document must conform to the schema above
 Status: 
 ✅ COMPLETE (v1.2 — with execution outcome)
 
+---
+
+## Current Phase Status
+
+MM-LOG-01 Observability Upgrade is code-complete and awaiting runtime log validation.
+
+Validation will be performed in the next session using generated:
+
+- MM event logs
+- MM snapshot logs
+- MM cycle summary logs
+
+Pending validation includes:
+
+- cycle_id lifecycle consistency
+- BEFORE / AFTER snapshot integrity
+- SCALE_OUT consolidation
+- action_summary correctness
+- one cycle summary per EXIT
+- PnL and summary field accuracy
+- absence of garbage or uninitialized values
+
+---
 
 
 ### Summary
@@ -330,6 +353,20 @@ For EVERY logged event:
 ---
 
 
+## ✅ Logging v2 Runtime Validation Checklist
+
+- [ ] Event logs contain cycle_id
+- [ ] Snapshot logs contain cycle_id
+- [ ] All events in one lifecycle share the same cycle_id
+- [ ] SCALE_OUT logs are consolidated
+- [ ] action_summary is populated
+- [ ] Cycle summary log is emitted after EXIT
+- [ ] Exactly one summary exists per lifecycle
+- [ ] No garbage/uninitialized numeric values appear
+- [ ] Summary PnL is validated against MT5 result
+
+
+
 ## ✅ Section 1 — Preconditions (Gate Check)
 
  - [x] Phase‑4 is closed and tagged
@@ -510,12 +547,3 @@ Next Phase:
 
 ✅ End of checklist
 
-## Next (Optional)
-If you want, I can:
-
-- Convert this into a **daily execution checklist**
-- Map each item **→ specific files/functions**
-- Produce the **MM‑LOG‑01 Phase Completion Marker**
-- Help you **formally declare Phase 6 start**
-
-This checklist is now your single source of truth for closing MM‑LOG‑01 correctly.
