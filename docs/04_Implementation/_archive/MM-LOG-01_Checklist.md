@@ -1,3 +1,28 @@
+
+# MM-LOG-01 Checklist
+
+## ⚠️ Document Status
+
+Status: DEPRECATED / ARCHIVED  
+Archived Date: 2026-05-06
+
+This checklist has been archived because it contains historical Phase 4 / Phase 4B validation material and no longer represents the active MM-LOG-01 runtime validation process.
+
+Replaced by:
+
+- /docs/04_Implementation/MM-LOG-01_Runtime_Validation_Checklist.md
+
+Reason for archival:
+
+- Mixed historical and active validation content
+- Conflicting status markers
+- Duplicate validation sections
+- Superseded by Logging v2 / Observability validation requirements
+
+Do not use this file for current MM-LOG-01 validation.
+
+
+
 ## 🔗 Dependencies
 
 ### Snapshot Schema
