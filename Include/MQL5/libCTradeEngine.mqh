@@ -1200,31 +1200,28 @@ public:
          summary_total_pnl = PositionGetDouble(POSITION_PROFIT);
          }
 
-      if (exit_success)
-         {
-         MM_LogCycleSummary summary;
-         ZeroMemory(summary);
-         summary.cycle_id   = m_cycle_id;
-         summary.trade_id   = summary_trade_id;
-         summary.symbol     = symbol;
 
-         summary.entry_time = m_entry_time;
-         summary.exit_time  = TimeCurrent();
+      MM_LogCycleSummary summary;
+      ZeroMemory(summary);
+      summary.cycle_id   = m_cycle_id;
+      summary.trade_id   = summary_trade_id;
+      summary.symbol     = symbol;
 
-         summary.entry_price = m_entry_price;
-         summary.exit_price  = summary_exit_price;
+      summary.entry_time = m_entry_time;
+      summary.exit_time  = TimeCurrent();
 
-         summary.pnl = summary_total_pnl;
+      summary.entry_price = m_entry_price;
+      summary.exit_price  = summary_exit_price;
 
-         summary.scale_count = m_scale_count;
-         summary.trail_count = m_trail_count;
+      summary.pnl = summary_total_pnl;
 
-         summary.be_triggered = m_be_triggered;
+      summary.scale_count = m_scale_count;
+      summary.trail_count = m_trail_count;
+
+      summary.be_triggered = m_be_triggered;
 
 // ✅ Emit
-         m_logger.LogCycleSummary(summary);
-         }
-
+      m_logger.LogCycleSummary(summary);
 
       if(exit_success)
          {

@@ -6,7 +6,7 @@
 #property strict
 #ifndef __LIBC_UNIFIED_TRADE_LOGGER_MQH__
 #define __LIBC_UNIFIED_TRADE_LOGGER_MQH__
-#define MM_EXPECTED_COLUMNS MM_LogSchemaV11::ColumnCount()
+#define MM_EXPECTED_SNAPSHOT_COLUMNS MM_LogSchemaV11::SnapShotColumnCount()
 
 #include <MyInclude\\NNFX\\libEnum.mqh>
 #include <MyInclude\\NNFX\\Core\\Logging\\MM_LogSnapshotRecords.mqh>
@@ -102,6 +102,19 @@ private:
          return;
 
       FileSeek(h, 0, SEEK_END);
+      
+      // ✅ Centralized header control
+      if(m_header.NeedsHeader(m_csv_events))
+         {
+         MM_LogSchemaV11::EventHeader(h);
+
+         // ✅ IMPORTANT: mark as written
+         m_header.MarkHeaderWritten(m_csv_events);
+         }
+
+
+      int actual_columns = 21; // must match your FileWrite fields
+      
 
       FileWrite(
          h,
@@ -207,7 +220,7 @@ public:
       // ✅ Centralized header control
       if(m_header.NeedsHeader(m_csv_snapshots))
          {
-         MM_LogSchemaV11::WriteHeader(h);
+         MM_LogSchemaV11::SnapShotHeader(h);
 
          // ✅ IMPORTANT: mark as written
          m_header.MarkHeaderWritten(m_csv_snapshots);
@@ -216,10 +229,10 @@ public:
 
       int actual_columns = 21; // must match your FileWrite fields
 
-      if(actual_columns != MM_EXPECTED_COLUMNS)
+      if(actual_columns != MM_EXPECTED_SNAPSHOT_COLUMNS)
          {
          Print("❌ SCHEMA ERROR: Column mismatch. Expected=",
-               MM_EXPECTED_COLUMNS,
+               MM_EXPECTED_SNAPSHOT_COLUMNS,
                " Got=", actual_columns);
          }
 
@@ -278,7 +291,7 @@ public:
       // ✅ Centralized header control
       if(m_header.NeedsHeader(m_csv_snapshots))
          {
-         MM_LogSchemaV11::WriteHeader(h);
+         MM_LogSchemaV11::SnapShotHeader(h);
 
          // ✅ IMPORTANT: mark as written
          m_header.MarkHeaderWritten(m_csv_snapshots);
@@ -288,10 +301,10 @@ public:
 
       int actual_columns = 21; // must match your FileWrite fields
 
-      if(actual_columns != MM_EXPECTED_COLUMNS)
+      if(actual_columns != MM_EXPECTED_SNAPSHOT_COLUMNS)
          {
          Print("❌ SCHEMA ERROR: Column mismatch. Expected=",
-               MM_EXPECTED_COLUMNS,
+               MM_EXPECTED_SNAPSHOT_COLUMNS,
                " Got=", actual_columns);
          }
 
@@ -381,6 +394,16 @@ public:
          return;
 
       FileSeek(h, 0, SEEK_END);
+
+      // ✅ Centralized header control
+      if(m_header.NeedsHeader(m_csv_summary))
+         {
+         MM_LogSchemaV11::SummaryHeader(h);
+
+         // ✅ IMPORTANT: mark as written
+         m_header.MarkHeaderWritten(m_csv_snapshots);
+
+         }
       FileWrite(h,
                 s.cycle_id,
                 s.trade_id,
