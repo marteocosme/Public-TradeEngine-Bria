@@ -85,7 +85,7 @@ Validation: Partial (manual log inspection)
 
 This schema is implemented in:
 
-/MyInclude/NNFX/Core/Logging/MM_LogSchema_v1_2.mqh
+`/MyInclude/NNFX/Core/Logging/MM_LogSchema.mqh`
 
 All logging output MUST:
 

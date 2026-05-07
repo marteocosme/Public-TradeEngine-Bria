@@ -1,14 +1,14 @@
 ﻿//+------------------------------------------------------------------+
-//| MM_LogSchema_v1_1.mqh                                           |
+//| MM_LogSchema.mqh                                           |
 //| Single Source Schema Definition (MM-LOG-01 Enforcement)         |
 //| Aligned with: MM_Snapshot_Schema_v1.1.md                        |
 //| Marteo Cosme                                                    |
 //+------------------------------------------------------------------+
 #property strict
-#ifndef __MM_LOG_SCHEMA_V1_1_MQH__
-#define __MM_LOG_SCHEMA_V1_1_MQH__
+#ifndef __MM_LOG_SCHEMA_MQH__
+#define __MM_LOG_SCHEMA_MQH__
 
-class MM_LogSchemaV11
+class MM_LogSchema
 {
 public:
 
@@ -135,5 +135,5 @@ public:
    
 };
 
-#endif // __MM_LOG_SCHEMA_V1_1_MQH__
+#endif __MM_LOG_SCHEMA_MQH__
 //+------------------------------------------------------------------+

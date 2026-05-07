@@ -2,9 +2,12 @@
 
 ## 🔒 Document Status
 
-Version: v1.1 
-Status: ✅ ACTIVE  
-Last Updated: 2026-05-05  
+**Version:** v1.2
+
+**Status:** ✅ ACTIVE (SSOT)
+
+**Last Updated:** 2026-05-07 (UTC+8)
+
 
 ### 📂 Location Note
 
@@ -19,9 +22,10 @@ docs/03_Architecture/00_Core/
 
 This document is aligned with:
 
-- MM_Snapshot_Schema_v1.2.md
-- MM-LOG-01_Logging_Schema_Contract.md
-- MM-LOG-01_Logging_Completion_and_Validation.md
+- MM_Snapshot_Schema.md (SSOT)
+- MM_Event_Log_Schema.md (SSOT)
+- MM-LOG-01_Logging_Schema_Contract.md (SSOT)
+- MM-LOG-01_Runtime_Validation_Checklist.md (SSOT)
 
 ---
 
@@ -74,9 +78,26 @@ This enables reconstruction of full trade lifecycles across MM events and snapsh
 
 A trade lifecycle consists of:
 
-ENTRY  
-→ MM actions (SCALE_OUT / BREAK_EVEN / TRAIL)  
-→ EXIT
+
+ENTRY
+→ MM actions (SCALE_OUT / BREAK_EVEN / TRAIL)
+→ (optional EXIT intent)
+→ CLOSE (broker-confirmed outcome)
+
+---
+
+### Two‑Phase Termination (EXIT vs CLOSE)
+
+To prevent lifecycle gaps in real execution:
+- `MM_EVENT_EXIT` represents engine intent to close (signal/manual request). It is optional.
+- `MM_EVENT_CLOSE` represents broker/deal-confirmed closure (TP/SL/STOP_OUT/SIGNAL/MANUAL). It is mandatory.
+
+Architectural rule:
+- EXIT and CLOSE are different sources of truth:
+  - EXIT originates from the engine decision path
+  - CLOSE originates from broker/deal confirmation
+- Validation and Cycle Summary MUST use CLOSE as the lifecycle terminator.
+
 
 ---
 
@@ -84,27 +105,32 @@ ENTRY
 
 - A new `cycle_id` is generated at ENTRY
 - The same `cycle_id` is reused for all subsequent MM actions
-- The lifecycle ends at EXIT
+- The lifecycle ends at `MM_EVENT_CLOSE` (broker-confirmed outcome)
+- `MM_EVENT_EXIT` is optional (intent only) and may not appear for TP/SL/STOP_OUT closures
+
 
 ---
 
 ### Integration into Logging Pipeline
 
 TradeEngine detects ENTRY  
-→ cycle_id is incremented  
-→ BEFORE snapshot emitted with cycle_id  
+→ `cycle_id` is incremented  
+→ BEFORE snapshot emitted with `cycle_id`  
 → Execution performed  
-→ AFTER snapshot emitted with cycle_id  
+→ AFTER snapshot emitted with `cycle_id`  
 
 During MM management:
 
-- SCALE_OUT / BE / TRAIL reuse the same cycle_id
-- All logs (events and snapshots) are tagged with cycle_id
+- `SCALE_OUT` / `BE` / `TRAIL` reuse the same `cycle_id`
+- All logs (events and snapshots) are tagged with `cycle_id`
 
-At EXIT:
+At CLOSE (`MM_EVENT_CLOSE`):
 
-- Final BEFORE and AFTER snapshots are emitted
+- Closure is confirmed (broker/deal outcome)
+- Final BEFORE and AFTER snapshots are emitted for closure observation
+- Cycle Summary is emitted (one row per closed lifecycle)
 - Lifecycle completes
+
 
 ---
 
@@ -236,6 +262,15 @@ Logger ONLY:
 ---
 
 # ✅ 📌 Version Notes
+
+##### v1.2 (2026-05-07)
+- Converted to stable SSOT filename: Logging_Architecture.md (archived old versioned file)
+- Aligned lifecycle termination with MM-LOG-01 contract v1.4:
+  - EXIT = intent (optional)
+  - CLOSE = broker-confirmed outcome (mandatory terminator)
+- Updated lifecycle grouping definition to end at MM_EVENT_CLOSE
+- Added traceability to MM_Event_Log_Schema.md (SSOT) and TradeLifecycleEvents.md (SSOT)
+- Updated lifecycle grouping definition and cycle_id termination rule to end at MM_EVENT_CLOSE
 
 #### v1.1 (2026-05-05)
 

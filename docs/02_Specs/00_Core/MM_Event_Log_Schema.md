@@ -43,8 +43,8 @@ Event `event_type` MUST be one of:
 - MM_EVENT_SCALE_OUT
 - MM_EVENT_BE
 - MM_EVENT_TRAIL
-- MM_EVENT_EXIT   (Intent — engine close request)
-- MM_EVENT_CLOSE  (Outcome — broker-confirmed closure)
+- MM_EVENT_EXIT   *(Intent — engine close request; optional per lifecycle)*
+- MM_EVENT_CLOSE  *(Outcome — broker-confirmed closure; mandatory lifecycle terminator)*
 
 ---
 
@@ -52,29 +52,54 @@ Event `event_type` MUST be one of:
 
 ### 3.1 Column List (in order)
 
-**Base columns (always present):**
-1. debug_event_id (ulong) — debug sequence id (non-contractual but stable column)
-2. trade_id (long) — internal trade identifier
-3. ticket (ulong) — broker ticket (0 if unavailable)
-4. event_time (string datetime) — formatted time string
-5. symbol (string)
-6. cycle_id (int) — lifecycle grouping id
-7. action_summary (string)
-8. scale_steps (int)
-9. scale_fraction_total (double)
-10. event_type (string enum) — canonical identifier
-11. phase (string enum) — MM phase classification
-12. timeframe (string enum)
 
-**E2 CLOSE columns (required for MM_EVENT_CLOSE, otherwise empty):**
+**Core (required for every row):**
+1) debug_event_id (ulong)  
+   - Monotonic debug sequence ID (logger-generated).  
+   - Used for diagnostics only (not a trading identifier).
 
-13. close_reason (string enum)
-14. close_price (double)
-15. close_profit (double)
-16. close_volume (double)
-17. deal_id (long)
+2) event_time (string datetime)  
+   - Time string in the EA’s configured format.
 
-> Note: Columns 1–12 reflect the current implementation’s event writer fields and ordering. New CLOSE columns are appended to preserve backward compatibility for older parsers.  
+3) symbol (string)  
+
+4) timeframe (string enum)  
+   - Example: PERIOD_M15
+
+5) phase (string enum)  
+   - Example: MM_PHASE_ENTRY / MM_PHASE_MANAGE / MM_PHASE_EXIT
+
+6) event_type (string enum)  
+   - Must match Canonical Event Types (Section 2)
+
+7) cycle_id (int)  
+   - Lifecycle grouping ID for ENTRY→…→CLOSE reconstruction
+
+8) trade_id (long)  
+   - Internal trade identifier (system-defined)
+
+9) ticket (ulong)  
+   - Broker ticket (0 if not applicable/unknown)
+
+10) action_summary (string)  
+   - Human-readable action description
+
+11) scale_steps (int)  
+   - Number of scale steps applied so far (0 if not applicable)
+
+12) scale_fraction_total (double)  
+   - Total fraction of position closed so far (0.0 if not applicable)
+
+
+**CLOSE-only (E2 fields; mandatory for MM_EVENT_CLOSE, empty otherwise):**
+
+13) close_reason (string enum)  
+14) close_price (double)  
+15) close_profit (double)  
+16) close_volume (double)  
+17) deal_id (long)
+
+> Column order is fixed. Any missing/extra columns invalidate the row for schema compliance.
 
 ---
 
@@ -87,7 +112,7 @@ Event `event_type` MUST be one of:
   - MUST be empty for all other event types (ENTRY/SCALE/BE/TRAIL/EXIT)
 
 ### 4.2 close_reason (required for CLOSE)
-close_reason MUST be one of:
+`close_reason` MUST be one of:
 - SIGNAL
 - MANUAL
 - TP_HIT
@@ -96,38 +121,63 @@ close_reason MUST be one of:
 - UNKNOWN
 
 ### 4.3 Two-phase termination rules (MM-LOG-01 alignment)
-- MM_EVENT_EXIT is optional per cycle (0..1)
-- MM_EVENT_CLOSE is mandatory per cycle (exactly 1) and terminates lifecycle
+- `MM_EVENT_EXIT` A lifecycle MAY contain 0..1
+- `MM_EVENT_CLOSE` A lifecycle MUST contain exactly and terminates lifecycle
 
+
+### 4.4 Consistency requirements
+- `cycle_id` MUST be constant across all events belonging to the same lifecycle.
+- `cycle_id` MUST increment on each ENTRY lifecycle start.
+- `ticket` and/or `trade_id` MUST allow joining across logs (when available).
+- phase and timeframe MUST use `ENUM_STRINGS` (EnumToString output), not custom shortened labels.
 ---
 
 ## 5) JSON Event Object Schema
-Each JSON line/object must provide keys matching the CSV schema field names.
 
 ### 5.1 Required keys (all events)
+
+Each JSON event MUST contain keys matching the CSV field names:
 - debug_event_id
-- trade_id
-- ticket
 - event_time
 - symbol
+- timeframe
+- phase
+- event_type
 - cycle_id
+- trade_id
+- ticket
 - action_summary
 - scale_steps
 - scale_fraction_total
-- event_type
-- phase
-- timeframe
-
-### 5.2 Required keys for MM_EVENT_CLOSE only
 - close_reason
 - close_price
 - close_profit
 - close_volume
 - deal_id
 
+
+### 5.2 Required keys for MM_EVENT_CLOSE only
+
+For `MM_EVENT_CLOSE`:
+- close_reason / close_price / close_profit / close_volume / deal_id MUST be populated.
+
+For non-CLOSE events:
+- close_reason / close_price / close_profit / close_volume / deal_id MUST be null/empty.
+
+
 ---
 
-## 6) Versioning / Archive Rules
+
+## 6) Implementation Binding (Code)
+The event log producer MUST emit fields consistent with the canonical event payload model:
+- `event_time`, `event_type`, `phase`, `symbol`, `timeframe`, `trade_id`, `ticket`, `cycle_id`,
+  `scale_steps`, `scale_fraction_total`, `action_summary` (plus `debug_event_id`).
+
+> Note: Existing implementations may require code alignment if the CSV column order differs from this schema.
+
+---
+
+## 7) Versioning / Archive Rules
 - SSOT file is stable: `MM_Event_Log_Schema.md`
 - Archived versions live in `/00_Core/_archive/` as:
   - `MM_Event_Log_Schema_vX.Y.md`
@@ -139,9 +189,10 @@ Each JSON line/object must provide keys matching the CSV schema field names.
 
 ---
 
-## 7) Change Log
+## 8) Change Log
 ### v1.0
 - Initial SSOT definition for MM event logs
-- Added CLOSE outcome fields (E2): close_reason, close_price, close_profit, close_volume, deal_id
+- Added CLOSE outcome fields (E2): 
+- `close_reason`, `close_price`, `close_profit`, `close_volume`, `deal_id`
 
-✅ End of MM Event Log Schema
+✅ End of MM Event Log Schema (SSOT)

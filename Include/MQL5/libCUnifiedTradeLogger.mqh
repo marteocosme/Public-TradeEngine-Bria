@@ -6,12 +6,12 @@
 #property strict
 #ifndef __LIBC_UNIFIED_TRADE_LOGGER_MQH__
 #define __LIBC_UNIFIED_TRADE_LOGGER_MQH__
-#define MM_EXPECTED_SNAPSHOT_COLUMNS MM_LogSchemaV11::SnapShotColumnCount()
+#define MM_EXPECTED_SNAPSHOT_COLUMNS MM_LogSchema::SnapShotColumnCount()
 
 #include <MyInclude\\NNFX\\libEnum.mqh>
 #include <MyInclude\\NNFX\\Core\\Logging\\MM_LogSnapshotRecords.mqh>
 #include <MyInclude\\NNFX\\Core\\Logging\\libCLogHeaderDispatcher.mqh>
-#include <MyInclude\\NNFX\\Core\\Logging\\MM_LogSchema_v1_1.mqh>
+#include <MyInclude\\NNFX\\Core\\Logging\\MM_LogSchema.mqh>
 #include <MyInclude\\NNFX\\Core\\Logging\\MM_LogTypes.mqh>
 
 
@@ -106,7 +106,7 @@ private:
       // ✅ Centralized header control
       if(m_header.NeedsHeader(m_csv_events))
          {
-         MM_LogSchemaV11::EventHeader(h);
+         MM_LogSchema::EventHeader(h);
 
          // ✅ IMPORTANT: mark as written
          m_header.MarkHeaderWritten(m_csv_events);
@@ -220,7 +220,7 @@ public:
       // ✅ Centralized header control
       if(m_header.NeedsHeader(m_csv_snapshots))
          {
-         MM_LogSchemaV11::SnapShotHeader(h);
+         MM_LogSchema::SnapShotHeader(h);
 
          // ✅ IMPORTANT: mark as written
          m_header.MarkHeaderWritten(m_csv_snapshots);
@@ -291,7 +291,7 @@ public:
       // ✅ Centralized header control
       if(m_header.NeedsHeader(m_csv_snapshots))
          {
-         MM_LogSchemaV11::SnapShotHeader(h);
+         MM_LogSchema::SnapShotHeader(h);
 
          // ✅ IMPORTANT: mark as written
          m_header.MarkHeaderWritten(m_csv_snapshots);
@@ -398,7 +398,7 @@ public:
       // ✅ Centralized header control
       if(m_header.NeedsHeader(m_csv_summary))
          {
-         MM_LogSchemaV11::SummaryHeader(h);
+         MM_LogSchema::SummaryHeader(h);
 
          // ✅ IMPORTANT: mark as written
          m_header.MarkHeaderWritten(m_csv_snapshots);

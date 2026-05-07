@@ -43,20 +43,15 @@ v1.4
 
 ## 🔗 Dependencies (SSOT)
 
-This contract depends on:
+This contract depends on the following SSOT specifications:
 
-- MM_Snapshot_Schema.md
-- MM_Event_Log_Schema.md
-- TradeLifecycleEvents.md
+- MM_Snapshot_Schema.md  *(SSOT)*
+- MM_Event_Log_Schema.md *(SSOT) — *defines MM_Events.csv / JSON, including MM_EVENT_CLOSE + close_reason fields*
+- TradeLifecycleEvents.md *(SSOT)* — *canonical event identifiers and mappings*
 
-
-### ⚠️ Change Rule
-
-If any dependency listed in the **Dependencies (SSOT)** section changes:
-
-1. Schema → Contract MUST update
-2. Contract → Validation MUST update
-3. Only then → Code update allowed
+Dependency rules:
+- Dependencies must reference SSOT filenames only. Versioned documents belong under `/00_Core/_archive/`.
+- If any dependency listed here changes → Schema → Contract → Validation MUST update (in that order) before any code update is allowed.
 
 ---
 
@@ -340,14 +335,19 @@ Logging system MUST enforce:
 
 This contract is enforced by:
 
-- `MM_LogSchema_v1_2.mqh` (schema definition)
+- `MM_LogSchema.mqh` (SSOT include — points to current active schema implementation)
 - `CUnifiedTradeLogger` (logging engine)
 
 All logging output MUST:
 
-- Use `MM_LogSchema_v1_2.mqh` as single source of truth
+- Use `MM_LogSchema.mqh` as single source of truth
 - Match schema exactly
 - Pass runtime validation checks
+
+
+Additional binding:
+- Event logs MUST conform to: MM_Event_Log_Schema.md (SSOT)
+
 
 ---
 
