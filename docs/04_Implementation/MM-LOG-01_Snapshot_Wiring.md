@@ -18,7 +18,7 @@ Scope:
 ## 🔗 Dependencies
 
 ### Snapshot Schema
-→ /docs/02_Specs/00_Core/MM_Snapshot_Schema_v1.2.md
+→ /docs/02_Specs/00_Core/MM_Snapshot_Schema.md
 
 ⚠️ This file does NOT define schema fields.
 
@@ -92,7 +92,7 @@ Immediately after executing MM action
 # ⚠️ Rules
 
 - MUST capture BOTH BEFORE and AFTER snapshots
-- MUST follow schema v1.2
+- MUST follow Snapshot Cchema v1.3
 - MUST NOT redefine fields
 
 
@@ -108,7 +108,7 @@ All snapshots MUST include `cycle_id` corresponding to the active trade lifecycl
 
 - BEFORE and AFTER snapshots MUST share the same cycle_id
 - cycle_id MUST match the associated MM event
-- cycle_id MUST remain constant from ENTRY → EXIT
+- cycle_id MUST remain constant from ENTRY → CLOSE
 
 ---
 

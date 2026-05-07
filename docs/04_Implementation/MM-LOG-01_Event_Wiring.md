@@ -14,14 +14,15 @@ Scope:
 - SCALE_OUT
 - BREAK_EVEN
 - TRAIL
-- EXIT
+- EXIT (optional; intent only)
+- CLOSE (mandatory lifecycle terminator)
 
 ---
 
 ## 🔗 Dependencies
 
 ### Snapshot Schema
-→ /docs/02_Specs/00_Core/MM_Snapshot_Schema_v1.2.md
+→ /docs/02_Specs/00_Core/MM_Snapshot_Schema.md
 
 ⚠️ This file does NOT define schema fields.
 
@@ -106,3 +107,16 @@ Scope:
 - Logger Call:
 
     `m_logger.LogMMEventBase(...)`
+
+## CLOSE
+
+- Trigger Location:
+
+
+- Handler:
+    
+   
+
+- Logger Call:
+
+    

@@ -4,7 +4,7 @@
 
 Version: v1.0  
 Status: ✅ ACTIVE  
-Last Updated: 2026-05-04  
+Last Updated: 2026-05-08 (UTC+8) 
 
 ---
 
@@ -19,8 +19,8 @@ Defines how trade lifecycles are grouped using `cycle_id` across MM-LOG-01 loggi
 A trade lifecycle is defined as:
 
 ENTRY  
-→ SCALE_OUT / BREAK_EVEN / TRAIL (0..n times)  
-→ EXIT  
+→ SCALE_OUT / BREAK_EVEN / TRAIL (0..n times) /EXIT (intent only)
+→ CLOSE
 
 ---
 
@@ -28,7 +28,7 @@ ENTRY
 
 - A new cycle_id is generated at ENTRY
 - The same cycle_id is reused for all subsequent MM actions
-- The lifecycle ends at EXIT
+- The lifecycle ends at CLOSE
 
 ---
 
@@ -42,7 +42,8 @@ cycle_id = 5
 → SCALE_OUT  
 → BREAK_EVEN  
 → TRAIL  
-→ EXIT  
+→ EXIT  (optional; intent only)
+→ CLOSE (mandatory lifecycle terminator)
 
 ---
 
@@ -65,7 +66,7 @@ Provide full traceability and grouping of all logs belonging to a single trade l
 ## 🔗 Dependencies
 
 - MM-LOG-01_Logging_Schema_Contract.md (v1.3)
-- Logging_Architecture_v1.1.md
+- Logging_Architecture.md
 
 
 ## 🧪 Implementation Status — Logging Observability Upgrade
