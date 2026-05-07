@@ -1,19 +1,21 @@
+## 🔒 Document Status (Archived)
+
+**Version:** v1.0  
+
+**Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
+
+**Archived On:** 2026-05-04 (UTC+8)
+- ⚠️ This file is retained for historical reference and legacy log parsing only.
+- ⚠️ Do not edit content. Any changes must be made in the SSOT file.
 
 ✅ APPROVED — Logging Contract v1.0
 Effective immediately for all Money Management lifecycle 
 
----
 
+
+---
 # 📘 Trade Lifecycle Logging Contract — Phase 3
 
-
-## 🔒 Document Status
-
-Version: v1.0  
-Status: ✅ ACTIVE  
-Last Updated: 2026-05-04  
-
----
 
 ## 🔗 Purpose
 

@@ -1,9 +1,11 @@
 
 ## 🔒 Document Status
 
-Version: v1.0  
-Status: ✅ ACTIVE  
-Last Updated: 2026-05-04  
+**Version:** v1.1
+
+**Status:** ✅ ACTIVE (SSOT)
+
+**Last Updated:** 2026-05-07 (UTC+8)
 
 ---
 
@@ -17,38 +19,51 @@ This file serves as the single source of truth for:
 - Event definitions
 - Cross-module consistency
 
-## 🔒 Document Status
-
-Version: v1.0  
-Status: ✅ ACTIVE  
-Last Updated: 2026-05-04  
+## Supersedes
+- v1.0
 
 ---
 
-## 🔗 Purpose
+## 1. Canonical MM-LOG-01 Event Types (Enum-style)
 
-Defines all standardized lifecycle and MM event identifiers used across the system.
+These are the canonical **MM-LOG-01 event_type identifiers** used for event logs and snapshot intent/result mapping.  
+They align with the MM-LOG-01 contract’s two-phase termination model:
+- `MM_EVENT_EXIT` = engine intent to close (optional)
+- `MM_EVENT_CLOSE` = broker-confirmed closure outcome (mandatory lifecycle terminator)
 
-This file serves as the single source of truth for:
+### Canonical Event Types
+- MM_EVENT_ENTRY
+- MM_EVENT_SCALE_OUT
+- MM_EVENT_BE
+- MM_EVENT_TRAIL
+- MM_EVENT_EXIT      (Intent — engine close request)
+- MM_EVENT_CLOSE     (Outcome — broker-confirmed closure)
 
-- Event naming
-- Event definitions
-- Cross-module consistency
+> Note: `close_reason` is carried by the Event Log Schema (MM_Event_Log_Schema.md) for MM_EVENT_CLOSE.
 
+---
 
+## 2. Lifecycle Semantic Events (Legacy String IDs)
 
-## 🔹 1. Pre‑Trade Events
+These legacy identifiers represent semantic lifecycle moments (validation, open confirmation, etc.).  
+They remain useful as conceptual events, but **must not conflict** with canonical MM-LOG-01 event_type identifiers.
+
+### Mapping Rule
+If a legacy semantic event overlaps with a canonical MM-LOG-01 event, the canonical event type is the authoritative identifier.
+
+---
+
+## 3. Pre‑Trade Semantic Events (Legacy)
+
 ### ✅ MM_TradeValidated
-When
 
+**When**
 - MM confirms that risk, SL distance, and lot sizing are valid
 
-Emitted by
-
+**Emitted by**
 - Risk & Position Sizing Module
 
-Required Data
-
+**Required Data**
 - Symbol
 - Intended entry price
 - Stop‑loss distance
@@ -59,27 +74,28 @@ Required Data
 📌 If this event does not occur, the trade must not open.
 
 ### ❌ MM_TradeRejected
-When
+**When**
 
 - Trade fails MM validation (invalid SL distance, lot < min, risk exceeded)
 
-Terminal
+**Terminal**
 
 - Yes (trade never existed)
 
-Required Data
+**Required Data**
 
 - Rejection reason (enum/string)
 - Failed invariant
 
+---
+## 4. Trade Initialization Semantic Events (Legacy)
 
-## 🔹 2. Trade Initialization Events
 ✅ MM_TradeOpened
-When
+**When**
 
 Broker confirms trade is open and MM accepts responsibility
 
-Required Data
+**Required Data**
 
 - Ticket
 - Entry price
@@ -89,22 +105,22 @@ Required Data
 
 ✅ This event marks the true start of the MM lifecycle.
 
-## 🔹 3. Active Management Events
-These events may occur zero or more times, but always under strict rules.
+---
+## 5. Active Management Semantic Events (Legacy)
 
 ### 🔁 MM_BreakEvenTriggered
-When
+**When**
 
 - Profit threshold is met
 - BE conditions satisfied
 - BE not yet applied
 
-Rules
+**Rules**
 
 - Emits once per trade
 - Irreversible
 
-Required Data
+**Required Data**
 
 - Trigger condition (R / price / ATR)
 - Old SL
@@ -112,18 +128,21 @@ Required Data
 - Buffer amount (if any)
 
 
+**Canonical Mapping**
+- MM_BreakEvenTriggered → MM_EVENT_BE
+
 ### 🔁 MM_StopLossAdjusted
-When
+**When**
 
 - Stop‑loss is modified for reasons other than BE
 (e.g., trailing logic if/when enabled)
 
-Rules
+**Rules**
 
 - Must never increase risk
 - Must move in a favorable direction only
 
-Required Data
+**Required Data**
 
 - Adjustment reason
 - Old SL
@@ -131,36 +150,42 @@ Required Data
 
 📌 This keeps BE and trailing conceptually separate.
 
+**Canonical Mapping**
+- MM_StopLossAdjusted → MM_EVENT_TRAIL
+
 ### 🔁 MM_PartialCloseExecuted
-When
+**When**
 
 - A scale‑out condition is met
 - Partial close is executed successfully
 
-Rules
+**Rules**
 
 - Finite
 - Ordered
 - Must respect lot constraints
 
-Required Data
+**Required Data**
 
 - Closed lot size
 - Remaining lot size
 - Scale‑out level / index
 - Execution price
 
+**Canonical Mapping**
+- MM_PartialCloseExecuted → MM_EVENT_SCALE_OUT
 
-## 🔹 4. Trade Termination Events
-These are terminal events.
+---
+
+## 6. Trade Termination Semantic Events (Legacy)
 
 ### ✅ MM_ExitSignalReceived
-When
+**When**
 
 - Entry Strategy emits an exit signal
 - MM acknowledges and prepares exit
 
-Required Data
+**Required Data**
 
 - Exit signal source
 - Exit reason (enum)
@@ -168,16 +193,20 @@ Required Data
 
 📌 Useful for diagnosing why an exit happened.
 
-🛑 MM_TradeClosed
-When
+**Canonical Mapping**
+- MM_ExitSignalReceived → MM_EVENT_EXIT (Intent)
+
+
+### 🛑 MM_TradeClosed
+**When**
 
 - Trade is fully closed and confirmed by broker
 
-Terminal
+**Terminal**
 
 - Yes
 
-Required Data
+**Required Data**
 
 - Close price
 - Close reason (SL / exit signal / final scale‑out)
@@ -186,36 +215,58 @@ Required Data
 
 📌 This event ends all MM actions.
 
-## 🔹 5. Safety & Exceptional Events
+**Canonical Mapping**
+- MM_TradeClosed → MM_EVENT_CLOSE (Outcome)
+
+---
+
+## 7. Safety & Exceptional Events (Legacy)
 
 ### ⚠️ MM_SafetyTriggered
-When
+**When**
 
 - Any invariant is threatened or violated
 - Emergency exit or halt required
 
-Examples
+**Examples**
 
 - Risk breach
 - Inconsistent trade state
 - Broker rejection loop
 
-Terminal
+**Terminal**
 
 - Usually yes
 
+---
 
-## 🔐 Event Authority & Ownership Matrix
 
-| Event | Owner | Can Modify Trade? |
-| --- | --- | --- |
-| MM_TradeValidated |MM | ❌ |
-| MM_TradeOpened | MM | ✅ |
-| MM_BreakEvenTriggered | MM | ✅ |
-| MM_StopLossAdjusted | MM | ✅ |
-| MM_PartialCloseExecuted | MM | ✅ | 
-| MM_ExitSignalReceived | Strategy → MM | ❌ |
-| MM_TradeClosed | MM | ❌ |
-| MM_TradeRejected | MM | ❌ |
-| MM_SafetyTriggered | MM | ✅ |
-This prevents responsibility leakage later.
+## 8. Event Authority & Ownership Matrix (Normalized)
+
+This matrix prevents responsibility leakage and clarifies ownership boundaries.
+
+- MM_EVENT_* entries are canonical MM-LOG-01 events.
+- Legacy semantic events are preserved but map to canonical events where applicable.
+
+**Ownership Summary**
+- Risk module owns validation decisions (TradeValidated/Rejected)
+- MM engines own management actions (BE/TRAIL/SCALE_OUT)
+- Strategy owns signal generation, not broker closure
+- Broker/deal confirmation terminates lifecycle via MM_EVENT_CLOSE
+
+---
+
+## 9. Change Log
+
+### v1.1
+- Removed duplicate Document Status / Purpose blocks
+- Introduced canonical MM-LOG-01 event_type identifiers (MM_EVENT_*), including two-phase termination:
+  - MM_EVENT_EXIT (intent) and MM_EVENT_CLOSE (outcome)
+- Reclassified prior names as legacy semantic events and added canonical mappings
+- Normalized ownership/authority guidance for cross-module consistency
+
+### v1.0
+- Initial version
+
+---
+✅ End of TradeLifecycleEvents SSOT

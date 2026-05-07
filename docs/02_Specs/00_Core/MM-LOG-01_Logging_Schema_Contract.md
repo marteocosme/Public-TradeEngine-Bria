@@ -3,9 +3,11 @@
 
 ## 🔒 Document Status
 
-Version: v1.4
-Status: ✅ ACTIVE (SSOT)  
-Last Updated: 2026-05-07
+**Version:** v1.4
+
+**Status:** ✅ ACTIVE (SSOT)  
+
+**Last Updated:** 2026-05-07 (UTC+8)
 
 ---
 
@@ -25,10 +27,10 @@ Ensures logs are:
 ---
 
 ## Status
-✅ Approved (Schema v1.3 Active)
+✅ Approved (Snapshot Schema v1.3 Active)
 
 
-### Version
+## Version
 v1.4
 
 ### Supersedes
@@ -43,9 +45,10 @@ v1.4
 
 This contract depends on:
 
-- MM_Snapshot_Schema_v1.2.md
+- MM_Snapshot_Schema.md
+- MM_Event_Log_Schema.md
 - TradeLifecycleEvents.md
-- Trade_Lifecycle_Orchestrator_v1.2.md
+
 
 ### ⚠️ Change Rule
 
@@ -371,8 +374,8 @@ The following rules are MANDATORY:
    - MM_SNAPSHOT_AFTER
 
 2. Trade lifecycle termination is STRICT:
-  - Every lifecycle MUST include exactly one MM_EVENT_CLOSE
-  - A lifecycle without MM_EVENT_CLOSE is INVALID
+   - Every lifecycle MUST include exactly one MM_EVENT_CLOSE
+   - A lifecycle without MM_EVENT_CLOSE is INVALID
 
 3. MM_SNAPSHOT_AFTER MUST include execution outcome fields:
    - execution_result
@@ -456,7 +459,7 @@ All violations must:
 This document is version-locked.
 
 - No structural changes allowed after approval
-- Any modification requires a new version (v1.3+)
+- Any modification requires a new version (v1.4+)
 - Historical versions must remain unchanged
 
 ---

@@ -1,12 +1,21 @@
+### 🗄️ Document Status (Archived)
+
+**Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
+
+**Archived On:** 2026-05-07 (UTC+8)
+
+- ⚠️ This file is retained for historical reference and legacy log parsing only.
+- ⚠️ Do not edit content. Any changes must be made in the SSOT file.
+
+---
 
 # 📘 Phase 5 — Trade Lifecycle Orchestration Specification
 **Project:** Public-TradeEngine-Bria
 
 **Phase:** 5 (Trade Lifecycle Orchestration)
 
-**Status:** ✅ Spec Approved (Implementation Pending)
-
 **Depends On:** Phase 4 — Execution & Money Management Logging (✅ Complete)
+
 
 
 ## Change Log

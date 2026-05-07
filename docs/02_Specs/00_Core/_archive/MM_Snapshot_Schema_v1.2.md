@@ -1,21 +1,17 @@
+### 🗄️ Document Status (Archived)
+**Version:** v1.2
 
-## ✅ STATUS: ACTIVE — SINGLE SOURCE OF TRUTH
+**Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
 
-This is the authoritative MM Snapshot Schema (latest version).
+**Superseded By:** <MM_Snapshot_Schema.md>
 
-All implementations and logging must follow this schema.
+**Archived On:** 2026-05-07 (UTC+8)
 
-Previous versions are stored in:
-/00_Core/_archive/
+- ⚠️ This file is retained for historical reference and legacy log parsing only.
+- ⚠️ Do not edit content. Any changes must be made in the SSOT file.
 
-
-
-
+---
 # MM Snapshot Schema v1.2
-
-## Status ✅ Active
-Version: v1.2
-Status: ✅ Active ✅  LOCKED  
 
 ## Supersedes
 - MM_Snapshot_Schema_v1.1.md
