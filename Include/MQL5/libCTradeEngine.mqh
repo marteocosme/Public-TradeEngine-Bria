@@ -340,33 +340,50 @@ private:
       evt.event_time = TimeCurrent();
       evt.event_type = MM_EVENT_CLOSE;
       evt.phase      = MM_PHASE_EXIT;
-
       evt.symbol     = symbol;
       evt.timeframe  = inpEntryPeriod;
-
       evt.cycle_id   = m_cycle_id;
       evt.trade_id   = (long)m_last_ticket;
       evt.ticket     = m_last_ticket;
+      evt.action_summary = "Closed Trade (engine-detected)";
 
-      evt.action_summary = "Position closed (engine-detected)";
+      // ✅ Always set a non-blank default (ZeroMemory makes string "")
+      evt.close_reason = "UNKNOWN";
 
-      evt.scale_steps = 0;
-      evt.scale_fraction_total = 0.0;
+      // fetch broker-confirmed deal info
+      ulong  deal_id = 0;
+      double price   = 0.0;
+      double profit  = 0.0;
+      double volume  = 0.0;
+      string reason  = "UNKNOWN";
+
+      bool found = GetLastCloseDeal(symbol, deal_id, price, profit, volume, reason);
+
+
+      // evt.scale_steps = 0;
+      // evt.scale_fraction_total = 0.0;
 
       // ✅ E2 fields (safe placeholders for now)
+      // defaults (must NOT be blank)
 
-      ulong deal_id = 0;
-      double price = 0.0;
-      double profit = 0.0;
-      double volume = 0.0;
-      string reason = "UNKNOWN";
+      evt.close_price  = 0.0;
+      evt.close_profit = 0.0;
+      evt.close_volume = 0.0;
+      evt.deal_id      = 0;
 
-      evt.close_reason = "UNKNOWN";
-      bool found = GetLastCloseDeal(symbol, deal_id, price, profit, volume, reason);
+
+
+
+
 
       if(found)
          {
+         // ✅ Guard against empty reason coming from anywhere
+         if(reason == "")
+            reason = "UNKNOWN";
+
          evt.close_reason = reason;
+         // evt.close_reason = (reason == "" ? "UNKNOWN" : reason);
          evt.close_price  = price;
          evt.close_profit = profit;
          evt.close_volume = volume;
@@ -374,13 +391,20 @@ private:
          }
       else
          {
-         // Fallback safety (should rarely happen)
-         evt.close_reason = "UNKNOWN";
+         // keep UNKNOWN (not blank)
+         // evt.close_reason = "UNKNOWN";
          evt.close_price  = SymbolInfoDouble(symbol, SYMBOL_BID);
          evt.close_profit = 0.0;
          evt.close_volume = m_last_volume;
          evt.deal_id      = 0;
          }
+
+
+
+      Print("CLOSE DEBUG -> reason=[", evt.close_reason, "] deal=", evt.deal_id,
+            " price=", evt.close_price, " profit=", evt.close_profit);
+
+
 
       m_logger.LogMMEventBase(evt);
 
@@ -460,6 +484,18 @@ private:
          // ✅ Map reason
          switch(reason_code)
             {
+            case DEAL_REASON_CLIENT:
+               reason = "MANUAL_DESKTOP_TERMINAL";
+               break;
+            case DEAL_REASON_MOBILE:
+               reason = "MANUAL_MOBILE_APP";
+               break;
+            case DEAL_REASON_WEB:
+               reason = "MANUAL_WEB_PLATFORM";
+               break; 
+            case DEAL_REASON_EXPERT:
+               reason = "MM_EXPERT: Exit Signal";
+               break;
             case DEAL_REASON_TP:
                reason = "TP_HIT";
                break;
@@ -467,10 +503,19 @@ private:
                reason = "SL_HIT";
                break;
             case DEAL_REASON_SO:
-               reason = "STOP_OUT";
+               reason = "STOP_OUT Event";
                break;
-            case DEAL_REASON_CLIENT:
-               reason = "MANUAL";
+            case DEAL_REASON_ROLLOVER:
+               reason = "ROLLOVER";
+               break;
+            case DEAL_REASON_VMARGIN:
+               reason = "VARIATION_MARGIN";
+               break;
+            case DEAL_REASON_CORPORATE_ACTION:
+               reason = "CORPORATE_ACTION";
+               break;
+            case DEAL_REASON_SPLIT:
+               reason = "SPLIT_ANNOUNCEMENT";
                break;
             default:
                reason = "UNKNOWN";
@@ -617,7 +662,7 @@ public:
       MM_SNAPSHOT_BEFORE snap;
       snap.timestamp  = TimeCurrent();
       snap.symbol     = ctx.Symbol;
-      snap.timeframe  = ctx.EntryPeriod;
+      snap.timeframe  = inpEntryPeriod;
       snap.trade_context_id = 0; // ticket not yet known
       snap.cycle_id = m_cycle_id;
 
@@ -699,7 +744,7 @@ public:
       MM_SNAPSHOT_AFTER snap_after;
       snap_after.timestamp = TimeCurrent();
       snap_after.symbol    = ctx.Symbol;
-      snap_after.timeframe = ctx.EntryPeriod;
+      snap_after.timeframe = inpEntryPeriod;
       snap_after.mm_phase = ToMMPhaseString(MM_PHASE_ENTRY);
       snap_after.mm_event_result = ToMMEventString(MM_EVENT_ENTRY);
 
@@ -757,7 +802,7 @@ public:
       evt.scale_steps = 0;
       evt.scale_fraction_total = 0;
       evt.symbol     = ctx.Symbol;
-      evt.timeframe  = ctx.EntryPeriod;
+      evt.timeframe  = inpEntryPeriod;
       evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
       evt.ticket     = ticket;
 
@@ -818,7 +863,7 @@ public:
             MM_SNAPSHOT_BEFORE snap;
             snap.timestamp = TimeCurrent();
             snap.symbol    = ctx.Symbol;
-            snap.timeframe = ctx.EntryPeriod;
+            snap.timeframe = inpEntryPeriod;
 
             // identity
             snap.trade_context_id = ticket;
@@ -891,6 +936,8 @@ public:
                // ----------------------------------------------------
                // ✅ event logging (keep this inside success)
                MM_LogEventBase evt;
+               ZeroMemory(evt);  // ✅ CRITICAL FIX
+
                evt.event_time = ctx.Time; // BAR_SIGNAL time
                evt.event_type = MM_EVENT_SCALE_OUT;
                evt.phase = MM_PHASE_MANAGE;
@@ -900,10 +947,15 @@ public:
                evt.scale_fraction_total = total_closed_fraction;
 
                evt.symbol = ctx.Symbol;
-               evt.timeframe = ctx.EntryPeriod;
+               evt.timeframe = inpEntryPeriod;
                evt.trade_id = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
                evt.ticket = ticket;
                m_logger.LogMMEventBase(evt);
+
+
+               // ✅ DO NOT TOUCH CLOSE FIELDS
+               // leave as 0 / empty
+
 
                }
             while(false);
@@ -919,7 +971,7 @@ public:
             MM_SNAPSHOT_AFTER snap_after;
             snap_after.timestamp = TimeCurrent();
             snap_after.symbol    = ctx.Symbol;
-            snap_after.timeframe = ctx.EntryPeriod;
+            snap_after.timeframe = inpEntryPeriod;
 
             // lifecycle
             snap_after.mm_phase = ToMMPhaseString(MM_PHASE_MANAGE);
@@ -968,7 +1020,7 @@ public:
          MM_SNAPSHOT_BEFORE snap;
          snap.timestamp = TimeCurrent();
          snap.symbol    = ctx.Symbol;
-         snap.timeframe = ctx.EntryPeriod;
+         snap.timeframe = inpEntryPeriod;
 
          // identity
          snap.trade_context_id = ticket;
@@ -1028,6 +1080,7 @@ public:
 
             // 3️⃣ BREAK-EVEN LOGGING — Phase 4.4
             MM_LogEventBase evt;
+            ZeroMemory(evt);  // ✅ CRITICAL FIX
             evt.event_time = ctx.Time;              // BAR_SIGNAL time
             evt.event_type = MM_EVENT_BE;
             evt.phase      = MM_PHASE_MANAGE;
@@ -1035,9 +1088,14 @@ public:
             evt.scale_steps = 0;
             evt.scale_fraction_total = 0 ;
             evt.symbol     = ctx.Symbol;
-            evt.timeframe  = ctx.EntryPeriod;
+            evt.timeframe  = inpEntryPeriod;
             evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
             evt.ticket     = ticket;
+
+
+            // ✅ DO NOT TOUCH CLOSE FIELDS
+            // leave as 0 / empty
+
             m_logger.LogMMEventBase(evt);
 
             be_applied = true;
@@ -1052,7 +1110,7 @@ public:
          MM_SNAPSHOT_AFTER snap_after;
          snap_after.timestamp = TimeCurrent();
          snap_after.symbol    = ctx.Symbol;
-         snap_after.timeframe = ctx.EntryPeriod;
+         snap_after.timeframe = inpEntryPeriod;
 
          // lifecycle intent
          snap_after.mm_phase = ToMMPhaseString(MM_PHASE_MANAGE);
@@ -1095,7 +1153,7 @@ public:
       MM_SNAPSHOT_BEFORE snap;
       snap.timestamp = TimeCurrent();
       snap.symbol    = ctx.Symbol;
-      snap.timeframe = ctx.EntryPeriod;
+      snap.timeframe = inpEntryPeriod;
 
       // identity
       snap.trade_context_id = ticket;
@@ -1161,6 +1219,7 @@ public:
          // ----------------------------------------------------
          // ✅ event log only if success
          MM_LogEventBase evt;
+         ZeroMemory(evt);  // ✅ CRITICAL FIX
          evt.event_time = ctx.Time;                // BAR_SIGNAL time
          evt.event_type = MM_EVENT_TRAIL;
          evt.phase      = MM_PHASE_MANAGE;
@@ -1168,9 +1227,13 @@ public:
          evt.scale_steps = 0;
          evt.scale_fraction_total = 0;
          evt.symbol     = ctx.Symbol;
-         evt.timeframe  = ctx.EntryPeriod;
+         evt.timeframe  = inpEntryPeriod;
          evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
          evt.ticket     = ticket;
+
+         // ✅ DO NOT TOUCH CLOSE FIELDS
+         // leave as 0 / empty
+
          m_logger.LogMMEventBase(evt);
 
          }
@@ -1182,7 +1245,7 @@ public:
       MM_SNAPSHOT_AFTER snap_after;
       snap_after.timestamp = TimeCurrent();
       snap_after.symbol    = ctx.Symbol;
-      snap_after.timeframe = ctx.EntryPeriod;
+      snap_after.timeframe = inpEntryPeriod;
 
       // lifecycle intent
       snap_after.mm_phase        = ToMMPhaseString(MM_PHASE_MANAGE);
@@ -1250,7 +1313,7 @@ public:
       MM_SNAPSHOT_BEFORE snap;
       snap.timestamp = TimeCurrent();
       snap.symbol    = ctx.Symbol;
-      snap.timeframe = ctx.EntryPeriod;
+      snap.timeframe = inpEntryPeriod;
 
       // identity
       snap.trade_context_id = ticket;
@@ -1312,16 +1375,22 @@ public:
          // ✅ EXIT LOGGING — Phase 4.4
          // ✅ log event ONLY on sucess
          MM_LogEventBase evt;
+         ZeroMemory(evt);  // ✅ CRITICAL FIX
+
          evt.event_time = ctx.Time;
          evt.event_type = MM_EVENT_EXIT;
          evt.phase      = MM_PHASE_EXIT;
-         evt.action_summary = "Close remaining position";
+         evt.action_summary = "Exit signal: " + EnumToString(inpExitIndicator) + " (" +EnumToString(inpExitMode) + ")";
          evt.scale_steps = 0;
          evt.scale_fraction_total = 0;
          evt.symbol     = ctx.Symbol;
-         evt.timeframe  = ctx.EntryPeriod;
+         evt.timeframe  = inpEntryPeriod;
          evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
          evt.ticket     = ticket;
+
+         // ✅ DO NOT TOUCH CLOSE FIELDS
+         // leave as 0 / empty
+
          m_logger.LogMMEventBase(evt);
 
          }
@@ -1333,7 +1402,7 @@ public:
       MM_SNAPSHOT_AFTER snap_after;
       snap_after.timestamp = TimeCurrent();
       snap_after.symbol    = ctx.Symbol;
-      snap_after.timeframe = ctx.EntryPeriod;
+      snap_after.timeframe = inpEntryPeriod;
 
       // lifecycle intent
       snap_after.mm_phase        = ToMMPhaseString(MM_PHASE_EXIT);
@@ -1369,56 +1438,6 @@ public:
       EmitSnapshotAfter(snap_after);
       EndMMCycleCheck();
 
-      /*
-      // Summary Emit
-            long   summary_trade_id   = 0;
-            double summary_exit_price = 0.0;
-            double summary_total_pnl  = 0.0;
-
-      // Trade ID fallback.
-      // If you already have a deterministic trade id member, replace this with that member.
-            summary_trade_id = (long)m_cycle_id;
-
-      // Exit price fallback.
-      // Use current market price at exit time.
-      //double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
-      //double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
-
-      // If position type is not available in this scope yet, use bid as conservative default.
-      // Later we can refine this using POSITION_TYPE.
-            summary_exit_price = bid;
-
-      // PnL fallback.
-      // If position is still selected before final close, use POSITION_PROFIT.
-      // If already closed, this may be 0.0 and can be refined later from deal history.
-            if(PositionSelect(symbol))
-               {
-               summary_total_pnl = PositionGetDouble(POSITION_PROFIT);
-               }
-
-
-            MM_LogCycleSummary summary;
-            ZeroMemory(summary);
-            summary.cycle_id   = m_cycle_id;
-            summary.trade_id   = summary_trade_id;
-            summary.symbol     = symbol;
-
-            summary.entry_time = m_entry_time;
-            summary.exit_time  = TimeCurrent();
-
-            summary.entry_price = m_entry_price;
-            summary.exit_price  = summary_exit_price;
-
-            summary.pnl = summary_total_pnl;
-
-            summary.scale_count = m_scale_count;
-            summary.trail_count = m_trail_count;
-
-            summary.be_triggered = m_be_triggered;
-
-      // ✅ Emit
-            m_logger.LogCycleSummary(summary);
-      */
       if(exit_success)
          {
          // lifecycle close
@@ -1552,13 +1571,6 @@ private:
 // 6) SIGNAL SNAPSHOT — exactly once per candle
       SignalSnapshot snap = BuildSignalSnapshot(ctx);
 
-
-
-      /*
-      ctx.EntryBias = (ctx.BaselineEntry.trend == TrendUp ? Long :
-                       ctx.BaselineEntry.trend == TrendDown ? Short : NoTrade);
-      ctx.IsTradeable = (ctx.EntryBias != NoTrade);
-      */
       return ctx.IsTradeable;
 
    }
@@ -1572,56 +1584,4 @@ private:
 
 
 
-
-/*
-✅ What Changed vs Your Old Engine (High-Level)
-✅ Entry is now fully TradeContext-driven
-
-Baseline computed once → stored in ctx.Baseline
-Volume TTMS computed once → stored in ctx.Volume
-Confirmation dual computed once → stored in ctx.Confirm
-Volume gate applied inside confirmation + again inside ctx.Finalize() for deterministic blocking
-ATREntry computed once → stored in ctx.ATREntry
-ctx.Finalize() sets:
-
-ctx.EntryBias
-ctx.IsTradeable
-
-
-
-✅ Volume Option A is enforced end-to-end
-If TTMS squeeze is OFF, entry is blocked.
-✅ Risk sizing is now deterministic and ATREntry-based
-
-Stop distance = ATREntry * inpSLxATRxPlier
-Lots = RiskAmount / (StopPoints * valuePerPoint)
-
-✅ Exit uses your preferred mode: RVI CROSS
-And supports PSAR reversal exit as well.
-
-Integration in Your EA (Example)
-In your EA .mq5:
-
-#include <MyInclude\libCTradeEngine.mqh>
-
-CTradeEngine engine;
-
-int OnInit()
-{
-   engine.Init();
-   return INIT_SUCCEEDED;
-}
-
-void OnTick()
-{
-   engine.OnTick(_Symbol);
-}
-
-
-
-
-
-
-
-*/
 //+------------------------------------------------------------------+

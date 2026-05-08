@@ -39,8 +39,8 @@ struct MM_LogEventBase
    double              close_price;
    double              close_profit;
    double              close_volume;
-   ulong                deal_id;
-   
+   ulong               deal_id;
+
 };
 
 
@@ -110,7 +110,7 @@ private:
          return;
 
       FileSeek(h, 0, SEEK_END);
-      
+
       // ✅ Centralized header control
       if(m_header.NeedsHeader(m_csv_events))
          {
@@ -121,8 +121,29 @@ private:
          }
 
 
-      int actual_columns = 21; // must match your FileWrite fields
-      
+      //int actual_columns = 17; // must match your FileWrite fields
+
+      double close_price   = evt.close_price;
+      double close_profit  = evt.close_profit;
+      double close_volume  = evt.close_volume;
+      ulong  deal_id       = evt.deal_id;
+      string close_reason = evt.close_reason;
+
+      if(evt.event_type == MM_EVENT_CLOSE && close_reason == "")
+         close_reason = "UNKNOWN";
+
+
+// ✅ sanitize invalid values
+      if(evt.event_type != MM_EVENT_CLOSE)
+         {
+         close_price  = 0.0;
+         close_profit = 0.0;
+         close_volume = 0.0;
+         deal_id      = 0;
+         close_reason = "";
+
+         }
+
 
       FileWrite(
          h,
@@ -138,11 +159,11 @@ private:
          evt.action_summary,
          evt.scale_steps,
          evt.scale_fraction_total,
-         evt.close_reason,
-         evt.close_price,
-         evt.close_profit,
-         evt.close_volume,
-         evt.deal_id
+         close_reason,
+         close_price,
+         close_profit,
+         close_volume,
+         deal_id
 
       );
 
@@ -389,7 +410,7 @@ public:
 
       return (first_col != "debug_event_id");
    }
-   
+
    void LogCycleSummary(const MM_LogCycleSummary &summary)
    {
       LogCycleSummaryCSV(summary);
