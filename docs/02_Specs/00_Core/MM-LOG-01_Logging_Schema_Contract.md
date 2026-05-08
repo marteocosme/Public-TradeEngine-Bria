@@ -3,7 +3,7 @@
 
 ## 🔒 Document Status
 
-**Version:** v1.4
+**Version:** v1.5
 
 **Status:** ✅ ACTIVE (SSOT)  
 
@@ -31,9 +31,10 @@ Ensures logs are:
 
 
 ## Version
-v1.4
+v1.5
 
 ### Supersedes
+- v1.4
 - v1.3
 - v1.2
 - v1.1
@@ -111,7 +112,7 @@ EXEC-LOG-01 (separate contract)
 MM‑LOG‑01 separates **engine intent** from **broker-confirmed outcome** to ensure lifecycle completeness and accurate auditability.
 
 ### MM_EVENT_EXIT (Intent — Engine Close Request)
-`MM_EVENT_EXIT` is emitted when the engine explicitly requests an **immediate close** (e.g., signal exit or user/manual close request).
+`MM_EVENT_EXIT` MUST NOT be used as proof of closure; broker-confirmed closure is represented only by `MM_EVENT_CLOSE`.
 
 **Rules**
 - Optional per lifecycle: a cycle MAY have **0..1** `MM_EVENT_EXIT`
@@ -128,14 +129,40 @@ MM‑LOG‑01 separates **engine intent** from **broker-confirmed outcome** to e
 
 ### close_reason (Required for MM_EVENT_CLOSE)
 `MM_EVENT_CLOSE` MUST include `close_reason`, one of:
-- SIGNAL (closed because engine requested exit)
-- MANUAL (user/manual close outside signal logic)
-- TP_HIT (take profit executed by broker)
-- SL_HIT (stop loss executed by broker)
-- STOP_OUT (margin/stop-out)
-- UNKNOWN (fallback when reason cannot be reliably determined)
+- `MM_EXPERT` (closed by EA/Expert action; engine-initiated closure)
+- `MANUAL` (user/manual close outside signal logic)
+- `TP_HIT` (take profit executed by broker)
+- `SL_HIT` (stop loss executed by broker)
+- `STOP_OUT` (margin/stop-out)
+- `UNKNOWN` (fallback when reason cannot be reliably determined)
+
 
 > Note: `close_reason` is an MM‑LOG‑01 field used for lifecycle reconstruction and analytics. Broker execution telemetry remains out of scope and belongs to EXEC‑LOG‑01.
+
+#### E2 Close Outcome Fields — Applicability Rules (Authoritative)
+
+The following E2 close outcome fields are **authoritative ONLY** for `MM_EVENT_CLOSE`:
+
+- `close_reason`
+- `close_price`
+- `close_profit`
+- `close_volume`
+- `deal_id`
+
+**Rules**
+- For `MM_EVENT_CLOSE`: these fields **MUST** be populated with broker/deal-confirmed values (or `UNKNOWN` fallback for `close_reason`).
+- For all non-CLOSE events (`MM_EVENT_ENTRY`, `MM_EVENT_EXIT`, `MM_EVENT_SCALE_OUT`, `MM_EVENT_BE`, `MM_EVENT_TRAIL`): these fields **MUST** be emitted as neutral defaults:
+  - `close_reason = ""`
+  - `close_price = 0.0`
+  - `close_profit = 0.0`
+  - `close_volume = 0.0`
+  - `deal_id = 0`
+
+**Rationale**
+Prevents data contamination, ensures analytics interpret close outcomes from a single authoritative lifecycle terminator (`MM_EVENT_CLOSE`).
+
+
+
 
 ---
 
@@ -155,14 +182,16 @@ This preserves the Phase 4 contract surface area while enabling correct lifecycl
 
 ## Active Schema Version
 
-Current Active Version: v1.2
+Current Active Version: v1.3
 
 All logging output MUST conform to:
 
-➡️ MM_Snapshot_Schema_v1.2.md
+➡️ MM_Snapshot_Schema.md _(SSOT)_ 
 
 Previous versions:
-- v1.1 (superseded, retained for reference)
+- v1.2 (superseded)
+- v1.1 (superseded)
+
 
 
 ---
@@ -424,6 +453,14 @@ All violations must:
 - Be treated as system failures
 
 ## Change Log
+
+### v1.5
+- Added explicit applicability rules for E2 close outcome fields:
+  - E2 close fields are authoritative ONLY for MM_EVENT_CLOSE
+  - Non-CLOSE events must emit neutral defaults (blank/0)
+- Refined close_reason classification to include EA/Expert-initiated closure (MM_EXPERT)
+- Clarified MM_EVENT_EXIT as intent-only and not proof of closure
+- Resolved Active Schema Version section to reference SSOT snapshot schema consistently
 
 ### v1.4
 - Introduced two-phase termination model:
