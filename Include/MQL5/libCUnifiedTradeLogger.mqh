@@ -33,6 +33,14 @@ struct MM_LogEventBase
    int                 scale_steps;
    double              scale_fraction_total;
    string              action_summary;
+
+   // ✅ E2 Fields
+   string              close_reason;
+   double              close_price;
+   double              close_profit;
+   double              close_volume;
+   ulong                deal_id;
+   
 };
 
 
@@ -119,20 +127,22 @@ private:
       FileWrite(
          h,
          NextDebugEventId(),              // DEBUG ONLY
-         evt.trade_id,
-         evt.ticket,
          TimeToString(evt.event_time, TIME_DATE | TIME_SECONDS),
          evt.symbol,
+         EnumToString(evt.timeframe),
+         EnumToString(evt.phase),
+         EnumToString(evt.event_type),
          evt.cycle_id,
+         evt.trade_id,
+         evt.ticket,
          evt.action_summary,
          evt.scale_steps,
          evt.scale_fraction_total,
-         EnumToString(evt.event_type),
-         EnumToString(evt.phase),
-         EnumToString(evt.timeframe)
-
-
-
+         evt.close_reason,
+         evt.close_price,
+         evt.close_profit,
+         evt.close_volume,
+         evt.deal_id
 
       );
 
@@ -379,6 +389,7 @@ public:
 
       return (first_col != "debug_event_id");
    }
+   
    void LogCycleSummary(const MM_LogCycleSummary &summary)
    {
       LogCycleSummaryCSV(summary);

@@ -100,7 +100,7 @@ public:
    // ============================================================
    static int SummaryColumnCount()
    {
-      return 11;
+      return 17;
    }
    
    // ============================================================
@@ -110,18 +110,24 @@ public:
    {
       FileWrite(
          h,
-         "event_id",
+         "debug_event_id",
+         "event_time",
+         "symbol",
+         "timeframe"
+         "phase",
+         "event_type",
+         "cycle_id",
          "trade_id",
          "ticket",
-         "timestamp",
-         "symbol",
-         "cycle_id",
          "action_summary",
          "scale_steps",
          "scale_fraction_total",
-         "event_type",
-         "phase",
-         "timeframe"
+         "close_reason",
+         "close_price",
+         "close_profit",
+         "close_volume",
+         "deal_id"
+         
       );
    }
 

@@ -201,12 +201,18 @@ private:
    double               m_entry_price;
    datetime             m_entry_time;
 
-
    // --------------------------------------------------
    // Phase 5 — Trade Lifecycle Orchestration
    // Step 3: Embedded controller (unused for now)
    // --------------------------------------------------
    TradeLifecycleController m_lifecycleController;
+
+// ======================================
+// CLOSE EVENT TRACKING (Step C1)
+// ======================================
+   bool  m_was_position_open;
+   ulong m_last_ticket;
+   double m_last_volume;
 
 
 // ============================================================
@@ -322,8 +328,168 @@ private:
       m_after_emitted = true;
    }
 
+   void EmitCloseEvent(const string symbol)
+   {
+
+      if(m_last_ticket <= 0)
+         return;
+
+      MM_LogEventBase evt;
+      ZeroMemory(evt);
+
+      evt.event_time = TimeCurrent();
+      evt.event_type = MM_EVENT_CLOSE;
+      evt.phase      = MM_PHASE_EXIT;
+
+      evt.symbol     = symbol;
+      evt.timeframe  = inpEntryPeriod;
+
+      evt.cycle_id   = m_cycle_id;
+      evt.trade_id   = (long)m_last_ticket;
+      evt.ticket     = m_last_ticket;
+
+      evt.action_summary = "Position closed (engine-detected)";
+
+      evt.scale_steps = 0;
+      evt.scale_fraction_total = 0.0;
+
+      // ✅ E2 fields (safe placeholders for now)
+
+      ulong deal_id = 0;
+      double price = 0.0;
+      double profit = 0.0;
+      double volume = 0.0;
+      string reason = "UNKNOWN";
+
+      evt.close_reason = "UNKNOWN";
+      bool found = GetLastCloseDeal(symbol, deal_id, price, profit, volume, reason);
+
+      if(found)
+         {
+         evt.close_reason = reason;
+         evt.close_price  = price;
+         evt.close_profit = profit;
+         evt.close_volume = volume;
+         evt.deal_id      = deal_id;
+         }
+      else
+         {
+         // Fallback safety (should rarely happen)
+         evt.close_reason = "UNKNOWN";
+         evt.close_price  = SymbolInfoDouble(symbol, SYMBOL_BID);
+         evt.close_profit = 0.0;
+         evt.close_volume = m_last_volume;
+         evt.deal_id      = 0;
+         }
+
+      m_logger.LogMMEventBase(evt);
+
+      Print("✅ MM_EVENT_CLOSE emitted | Ticket=", m_last_ticket,
+            " Cycle=", m_cycle_id);
+
+
+      // ============================================
+      // ✅ CYCLE SUMMARY AT CLOSE (CORRECT LOCATION)
+      // ============================================
+
+      MM_LogCycleSummary summary;
+      ZeroMemory(summary);
+
+      summary.cycle_id = m_cycle_id;
+      summary.trade_id = (long)m_last_ticket;
+      summary.symbol = symbol;
+
+      summary.entry_time = m_entry_time;
+      summary.exit_time  = TimeCurrent();
+
+      summary.entry_price = m_entry_price;
+      summary.exit_price  = evt.close_price;   // ✅ REAL value
+
+      summary.pnl = evt.close_profit;          // ✅ REAL value
+
+      summary.scale_count = m_scale_count;
+      summary.trail_count = m_trail_count;
+      summary.be_triggered = m_be_triggered;
+
+      // ✅ Emit
+      m_logger.LogCycleSummary(summary);
+
+   }
+
+
+   bool GetLastCloseDeal(const string symbol,
+                         ulong &deal_id,
+                         double &price,
+                         double &profit,
+                         double &volume,
+                         string &reason)
+   {
+      datetime to   = TimeCurrent();
+      datetime from = to - 86400; // last 24 hours
+
+      if(!HistorySelect(from, to))
+         return false;
+
+      int total = HistoryDealsTotal();
+
+      for(int i = total - 1; i >= 0; i--)
+         {
+         ulong deal_ticket = HistoryDealGetTicket(i);
+
+         if(deal_ticket <= 0)
+            continue;
+
+         string deal_symbol = HistoryDealGetString(deal_ticket, DEAL_SYMBOL);
+         if(deal_symbol != symbol)
+            continue;
+
+         int entry_type = (int)HistoryDealGetInteger(deal_ticket, DEAL_ENTRY);
+
+         // ✅ Only closing deals
+         if(entry_type != DEAL_ENTRY_OUT)
+            continue;
+
+         // ✅ We found the CLOSE deal
+         deal_id = deal_ticket;
+         price   = HistoryDealGetDouble(deal_ticket, DEAL_PRICE);
+         profit  = HistoryDealGetDouble(deal_ticket, DEAL_PROFIT);
+         volume  = HistoryDealGetDouble(deal_ticket, DEAL_VOLUME);
+
+         int reason_code = (int)HistoryDealGetInteger(deal_ticket, DEAL_REASON);
+
+         // ✅ Map reason
+         switch(reason_code)
+            {
+            case DEAL_REASON_TP:
+               reason = "TP_HIT";
+               break;
+            case DEAL_REASON_SL:
+               reason = "SL_HIT";
+               break;
+            case DEAL_REASON_SO:
+               reason = "STOP_OUT";
+               break;
+            case DEAL_REASON_CLIENT:
+               reason = "MANUAL";
+               break;
+            default:
+               reason = "UNKNOWN";
+               break;
+            }
+
+         return true;
+         }
+
+      return false;
+   }
+
 public:
-   CTradeEngine() : m_lastCandleTime(0) {}
+   CTradeEngine() : m_lastCandleTime(0)
+   {
+      m_was_position_open = false;
+      m_last_ticket = 0;
+      m_last_volume = 0.0;
+   }
 
    CTradeEngine::~CTradeEngine()
    {
@@ -354,18 +520,47 @@ public:
       m_confirm.Reset();
    }
 
+   void UpdateCloseDetection(const string symbol)
+   {
+      bool is_position_open = PositionSelect(symbol);
+
+      // Detect transition: was open → now closed
+      if(m_was_position_open && !is_position_open)
+         {
+         EmitCloseEvent(symbol);
+         }
+
+      // Update tracking state
+      m_was_position_open = is_position_open;
+
+      // Capture last known position when open
+      if(is_position_open)
+         {
+         m_last_ticket = (ulong)PositionGetInteger(POSITION_TICKET);
+         m_last_volume = PositionGetDouble(POSITION_VOLUME);
+         }
+   }
+
+
    // To be called in OnTick EA
    void OnTick(const string symbol)
    {
       if(symbol == "") return;
+
       ManageExit(symbol); // Manage exits continuously (optional: only on new candle)
 
-      if(!IsNewCandle(symbol, inpEntryPeriod)) return; // Only evaluate entry on new candle (BAR_SIGNAL is stable)
+      if(!IsNewCandle(symbol, inpEntryPeriod))
+         {
+         UpdateCloseDetection(symbol);
+         return; // Only evaluate entry on new candle (BAR_SIGNAL is stable)
+         }
 
       m_atrTracker.PruneClosedTickets(); // Maintain ATR ticket list
-      ManageOpenPosition(symbol);  // Manage Open Positions | ## can add input settings
 
+      ManageOpenPosition(symbol);  // Manage Open Positions | ## can add input settings
       ManageEntry(symbol); // Entry logic
+      UpdateCloseDetection(symbol);
+
    }
 
    // ------------------------------------------------------------
@@ -1174,55 +1369,56 @@ public:
       EmitSnapshotAfter(snap_after);
       EndMMCycleCheck();
 
-// Summary Emit
-      long   summary_trade_id   = 0;
-      double summary_exit_price = 0.0;
-      double summary_total_pnl  = 0.0;
+      /*
+      // Summary Emit
+            long   summary_trade_id   = 0;
+            double summary_exit_price = 0.0;
+            double summary_total_pnl  = 0.0;
 
-// Trade ID fallback.
-// If you already have a deterministic trade id member, replace this with that member.
-      summary_trade_id = (long)m_cycle_id;
+      // Trade ID fallback.
+      // If you already have a deterministic trade id member, replace this with that member.
+            summary_trade_id = (long)m_cycle_id;
 
-// Exit price fallback.
-// Use current market price at exit time.
-//double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
-//double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
+      // Exit price fallback.
+      // Use current market price at exit time.
+      //double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
+      //double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
 
-// If position type is not available in this scope yet, use bid as conservative default.
-// Later we can refine this using POSITION_TYPE.
-      summary_exit_price = bid;
+      // If position type is not available in this scope yet, use bid as conservative default.
+      // Later we can refine this using POSITION_TYPE.
+            summary_exit_price = bid;
 
-// PnL fallback.
-// If position is still selected before final close, use POSITION_PROFIT.
-// If already closed, this may be 0.0 and can be refined later from deal history.
-      if(PositionSelect(symbol))
-         {
-         summary_total_pnl = PositionGetDouble(POSITION_PROFIT);
-         }
+      // PnL fallback.
+      // If position is still selected before final close, use POSITION_PROFIT.
+      // If already closed, this may be 0.0 and can be refined later from deal history.
+            if(PositionSelect(symbol))
+               {
+               summary_total_pnl = PositionGetDouble(POSITION_PROFIT);
+               }
 
 
-      MM_LogCycleSummary summary;
-      ZeroMemory(summary);
-      summary.cycle_id   = m_cycle_id;
-      summary.trade_id   = summary_trade_id;
-      summary.symbol     = symbol;
+            MM_LogCycleSummary summary;
+            ZeroMemory(summary);
+            summary.cycle_id   = m_cycle_id;
+            summary.trade_id   = summary_trade_id;
+            summary.symbol     = symbol;
 
-      summary.entry_time = m_entry_time;
-      summary.exit_time  = TimeCurrent();
+            summary.entry_time = m_entry_time;
+            summary.exit_time  = TimeCurrent();
 
-      summary.entry_price = m_entry_price;
-      summary.exit_price  = summary_exit_price;
+            summary.entry_price = m_entry_price;
+            summary.exit_price  = summary_exit_price;
 
-      summary.pnl = summary_total_pnl;
+            summary.pnl = summary_total_pnl;
 
-      summary.scale_count = m_scale_count;
-      summary.trail_count = m_trail_count;
+            summary.scale_count = m_scale_count;
+            summary.trail_count = m_trail_count;
 
-      summary.be_triggered = m_be_triggered;
+            summary.be_triggered = m_be_triggered;
 
-// ✅ Emit
-      m_logger.LogCycleSummary(summary);
-
+      // ✅ Emit
+            m_logger.LogCycleSummary(summary);
+      */
       if(exit_success)
          {
          // lifecycle close
