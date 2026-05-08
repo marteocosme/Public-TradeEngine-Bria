@@ -1,12 +1,17 @@
+## 🗄️ Document Status (Archived)
+
+**Version:** v1.1 
+
+**Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
+
+**Archived On:** 2026-05-09 (UTC+8)   
+
+**Superseded By:** <MM-LOG-01_Runtime_Validation_Checklist.md>
+- ⚠️ This file is retained for historical reference and legacy log parsing only.
+- ⚠️ Do not edit content. Any changes must be made in the SSOT file.
+
+
 # MM-LOG-01 Runtime Validation Checklist
-
-## 🔒 Document Status
-
-Version: v1.2
-Status: ✅ ACTIVE (SSOT) — CODE COMPLETE / PENDING RUNTIME VALIDATION
-Last Updated: 2026-05-09 (UTC+8)
-
----
 
 ## 🎯 Purpose
 
@@ -46,7 +51,7 @@ Event fields are defined by:
 
 MM-LOG-01 Observability Upgrade is code-complete and awaiting runtime log validation.
 
-### Implemented upgrades:
+Implemented upgrades:
 
 - cycle_id lifecycle grouping
 - Snapshot integrity hardening
@@ -58,18 +63,7 @@ MM-LOG-01 Observability Upgrade is code-complete and awaiting runtime log valida
 - Cycle Summary emission moved to CLOSE (lifecycle terminator)
 - Event Log Schema (E2 fields) implemented and populated
 
-
-### Recent Changes / Validation Notes (Patch Notes)
-
-- ✅ Fixed event log data corruption by ensuring all `MM_LogEventBase` instances are zero-initialized before write.
-- ✅ Enforced E2 close fields (`close_reason`/`close_price`/`close_profit`/`close_volume`/`deal_id`) to be meaningful only for `MM_EVENT_CLOSE` (broker-confirmed).
-- ✅ Improved `MM_EVENT_EXIT` semantics: intent-only with descriptive `action_summary` (e.g., `Exit signal: RVI (EXIT_MODE_CROSS)`).
-- ✅ Fixed timeframe corruption in event logs; now consistently logs valid `PERIOD_*` values (e.g., `PERIOD_M15`).
-- ✅ Expanded deal close reason mapping; CLOSE reasons now include `TP_HIT`, `SL_HIT`, and EA-driven closes like `MM_EXPERT: Exit Signal`.
-
-
-
-### Pending validation:
+Pending validation:
 
 - cycle_id lifecycle consistency
 - BEFORE / AFTER snapshot integrity
@@ -151,7 +145,7 @@ MM-LOG-01 Observability Upgrade is code-complete and awaiting runtime log valida
 ### 6. CLOSE (E2) Field Validation (MM_Event_Log_Schema)
 
 For every MM_EVENT_CLOSE row:
-- [x] close_reason is populated and valid (MM_EXPERT: Exit Signal / MANUAL / TP_HIT / SL_HIT / STOP_OUT / UNKNOWN)
+- [x] close_reason is populated and valid (SIGNAL / MANUAL / TP_HIT / SL_HIT / STOP_OUT / UNKNOWN)
 - [x] close_price is populated and numeric
 - [x] close_profit is populated and numeric
 - [x] close_volume is populated and numeric
@@ -210,11 +204,6 @@ Until these criteria are satisfied, MM-LOG-01 remains:
 ⏳ CODE COMPLETE — PENDING RUNTIME VALIDATION
 
 ## Change Log
-### v1.2 (2026-05-08)
-- Added Patch Notes section under Current Phase Status to record validated fixes and logging behavior improvements.
-- Updated CLOSE reason validation list to include `MM_EXPERT: Exit Signal` to match current event outputs.
-- Minor alignment updates to match MM-LOG-01 contract v1.5.
-
 ### v1.1 (2026-05-07)
 - Updated checklist to align with MM-LOG-01 contract v1.4 two-phase termination:
   - EXIT optional (intent)
