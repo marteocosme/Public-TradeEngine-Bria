@@ -81,8 +81,8 @@ Pending validation:
   [x] SCALE_OUT events are logged
 - [x] BREAK_EVEN events are logged
 - [x] TRAIL events are logged
-- [ ] EXIT events are logged (optional; intent only)
-- CLOSE events are logged (mandatory lifecycle terminator)
+- [x] EXIT events are logged (optional; intent only)
+- [x] CLOSE events are logged (mandatory lifecycle terminator)
 
 
 ---
@@ -95,9 +95,9 @@ Pending validation:
 - [ ] cycle_id remains constant from ENTRY to CLOSE
 - [x] No event appears with an incorrect cycle_id
 - [x] All lifecycle rows can be grouped by cycle_id
-- [ ] Each cycle_id has exactly one CLOSE event
-- [ ] EXIT may be absent for TP/SL/STOP_OUT closures (allowed)
-- [ ] If EXIT exists, it must occur before CLOSE
+- [x] Each cycle_id has exactly one CLOSE event
+- [x] EXIT may be absent for TP/SL/STOP_OUT closures (allowed)
+- [x] If EXIT exists, it must occur before CLOSE
 
 
 ---
@@ -127,26 +127,27 @@ Pending validation:
 
 ### 5. action_summary Validation
 
-- [ ] ENTRY action_summary is populated
-- [ ] SCALE_OUT action_summary is populated
-- [ ] BREAK_EVEN action_summary is populated
-- [ ] TRAIL action_summary is populated
-- [ ] EXIT action_summary is populated
-- [ ] action_summary is human-readable and matches event intent
+- [x] ENTRY action_summary is populated
+- [x] SCALE_OUT action_summary is populated
+- [x] BREAK_EVEN action_summary is populated
+- [x] TRAIL action_summary is populated
+- [x] EXIT action_summary is populated
+- [x] CLOSE action_summary is populated
+- [x] action_summary is human-readable and matches event intent
 
 ---
 
 ### 6. CLOSE (E2) Field Validation (MM_Event_Log_Schema)
 
 For every MM_EVENT_CLOSE row:
-- [ ] close_reason is populated and valid (SIGNAL / MANUAL / TP_HIT / SL_HIT / STOP_OUT / UNKNOWN)
-- [ ] close_price is populated and numeric
-- [ ] close_profit is populated and numeric
-- [ ] close_volume is populated and numeric
-- [ ] deal_id is populated and numeric
+- [x] close_reason is populated and valid (SIGNAL / MANUAL / TP_HIT / SL_HIT / STOP_OUT / UNKNOWN)
+- [x] close_price is populated and numeric
+- [x] close_profit is populated and numeric
+- [x] close_volume is populated and numeric
+- [x] deal_id is populated and numeric
 
 For non-CLOSE events:
-- close_reason / close_price / close_profit / close_volume / deal_id are empty
+- [x] close_reason / close_price / close_profit / close_volume / deal_id are empty
 
 ---
 
@@ -169,9 +170,9 @@ For non-CLOSE events:
 
 ### 8. Replay Completeness Validation
 
-- [ ] Full trade lifecycle can be reconstructed using logs only
-- [ ] ENTRY → MANAGE → (optional EXIT) → CLOSE sequence is visible
-- [ ] MM actions are observable in order
+- [x] Full trade lifecycle can be reconstructed using logs only
+- [x] ENTRY → MANAGE → (optional EXIT) → CLOSE sequence is visible
+- [x] MM actions are observable in order
 - [ ] SL / size / risk evolution matches snapshot records
 - [ ] No unexplained timeline gaps exist
 
