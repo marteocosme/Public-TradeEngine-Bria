@@ -54,6 +54,9 @@ Implemented upgrades:
 - action_summary support
 - Cycle summary logging via MM_LogCycleSummary
 - Cycle summary CSV output
+- MM_EVENT_CLOSE implemented (broker-confirmed closure)
+- Cycle Summary emission moved to CLOSE (lifecycle terminator)
+- Event Log Schema (E2 fields) implemented and populated
 
 Pending validation:
 
@@ -64,6 +67,8 @@ Pending validation:
 - one cycle summary per CLOSE
 - PnL and summary field accuracy
 - absence of garbage or uninitialized values
+
+
 
 
 ---

@@ -113,7 +113,7 @@ public:
          "debug_event_id",
          "event_time",
          "symbol",
-         "timeframe"
+         "timeframe",
          "phase",
          "event_type",
          "cycle_id",
