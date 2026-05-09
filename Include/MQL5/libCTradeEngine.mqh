@@ -492,7 +492,7 @@ private:
                break;
             case DEAL_REASON_WEB:
                reason = "MANUAL_WEB_PLATFORM";
-               break; 
+               break;
             case DEAL_REASON_EXPERT:
                reason = "MM_EXPERT: Exit Signal";
                break;
@@ -937,7 +937,7 @@ public:
                // ✅ event logging (keep this inside success)
                MM_LogEventBase evt;
                ZeroMemory(evt);  // ✅ CRITICAL FIX
-
+               evt.cycle_id = m_cycle_id;
                evt.event_time = ctx.Time; // BAR_SIGNAL time
                evt.event_type = MM_EVENT_SCALE_OUT;
                evt.phase = MM_PHASE_MANAGE;
@@ -1081,6 +1081,7 @@ public:
             // 3️⃣ BREAK-EVEN LOGGING — Phase 4.4
             MM_LogEventBase evt;
             ZeroMemory(evt);  // ✅ CRITICAL FIX
+            evt.cycle_id = m_cycle_id;
             evt.event_time = ctx.Time;              // BAR_SIGNAL time
             evt.event_type = MM_EVENT_BE;
             evt.phase      = MM_PHASE_MANAGE;
@@ -1220,6 +1221,7 @@ public:
          // ✅ event log only if success
          MM_LogEventBase evt;
          ZeroMemory(evt);  // ✅ CRITICAL FIX
+         evt.cycle_id = m_cycle_id;
          evt.event_time = ctx.Time;                // BAR_SIGNAL time
          evt.event_type = MM_EVENT_TRAIL;
          evt.phase      = MM_PHASE_MANAGE;
@@ -1376,11 +1378,11 @@ public:
          // ✅ log event ONLY on sucess
          MM_LogEventBase evt;
          ZeroMemory(evt);  // ✅ CRITICAL FIX
-
+         evt.cycle_id = m_cycle_id;
          evt.event_time = ctx.Time;
          evt.event_type = MM_EVENT_EXIT;
          evt.phase      = MM_PHASE_EXIT;
-         evt.action_summary = "Exit signal: " + EnumToString(inpExitIndicator) + " (" +EnumToString(inpExitMode) + ")";
+         evt.action_summary = "Exit signal: " + EnumToString(inpExitIndicator) + " (" + EnumToString(inpExitMode) + ")";
          evt.scale_steps = 0;
          evt.scale_fraction_total = 0;
          evt.symbol     = ctx.Symbol;
