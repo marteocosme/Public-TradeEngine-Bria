@@ -7,6 +7,14 @@
 #ifndef __LIBCTRADEENGINE_MQH__
 #define __LIBCTRADEENGINE_MQH__
 
+// ================================================================
+// Compile-time Feature Gates
+// ================================================================
+#ifndef ENABLE_LIFECYCLE_CONTROLLER
+#define ENABLE_LIFECYCLE_CONTROLLER 1
+#endif
+
+
 #include <Trade\Trade.mqh>
 
 // --- Core enums & utilities
@@ -29,7 +37,7 @@
 
 // --- Risk & execution
 #include <MyInclude\NNFX\libCRiskEngine.mqh>
-#include <MyInclude\NNFX\libCATRRiskTracker.mqh>
+#include <MyInclude\NNFX\libCATREntryTracker.mqh>
 #include <MyInclude\NNFX\libCTradeExecution.mqh>
 
 
@@ -38,7 +46,12 @@
 #include <MyInclude\NNFX\libCTradeContext.mqh>
 #include <MyInclude\NNFX\libCTradeVisualizer.mqh>
 #include <MyInclude\NNFX\libCUnifiedTradeLogger.mqh>
+
+#ifdef ENABLE_LIFECYCLE_CONTROLLER
 #include <MyInclude\NNFX\TradeEngine\TradeLifecycleController.mqh>
+#endif
+
+
 
 
 //#include <MyInclude\NNFX\libCContextLogger.mqh>
@@ -160,6 +173,12 @@ input enum_Confirmation inpExitIndicator = RVI;                // Exit Indicator
 input enum_exitMode inpExitMode = EXIT_MODE_CROSS;             // Exit Mode
 input group "-----"
 
+// ---- Diagnostics
+input group "Diagnostics"
+input bool inpEnableTradeVisualizer = false; // Enable chart drawings (debug/visual only)
+input group "-----"
+
+
 
 // ================================================================
 // Trade Engine
@@ -175,7 +194,7 @@ private:
    CATRSignal           m_atr;
 
    CRiskEngine          m_risk;
-   CATRRiskTracker      m_atrTracker;
+   CATREntryTracker     m_atrTracker;
    CTradeExecution      m_exec;
 
    CEntryStrategyEngine m_entryStrategy;
@@ -205,7 +224,11 @@ private:
    // Phase 5 — Trade Lifecycle Orchestration
    // Step 3: Embedded controller (unused for now)
    // --------------------------------------------------
+
+#ifdef ENABLE_LIFECYCLE_CONTROLLER
    TradeLifecycleController m_lifecycleController;
+#endif
+
 
 // ======================================
 // CLOSE EVENT TRACKING (Step C1)
@@ -442,54 +465,54 @@ private:
    }
 
 
-   bool GetLastCloseDeal(const string symbol,
-                         ulong &deal_id,
-                         double &price,
-                         double &profit,
-                         double &volume,
-                         string &reason)
-   {
-      datetime to   = TimeCurrent();
-      datetime from = to - 86400; // last 24 hours
+      bool GetLastCloseDeal__DEPRECATED(const string symbol,
+                            ulong &deal_id,
+                            double &price,
+                            double &profit,
+                            double &volume,
+                            string &reason)
+      {
+         datetime to   = TimeCurrent();
+         datetime from = to - 86400; // last 24 hours
 
-      if(!HistorySelect(from, to))
+         if(!HistorySelect(from, to))
+            return false;
+
+         int total = HistoryDealsTotal();
+
+         for(int i = total - 1; i >= 0; i--)
+            {
+            ulong deal_ticket = HistoryDealGetTicket(i);
+
+            if(deal_ticket <= 0)
+               continue;
+
+            string deal_symbol = HistoryDealGetString(deal_ticket, DEAL_SYMBOL);
+            if(deal_symbol != symbol)
+               continue;
+
+            int entry_type = (int)HistoryDealGetInteger(deal_ticket, DEAL_ENTRY);
+
+            // ✅ Only closing deals
+            if(entry_type != DEAL_ENTRY_OUT)
+               continue;
+
+            // ✅ We found the CLOSE deal
+            deal_id = deal_ticket;
+            price   = HistoryDealGetDouble(deal_ticket, DEAL_PRICE);
+            profit  = HistoryDealGetDouble(deal_ticket, DEAL_PROFIT);
+            volume  = HistoryDealGetDouble(deal_ticket, DEAL_VOLUME);
+
+            const int reason_code = (int)HistoryDealGetInteger(deal_ticket, DEAL_REASON);
+
+            reason = MapDealReasonToString(reason_code);
+            if (reason == "") reason = "UNKNOWN";
+
+            return true;
+            }
+
          return false;
-
-      int total = HistoryDealsTotal();
-
-      for(int i = total - 1; i >= 0; i--)
-         {
-         ulong deal_ticket = HistoryDealGetTicket(i);
-
-         if(deal_ticket <= 0)
-            continue;
-
-         string deal_symbol = HistoryDealGetString(deal_ticket, DEAL_SYMBOL);
-         if(deal_symbol != symbol)
-            continue;
-
-         int entry_type = (int)HistoryDealGetInteger(deal_ticket, DEAL_ENTRY);
-
-         // ✅ Only closing deals
-         if(entry_type != DEAL_ENTRY_OUT)
-            continue;
-
-         // ✅ We found the CLOSE deal
-         deal_id = deal_ticket;
-         price   = HistoryDealGetDouble(deal_ticket, DEAL_PRICE);
-         profit  = HistoryDealGetDouble(deal_ticket, DEAL_PROFIT);
-         volume  = HistoryDealGetDouble(deal_ticket, DEAL_VOLUME);
-
-         const int reason_code = (int)HistoryDealGetInteger(deal_ticket, DEAL_REASON);
-
-         reason = MapDealReasonToString(reason_code);
-         if (reason == "") reason = "UNKNOWN";
-
-         return true;
-         }
-
-      return false;
-   }
+      }
 
 
    bool GetLastCloseDealByPosition(const long position_id,
@@ -510,7 +533,7 @@ private:
 
       // Load only deals/orders for this position identifier
       if(!HistorySelectByPosition((ulong)position_id))
-         return false; // position-scoped history [3](https://stackoverflow.com/questions/54696203/program-a-handler-for-a-stop-loss)
+         return false; // HistorySelectByPosition failed (position-scoped history not available
 
       const int total = (int)HistoryDealsTotal();
       ulong best_ticket = 0;
@@ -570,7 +593,7 @@ private:
          return false;
 
       if(!HistorySelectByPosition((ulong)position_id))
-         return false; //[3](https://stackoverflow.com/questions/54696203/program-a-handler-for-a-stop-loss)
+         return false; // HistorySelectByPosition failed.
 
       const long now_msc = (long)TimeCurrent() * 1000;
       const long min_msc = now_msc - (long)lookback_sec * 1000;
@@ -671,7 +694,7 @@ public:
    CTradeEngine() : m_lastCandleTime(0)
    {
       m_was_position_open = false;
-      m_was_position_open = false;
+      m_last_position_id  = 0;
       m_last_ticket = 0;
       m_last_volume = 0.0;
    }
@@ -867,11 +890,14 @@ public:
       // Phase 5 — Step 4: Lifecycle CREATE (pass-through)
       // --------------------------------------------------
       RejectionReason reject_reason = REJECT_NONE;
+
+#ifdef ENABLE_LIFECYCLE_CONTROLLER
       m_lifecycleController.RequestAction(
          0,                    // trade_id not assigned yet
          ACTION_CREATE,
          reject_reason
       );
+#endif
 
       // --- EXECUTE ENTRY (execution only) ---
       bool ok = m_exec.ExecuteEntry(
@@ -911,11 +937,14 @@ public:
       // --------------------------------------------------
       // Phase 5 — Step 4: Lifecycle ENTER (pass-through)
       // --------------------------------------------------
+
+#ifdef ENABLE_LIFECYCLE_CONTROLLER
       m_lifecycleController.RequestAction(
          0, // existing trade_id (if already set)
          ACTION_ENTER,
          reject_reason
       );
+#endif
 
 
 
@@ -965,7 +994,7 @@ public:
 
       RejectionReason reject_reason = REJECT_NONE;
       ulong ticket = (ulong)PositionGetInteger(POSITION_TICKET);
-      uint seq = m_atrTracker.NextEventSeq((long)ticket);
+     
 
       // ✅ ADD THIS (REQUIRED)
       enum_position dir = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? Long : Short);
@@ -990,12 +1019,14 @@ public:
          for(int i = 0; i < SCALE_STAGE_COUNT; i++)
             {
             // Phase 5 — Step 5: Lifecycle MM_ACTION (Scale-Out pass-through)
+
+#ifdef ENABLE_LIFECYCLE_CONTROLLER
             m_lifecycleController.RequestAction(
                0, //ctx.trade_id,
                ACTION_MM,
                reject_reason
             );
-
+#endif
             double closeLots = 0.0;
 
             // ===============================
@@ -1125,8 +1156,9 @@ public:
                m_logger.LogMMEventBase(evt);
 
 
-               // ✅ DO NOT TOUCH CLOSE FIELDS
-               // leave as 0 / empty
+
+               // close_* fields are populated for SCALE_OUT when a broker deal is matched
+
 
 
                }
@@ -1180,11 +1212,15 @@ public:
       if(!m_atrTracker.IsBEApplied(ticket))
          {
          // Phase 5 — Step 5: Lifecycle MM_ACTION (Break-Even pass-through)
+
+#ifdef ENABLE_LIFECYCLE_CONTROLLER
+
          m_lifecycleController.RequestAction(
             0, //ctx.trade_id,
             ACTION_MM,
             reject_reason
          );
+#endif
 
          // ===============================
          // MM_SNAPSHOT_BEFORE — BREAK EVEN
@@ -1248,7 +1284,8 @@ public:
                }
 
             m_atrTracker.MarkBEApplied(ticket); // 1️⃣ Mark BE applied FIRST (prevents double logging)
-            m_viz.DrawBreakEven(symbol, newSL); // 2️⃣ Optional visualization (safe, non‑functional)
+            if(inpEnableTradeVisualizer)
+               m_viz.DrawBreakEven(symbol, newSL); // 2️⃣ Optional visualization (safe, non‑functional)
 
             // 3️⃣ BREAK-EVEN LOGGING — Phase 4.4
             MM_LogEventBase evt;
@@ -1314,11 +1351,14 @@ public:
       // --- TRAILING Block
       // ------------------------------------------------
       // Phase 5 — Step 5: Lifecycle MM_ACTION (Trailing Stop pass-through)
+
+#ifdef ENABLE_LIFECYCLE_CONTROLLER
       m_lifecycleController.RequestAction(
          0, //ctx.trade_id,
          ACTION_MM,
          reject_reason
       );
+#endif
 
       // ==================================
       // MM_SNAPSHOT_BEFORE — TRAILING STOP
@@ -1525,12 +1565,16 @@ public:
       BeginMMCycle(MM_EVENT_EXIT);
       EmitSnapshotBefore(snap);
 
+
+
+#ifdef ENABLE_LIFECYCLE_CONTROLLER
       // Phase 5 — Step 6: Lifecycle EXIT (pass-through)
       m_lifecycleController.RequestAction(
          0,               // trade_id not enforced yet
          ACTION_EXIT,
          reject_reason
       );
+#endif
 
       // =========================
       // SAFE EXECUTION BLOCK
@@ -1616,11 +1660,14 @@ public:
          {
          // lifecycle close
          // Phase 5 — Step 6: Lifecycle CLOSE (pass-through)
+
+#ifdef ENABLE_LIFECYCLE_CONTROLLER
          m_lifecycleController.RequestAction(
             0,               // trade_id not enforced yet
             ACTION_CLOSE,
             reject_reason
          );
+#endif
          // ✅ Clean up tracker state
          m_atrTracker.RemoveTicket(ticket);
          }

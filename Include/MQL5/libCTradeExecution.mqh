@@ -13,7 +13,7 @@
 #include <MyInclude\NNFX\CDebug.mqh>
 #include <MyInclude\NNFX\libEnum.mqh>
 #include <MyInclude\NNFX\libCTradeContext.mqh>
-#include <MyInclude\NNFX\libCATRRiskTracker.mqh>
+#include <MyInclude\NNFX\libCATREntryTracker.mqh>
 
 // ------------------------------------------------------------------
 // CTradeExecution
@@ -25,7 +25,7 @@ class CTradeExecution
 {
 private:
    CTrade            m_trade;
-   CATRRiskTracker  *m_atrTracker;   // injected, NOT owned
+   CATREntryTracker  *m_atrTracker;   // injected, NOT owned
    CDebugPrint       debug;
    ulong             m_magic;
    string            m_comment;
@@ -53,7 +53,7 @@ public:
       m_comment = comment;
    }
 
-   void SetATRRiskTracker(CATRRiskTracker &tracker)
+   void SetATRRiskTracker(CATREntryTracker &tracker)
    {
       m_atrTracker = &tracker;
    }

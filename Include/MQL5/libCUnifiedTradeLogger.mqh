@@ -439,7 +439,7 @@ public:
          MM_LogSchema::SummaryHeader(h);
 
          // ✅ IMPORTANT: mark as written
-         m_header.MarkHeaderWritten(m_csv_snapshots);
+         m_header.MarkHeaderWritten(m_csv_summary);
 
          }
       FileWrite(h,

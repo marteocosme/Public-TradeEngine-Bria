@@ -10,7 +10,7 @@
 
 #include <MyInclude\NNFX\libEnum.mqh>
 #include <MyInclude\NNFX\libCTradeContext.mqh>
-#include <MyInclude\NNFX\libCATRRiskTracker.mqh>
+#include <MyInclude\NNFX\libCATREntryTracker.mqh>
 
 // ------------------------------------------------------------
 // Scaling stage definition
@@ -27,7 +27,7 @@ struct ScaleStage
 class CPartialCloseEngine
 {
 private:
-   CATRRiskTracker *m_tracker;   // injected, not owned
+   CATREntryTracker *m_tracker;   // injected, not owned
 
 public:
    CPartialCloseEngine()
@@ -35,7 +35,7 @@ public:
       m_tracker = NULL;
    }
 
-   void SetATRRiskTracker(CATRRiskTracker &tracker)
+   void SetATRRiskTracker(CATREntryTracker &tracker)
    {
       m_tracker = &tracker;
    }

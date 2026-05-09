@@ -1,5 +1,5 @@
 ﻿//+------------------------------------------------------------------+
-//|                                       libCATRRiskTracker.mqh     |
+//|                                       libCATREntryTracker.mqh     |
 //|                    ATR Ticket Risk Tracker (Trade Management)    |
 //|                                                     Marteo Cosme |
 //|                                            Updated: 2026-04-02   |
@@ -8,21 +8,21 @@
 
 #property strict
 
-#ifndef __LIBCATRRISKTRACKER_MQH__
-#define __LIBCATRRISKTRACKER_MQH__
+#ifndef __LIBATRCENTRYTRACKER_MQH__
+#define __LIBATRCENTRYTRACKER_MQH__
 
 #include <MyInclude\NNFX\libEnum.mqh>      // tableATR struct
 #include <MyInclude\NNFX\libCBarIndex.mqh> // optional consistency (not required here)
 
 // ------------------------------------------------------------------
-// CATRRiskTracker
+// CATREntryTracker (Renamed from CATRRiskTracker)
 // - Tracks ATR values per position ticket (long-term management)
 // - Intended usage:
 //   1) When opening a position, compute ATR via CATRSignal and AddOrUpdate(ticket, atr)
 //   2) On every tick / new candle, call PruneClosedTickets() or SyncWithOpenPositions()
 //   3) Use GetATR(ticket) for trailing stop, break-even, scaling logic
 // ------------------------------------------------------------------
-class CATRRiskTracker
+class CATREntryTracker
 {
 private:
    tableATR m_list[];   // dynamic array of {ticket, atr}
@@ -48,12 +48,12 @@ private:
    }
 
 public:
-   CATRRiskTracker()
+   CATREntryTracker()
    {
       ArrayResize(m_list, 0);
    }
 
-   ~CATRRiskTracker() {}
+   ~CATREntryTracker() {}
    
    // ✅ PUBLIC: lifecycle sequencing (REQUIRED)
    uint NextEventSeq(const long ticket)
@@ -288,7 +288,7 @@ public:
    }
 };
 
-#endif // __LIBCATRRISKTRACKER_MQH__
+#endif // __LIBATRCENTRYTRACKER_MQH__
 
 
 
