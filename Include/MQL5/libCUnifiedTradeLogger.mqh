@@ -133,8 +133,14 @@ private:
          close_reason = "UNKNOWN";
 
 
+      bool allow_close_fields =
+         (evt.event_type == MM_EVENT_CLOSE) ||
+         (evt.event_type == MM_EVENT_SCALE_OUT);
+
+
 // ✅ sanitize invalid values
-      if(evt.event_type != MM_EVENT_CLOSE)
+      // if(evt.event_type != MM_EVENT_CLOSE)
+      if(!allow_close_fields)
          {
          close_price  = 0.0;
          close_profit = 0.0;

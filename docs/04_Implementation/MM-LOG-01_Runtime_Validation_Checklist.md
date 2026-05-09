@@ -61,6 +61,7 @@ MM-LOG-01 Observability Upgrade is code-complete and awaiting runtime log valida
 
 ### Recent Changes / Validation Notes (Patch Notes)
 
+- ✅ “MM_EVENT_SCALE_OUT writes deal_id and close_* fields (price/profit/volume/reason) when partial close succeeds.”
 - ✅ Fixed event log data corruption by ensuring all `MM_LogEventBase` instances are zero-initialized before write.
 - ✅ Enforced E2 close fields (`close_reason`/`close_price`/`close_profit`/`close_volume`/`deal_id`) to be meaningful only for `MM_EVENT_CLOSE` (broker-confirmed).
 - ✅ Improved `MM_EVENT_EXIT` semantics: intent-only with descriptive `action_summary` (e.g., `Exit signal: RVI (EXIT_MODE_CROSS)`).

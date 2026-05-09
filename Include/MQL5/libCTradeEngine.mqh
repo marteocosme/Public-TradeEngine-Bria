@@ -213,6 +213,7 @@ private:
    bool  m_was_position_open;
    ulong m_last_ticket;
    double m_last_volume;
+   long m_last_position_id;   // POSITION_IDENTIFIER (lifecycle id)
 
 
 // ============================================================
@@ -357,7 +358,7 @@ private:
       double volume  = 0.0;
       string reason  = "UNKNOWN";
 
-      bool found = GetLastCloseDeal(symbol, deal_id, price, profit, volume, reason);
+      bool found = GetLastCloseDealByPosition(m_last_position_id, deal_id, price, profit, volume, reason);
 
 
       // evt.scale_steps = 0;
@@ -479,48 +480,10 @@ private:
          profit  = HistoryDealGetDouble(deal_ticket, DEAL_PROFIT);
          volume  = HistoryDealGetDouble(deal_ticket, DEAL_VOLUME);
 
-         int reason_code = (int)HistoryDealGetInteger(deal_ticket, DEAL_REASON);
+         const int reason_code = (int)HistoryDealGetInteger(deal_ticket, DEAL_REASON);
 
-         // ✅ Map reason
-         switch(reason_code)
-            {
-            case DEAL_REASON_CLIENT:
-               reason = "MANUAL_DESKTOP_TERMINAL";
-               break;
-            case DEAL_REASON_MOBILE:
-               reason = "MANUAL_MOBILE_APP";
-               break;
-            case DEAL_REASON_WEB:
-               reason = "MANUAL_WEB_PLATFORM";
-               break;
-            case DEAL_REASON_EXPERT:
-               reason = "MM_EXPERT: Exit Signal";
-               break;
-            case DEAL_REASON_TP:
-               reason = "TP_HIT";
-               break;
-            case DEAL_REASON_SL:
-               reason = "SL_HIT";
-               break;
-            case DEAL_REASON_SO:
-               reason = "STOP_OUT Event";
-               break;
-            case DEAL_REASON_ROLLOVER:
-               reason = "ROLLOVER";
-               break;
-            case DEAL_REASON_VMARGIN:
-               reason = "VARIATION_MARGIN";
-               break;
-            case DEAL_REASON_CORPORATE_ACTION:
-               reason = "CORPORATE_ACTION";
-               break;
-            case DEAL_REASON_SPLIT:
-               reason = "SPLIT_ANNOUNCEMENT";
-               break;
-            default:
-               reason = "UNKNOWN";
-               break;
-            }
+         reason = MapDealReasonToString(reason_code);
+         if (reason == "") reason = "UNKNOWN";
 
          return true;
          }
@@ -528,9 +491,186 @@ private:
       return false;
    }
 
+
+   bool GetLastCloseDealByPosition(const long position_id,
+                                   ulong &deal_id,
+                                   double &price,
+                                   double &profit,
+                                   double &volume,
+                                   string &reason)
+   {
+      deal_id = 0;
+      price = 0.0;
+      profit = 0.0;
+      volume = 0.0;
+      reason = "UNKNOWN";
+
+      if(position_id <= 0)
+         return false;
+
+      // Load only deals/orders for this position identifier
+      if(!HistorySelectByPosition((ulong)position_id))
+         return false; // position-scoped history [3](https://stackoverflow.com/questions/54696203/program-a-handler-for-a-stop-loss)
+
+      const int total = (int)HistoryDealsTotal();
+      ulong best_ticket = 0;
+      long  best_time_msc = -1;
+
+      for(int i = 0; i < total; i++)
+         {
+         const ulong t = HistoryDealGetTicket(i);
+         if(t == 0) continue;
+
+         const long entry = HistoryDealGetInteger(t, DEAL_ENTRY);
+         if(!IsClosingDealEntry(entry))
+            continue;
+
+         const long tmsc = HistoryDealGetInteger(t, DEAL_TIME_MSC);
+         if(tmsc > best_time_msc)
+            {
+            best_time_msc = tmsc;
+            best_ticket = t;
+            }
+         }
+
+      if(best_ticket == 0)
+         return false;
+
+      // Extract broker-confirmed deal details
+      deal_id = best_ticket;
+      price   = HistoryDealGetDouble(best_ticket, DEAL_PRICE);
+      profit  = HistoryDealGetDouble(best_ticket, DEAL_PROFIT);
+      volume  = HistoryDealGetDouble(best_ticket, DEAL_VOLUME);
+
+      const int reason_code = (int)HistoryDealGetInteger(best_ticket, DEAL_REASON);
+      reason = MapDealReasonToString(reason_code);
+      if(reason == "EXPERT_ADVISOR") reason = reason + "  : MM_EXIT_SIGNAL";
+      if(reason == "") reason = "UNKNOWN";
+
+      return true;
+   }
+
+
+   bool GetRecentPartialCloseDeal(const long position_id,
+                                  const double expected_volume,
+                                  const int lookback_sec,
+                                  ulong &deal_id,
+                                  double &price,
+                                  double &profit,
+                                  double &volume,
+                                  string &reason)
+   {
+      deal_id = 0;
+      price = 0.0;
+      profit = 0.0;
+      volume = 0.0;
+      reason = "UNKNOWN";
+
+      if(position_id <= 0 || expected_volume <= 0.0)
+         return false;
+
+      if(!HistorySelectByPosition((ulong)position_id))
+         return false; //[3](https://stackoverflow.com/questions/54696203/program-a-handler-for-a-stop-loss)
+
+      const long now_msc = (long)TimeCurrent() * 1000;
+      const long min_msc = now_msc - (long)lookback_sec * 1000;
+
+      ulong best_ticket = 0;
+      long  best_time_msc = -1;
+
+      const int total = (int)HistoryDealsTotal();
+      for(int i = 0; i < total; i++)
+         {
+         const ulong t = HistoryDealGetTicket(i);
+         if(t == 0) continue;
+
+         const long entry = HistoryDealGetInteger(t, DEAL_ENTRY);
+         if(!IsClosingDealEntry(entry))
+            continue;
+
+         const long tmsc = HistoryDealGetInteger(t, DEAL_TIME_MSC);
+         if(tmsc < min_msc)
+            continue;
+
+         const double v = HistoryDealGetDouble(t, DEAL_VOLUME);
+
+         // Small tolerance for broker rounding
+         if(MathAbs(v - expected_volume) > 0.0000001)
+            continue;
+
+         if(tmsc > best_time_msc)
+            {
+            best_time_msc = tmsc;
+            best_ticket = t;
+            }
+         }
+
+      if(best_ticket == 0)
+         return false;
+
+      deal_id = best_ticket;
+      price   = HistoryDealGetDouble(best_ticket, DEAL_PRICE);
+      profit  = HistoryDealGetDouble(best_ticket, DEAL_PROFIT);
+      volume  = HistoryDealGetDouble(best_ticket, DEAL_VOLUME);
+
+      const int reason_code = (int)HistoryDealGetInteger(best_ticket, DEAL_REASON);
+      reason = MapDealReasonToString(reason_code);
+      if(reason == "EXPERT_ADVISOR") reason = reason + "  : MM_SCALE_OUT";
+      if(reason == "") reason = "UNKNOWN";
+
+      return true;
+   }
+
+
+   string MapDealReasonToString(const int reason_code)
+   {
+      switch(reason_code)
+         {
+         case DEAL_REASON_CLIENT:
+            return "MANUAL_DESKTOP_TERMINAL";
+         case DEAL_REASON_MOBILE:
+            return "MANUAL_MOBILE_APP";
+         case DEAL_REASON_WEB:
+            return "MANUAL_WEB_PLATFORM";
+         case DEAL_REASON_EXPERT:
+            return "EXPERT_ADVISOR"; // keep your literal output
+         case DEAL_REASON_TP:
+            return "TP_HIT";
+         case DEAL_REASON_SL:
+            return "SL_HIT";
+         case DEAL_REASON_SO:
+            return "STOP_OUT Event";
+         case DEAL_REASON_ROLLOVER:
+            return "ROLLOVER";
+         case DEAL_REASON_VMARGIN:
+            return "VARIATION_MARGIN";
+         case DEAL_REASON_CORPORATE_ACTION:
+            return "CORPORATE_ACTION";
+         case DEAL_REASON_SPLIT:
+            return "SPLIT_ANNOUNCEMENT";
+         default:
+            return "UNKNOWN";
+         }
+   }
+
+
+
+   static bool IsClosingDealEntry(const long entry)
+   {
+      // OUT = standard close
+      // OUT_BY = close-by (hedging)
+      // INOUT = reversal (netting)
+      return (entry == DEAL_ENTRY_OUT ||
+              entry == DEAL_ENTRY_OUT_BY ||
+              entry == DEAL_ENTRY_INOUT);
+   }
+
+
+
 public:
    CTradeEngine() : m_lastCandleTime(0)
    {
+      m_was_position_open = false;
       m_was_position_open = false;
       m_last_ticket = 0;
       m_last_volume = 0.0;
@@ -583,6 +723,7 @@ public:
          {
          m_last_ticket = (ulong)PositionGetInteger(POSITION_TICKET);
          m_last_volume = PositionGetDouble(POSITION_VOLUME);
+         m_last_position_id = (long)PositionGetInteger(POSITION_IDENTIFIER);
          }
    }
 
@@ -937,6 +1078,36 @@ public:
                // ✅ event logging (keep this inside success)
                MM_LogEventBase evt;
                ZeroMemory(evt);  // ✅ CRITICAL FIX
+
+
+// ✅ Populate broker-confirmed close_* columns for SCALE_OUT
+               evt.close_reason = "UNKNOWN";
+               evt.close_price  = 0.0;
+               evt.close_profit = 0.0;
+               evt.close_volume = 0.0;
+               evt.deal_id      = 0;
+
+               ulong d = 0;
+               double p = 0.0, prof = 0.0, vol = 0.0;
+               string rs = "UNKNOWN";
+
+               // Retry a couple times in case history is slightly delayed (polling model)
+               bool foundDeal = false;
+               for(int k = 0; k < 3 && !foundDeal; k++)
+                  {
+                  foundDeal = GetRecentPartialCloseDeal(m_last_position_id, closeLots, 5, d, p, prof, vol, rs);
+                  if(!foundDeal) Sleep(50);
+                  }
+
+               if(foundDeal)
+                  {
+                  evt.deal_id      = d;
+                  evt.close_price  = p;
+                  evt.close_profit = prof;
+                  evt.close_volume = vol;
+                  evt.close_reason = (rs == "" ? "UNKNOWN" : rs);
+                  }
+
                evt.cycle_id = m_cycle_id;
                evt.event_time = ctx.Time; // BAR_SIGNAL time
                evt.event_type = MM_EVENT_SCALE_OUT;
@@ -950,6 +1121,7 @@ public:
                evt.timeframe = inpEntryPeriod;
                evt.trade_id = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
                evt.ticket = ticket;
+
                m_logger.LogMMEventBase(evt);
 
 
