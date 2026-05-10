@@ -7,13 +7,24 @@
 #ifndef __LIBCTRADEENGINE_MQH__
 #define __LIBCTRADEENGINE_MQH__
 
+
+
 // ================================================================
-// Compile-time Feature Gates
+// Compile-time Feature Gate: TradeLifecycleController (Default ON)
+// DISABLED BUILD: set DISABLE_LIFECYCLE_CONTROLLER
 // ================================================================
-#ifndef ENABLE_LIFECYCLE_CONTROLLER
-#define ENABLE_LIFECYCLE_CONTROLLER 1
+
+// --- FORCE DISABLE (comment out to re-enable)
+//#define DISABLE_LIFECYCLE_CONTROLLER
+
+// Default: ENABLED unless explicitly disabled
+#ifndef DISABLE_LIFECYCLE_CONTROLLER
+   #define ENABLE_LIFECYCLE_CONTROLLER
 #endif
 
+
+
+#define SCALE_STAGE_COUNT (ArraySize(g_scaleStages))
 
 #include <Trade\Trade.mqh>
 
@@ -53,10 +64,6 @@
 
 
 
-
-//#include <MyInclude\NNFX\libCContextLogger.mqh>
-
-
 // --------------------------------------------------
 // MM Snapshot (Phase 5 / MM-LOG-01 — incremental stub)
 // --------------------------------------------------
@@ -64,17 +71,15 @@ struct MM_SNAPSHOT_BEFORE;
 struct MM_SNAPSHOT_AFTER;
 
 
-
-
-// ================================================================
-// Scaling stages (ATREntry-based)
-// ================================================================
-ScaleStage g_scaleStages[] =
+struct SymbolCache
 {
-   { 1.0, 0.50 },
-   { 2.0, 0.25 }
+   string symbol;
+   double bid;
+   double ask;
+   double tick_value;
+   double tick_size;
 };
-#define SCALE_STAGE_COUNT (ArraySize(g_scaleStages))
+
 
 // ================================================================
 // INPUTS
@@ -140,9 +145,7 @@ input group "-- Relative Vigor Index"
 input uint inpRVI_Period = 10;                                 // -- -- RVI - period
 input group "-----"
 
-//+------------------------------------------------------------------+
-//|                                                                  |
-//+------------------------------------------------------------------+
+// ---- Volume
 input group "Volume Indicator Settings"                        // ---- Volume (TTMS Option‑A Gate)
 input group "Volume (TTMS)"
 input ENUM_VOL_IND inpVolInd = ENUM_VOL_IND::TTMS;             // Volume Indicator
@@ -151,7 +154,6 @@ input double inpBBdeviation = 2.0;                             // -- TTMS - BB D
 input uint inpKperiod = 20;                                    // -- TTMS - Keltner Smooth Period
 input ENUM_MA_METHOD inpKmethod = MODE_SMA;                    // -- TTMS - Keltner Smooth Method
 input double inpKdeviation = 2.0;                              // -- TTMS - Keltner
-
 input group "-----"
 
 // ---- Break Even / Trailing / Scaling
@@ -165,8 +167,6 @@ input double inpTrailStartATR = 2.0;                           // Trail Stop Mul
 input double inpTrailATR = 1.5;                                // Threshold when to trigger the Trail Stop
 input group "-----"
 
-
-
 // ---- Exit
 input group "Exit Settings"                                    // Exit Settings
 input enum_Confirmation inpExitIndicator = RVI;                // Exit Indicator
@@ -178,7 +178,14 @@ input group "Diagnostics"
 input bool inpEnableTradeVisualizer = false; // Enable chart drawings (debug/visual only)
 input group "-----"
 
-
+// ================================================================
+// Scaling stages (ATREntry-based)
+// ================================================================
+ScaleStage g_scaleStages[] =
+{
+   { 1.0, 0.50 },
+   { 2.0, 0.25 }
+};
 
 // ================================================================
 // Trade Engine
@@ -247,6 +254,9 @@ private:
    ENUM_MM_EVENT_TYPE m_current_event;
 
 
+
+
+
    void BeginMMCycle(ENUM_MM_EVENT_TYPE evt)
    {
       m_current_event = evt;
@@ -276,13 +286,6 @@ private:
                EnumToString(m_current_event));
          }
    }
-
-
-//CTradeEngine::CTradeEngine()
-//{
-   // Existing initialization only
-   // No lifecycle logic here in Step 3
-//}
 
    void EmitSnapshotBefore(const MM_SNAPSHOT_BEFORE &snap)
    {
@@ -383,7 +386,6 @@ private:
 
       bool found = GetLastCloseDealByPosition(m_last_position_id, deal_id, price, profit, volume, reason);
 
-
       // evt.scale_steps = 0;
       // evt.scale_fraction_total = 0.0;
 
@@ -394,11 +396,6 @@ private:
       evt.close_profit = 0.0;
       evt.close_volume = 0.0;
       evt.deal_id      = 0;
-
-
-
-
-
 
       if(found)
          {
@@ -423,12 +420,8 @@ private:
          evt.deal_id      = 0;
          }
 
-
-
       Print("CLOSE DEBUG -> reason=[", evt.close_reason, "] deal=", evt.deal_id,
             " price=", evt.close_price, " profit=", evt.close_profit);
-
-
 
       m_logger.LogMMEventBase(evt);
 
@@ -464,56 +457,54 @@ private:
 
    }
 
+   bool GetLastCloseDeal__DEPRECATED(const string symbol,
+                                     ulong &deal_id,
+                                     double &price,
+                                     double &profit,
+                                     double &volume,
+                                     string &reason)
+   {
+      datetime to   = TimeCurrent();
+      datetime from = to - 86400; // last 24 hours
 
-      bool GetLastCloseDeal__DEPRECATED(const string symbol,
-                            ulong &deal_id,
-                            double &price,
-                            double &profit,
-                            double &volume,
-                            string &reason)
-      {
-         datetime to   = TimeCurrent();
-         datetime from = to - 86400; // last 24 hours
-
-         if(!HistorySelect(from, to))
-            return false;
-
-         int total = HistoryDealsTotal();
-
-         for(int i = total - 1; i >= 0; i--)
-            {
-            ulong deal_ticket = HistoryDealGetTicket(i);
-
-            if(deal_ticket <= 0)
-               continue;
-
-            string deal_symbol = HistoryDealGetString(deal_ticket, DEAL_SYMBOL);
-            if(deal_symbol != symbol)
-               continue;
-
-            int entry_type = (int)HistoryDealGetInteger(deal_ticket, DEAL_ENTRY);
-
-            // ✅ Only closing deals
-            if(entry_type != DEAL_ENTRY_OUT)
-               continue;
-
-            // ✅ We found the CLOSE deal
-            deal_id = deal_ticket;
-            price   = HistoryDealGetDouble(deal_ticket, DEAL_PRICE);
-            profit  = HistoryDealGetDouble(deal_ticket, DEAL_PROFIT);
-            volume  = HistoryDealGetDouble(deal_ticket, DEAL_VOLUME);
-
-            const int reason_code = (int)HistoryDealGetInteger(deal_ticket, DEAL_REASON);
-
-            reason = MapDealReasonToString(reason_code);
-            if (reason == "") reason = "UNKNOWN";
-
-            return true;
-            }
-
+      if(!HistorySelect(from, to))
          return false;
-      }
 
+      int total = HistoryDealsTotal();
+
+      for(int i = total - 1; i >= 0; i--)
+         {
+         ulong deal_ticket = HistoryDealGetTicket(i);
+
+         if(deal_ticket <= 0)
+            continue;
+
+         string deal_symbol = HistoryDealGetString(deal_ticket, DEAL_SYMBOL);
+         if(deal_symbol != symbol)
+            continue;
+
+         int entry_type = (int)HistoryDealGetInteger(deal_ticket, DEAL_ENTRY);
+
+         // ✅ Only closing deals
+         if(entry_type != DEAL_ENTRY_OUT)
+            continue;
+
+         // ✅ We found the CLOSE deal
+         deal_id = deal_ticket;
+         price   = HistoryDealGetDouble(deal_ticket, DEAL_PRICE);
+         profit  = HistoryDealGetDouble(deal_ticket, DEAL_PROFIT);
+         volume  = HistoryDealGetDouble(deal_ticket, DEAL_VOLUME);
+
+         const int reason_code = (int)HistoryDealGetInteger(deal_ticket, DEAL_REASON);
+
+         reason = MapDealReasonToString(reason_code, REASON_CTX_CLOSE);
+         if (reason == "") reason = "UNKNOWN";
+
+         return true;
+         }
+
+      return false;
+   }
 
    bool GetLastCloseDealByPosition(const long position_id,
                                    ulong &deal_id,
@@ -566,8 +557,7 @@ private:
       volume  = HistoryDealGetDouble(best_ticket, DEAL_VOLUME);
 
       const int reason_code = (int)HistoryDealGetInteger(best_ticket, DEAL_REASON);
-      reason = MapDealReasonToString(reason_code);
-      if(reason == "EXPERT_ADVISOR") reason = reason + "  : MM_EXIT_SIGNAL";
+      reason = MapDealReasonToString(reason_code, REASON_CTX_CLOSE);
       if(reason == "") reason = "UNKNOWN";
 
       return true;
@@ -637,15 +627,21 @@ private:
       volume  = HistoryDealGetDouble(best_ticket, DEAL_VOLUME);
 
       const int reason_code = (int)HistoryDealGetInteger(best_ticket, DEAL_REASON);
-      reason = MapDealReasonToString(reason_code);
-      if(reason == "EXPERT_ADVISOR") reason = reason + "  : MM_SCALE_OUT";
+      reason = MapDealReasonToString(reason_code, REASON_CTX_SCALEOUT);
       if(reason == "") reason = "UNKNOWN";
 
       return true;
    }
 
 
-   string MapDealReasonToString(const int reason_code)
+   enum ENUM_REASON_CONTEXT
+   {
+      REASON_CTX_CLOSE,
+      REASON_CTX_SCALEOUT
+   };
+
+
+   string MapDealReasonToString(const int reason_code, const ENUM_REASON_CONTEXT ctx)
    {
       switch(reason_code)
          {
@@ -656,7 +652,9 @@ private:
          case DEAL_REASON_WEB:
             return "MANUAL_WEB_PLATFORM";
          case DEAL_REASON_EXPERT:
-            return "EXPERT_ADVISOR"; // keep your literal output
+            if(ctx == REASON_CTX_CLOSE)    return "MM_EXPERT: Exit Signal";
+            if(ctx == REASON_CTX_SCALEOUT) return "MM_EXPERT: Scale Out";
+            return "MM_EXPERT";
          case DEAL_REASON_TP:
             return "TP_HIT";
          case DEAL_REASON_SL:
@@ -755,8 +753,16 @@ public:
    void OnTick(const string symbol)
    {
       if(symbol == "") return;
+      SymbolCache cache;
+      if(!BuildSymbolCache(symbol, cache))
+         {
+         // If cache can't be built, still run close detection (optional),
+         // but skip trading logic that depends on valid tick_size/bid/ask.
+         UpdateCloseDetection(symbol);
+         return;
+         }
 
-      ManageExit(symbol); // Manage exits continuously (optional: only on new candle)
+      ManageExit(symbol, cache); // Manage exits continuously (optional: only on new candle | setup runtime gating to run OnTick/NewCandle)
 
       if(!IsNewCandle(symbol, inpEntryPeriod))
          {
@@ -766,23 +772,22 @@ public:
 
       m_atrTracker.PruneClosedTickets(); // Maintain ATR ticket list
 
-      ManageOpenPosition(symbol);  // Manage Open Positions | ## can add input settings
-      ManageEntry(symbol); // Entry logic
+      ManageOpenPosition(symbol, cache);  // Manage Open Positions | ## can add input settings
+      ManageEntry(symbol, cache); // Entry logic
       UpdateCloseDetection(symbol);
 
    }
 
-   // ------------------------------------------------------------
-
-   void ManageEntry(const string symbol)
+   // --------------------------------------------------
+   // ----- Manage Entry
+   // --------------------------------------------------
+   void ManageEntry(const string symbol, const SymbolCache &cache)
    {
-// --------------------------------------------------
-// Cache symbol info once per tick (efficiency)
-// --------------------------------------------------
-      const double bid        = SymbolInfoDouble(symbol, SYMBOL_BID);
-      const double ask        = SymbolInfoDouble(symbol, SYMBOL_ASK);
-      const double tick_value = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
-      const double tick_size  = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
+      const double bid       = cache.bid;
+      const double ask       = cache.ask;
+      const double tick_value = cache.tick_value;
+      const double tick_size = cache.tick_size;
+
 
       if(PositionsTotal() >= (int)inpMaxOpenPosition)
          {
@@ -832,14 +837,7 @@ public:
 
       snap.mm_phase        = ToMMPhaseString(MM_PHASE_ENTRY);
       snap.mm_event_intent = ToMMEventString(MM_EVENT_ENTRY);
-
-
-// --- Market Context (Schema v1.1) ---
-      snap.current_price =
-         (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
-         ? bid
-         : ask;
-
+      snap.current_price = (ctx.EntryBias == Long) ? ask : bid;
 
 // ATR value actually used by MM (NOT recomputed)
       snap.atr_value = ctx.ATREntry.Value;
@@ -978,23 +976,23 @@ public:
 
       m_logger.LogMMEventBase(evt);
    }
-
-   void ManageOpenPosition(const string symbol)
+   
+   // --------------------------------------------------
+   // ----- ManageOpenPosition
+   // --------------------------------------------------
+   void ManageOpenPosition(const string symbol, const SymbolCache &cache)
    {
+      const double bid       = cache.bid;
+      const double ask       = cache.ask;
+      const double tick_value = cache.tick_value;
+      const double tick_size = cache.tick_size;
 
-// --------------------------------------------------
-// Cache symbol info once per tick (efficiency)
-// --------------------------------------------------
-      const double bid        = SymbolInfoDouble(symbol, SYMBOL_BID);
-      const double ask        = SymbolInfoDouble(symbol, SYMBOL_ASK);
-      const double tick_value = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
-      const double tick_size  = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
 
       if(!PositionSelect(symbol)) return;
 
       RejectionReason reject_reason = REJECT_NONE;
       ulong ticket = (ulong)PositionGetInteger(POSITION_TICKET);
-     
+
 
       // ✅ ADD THIS (REQUIRED)
       enum_position dir = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? Long : Short);
@@ -1487,18 +1485,17 @@ public:
 
    }
 
-//+------------------------------------------------------------------+
-//|                                                                  |
-//+------------------------------------------------------------------+
-   void ManageExit(const string symbol)
+   // --------------------------------------------------
+   // ----- ManageExit
+   // --------------------------------------------------
+   void ManageExit(const string symbol, const SymbolCache &cache)
    {
-      // --------------------------------------------------
-      // Cache symbol info once per tick (efficiency)
-      // --------------------------------------------------
-      const double bid        = SymbolInfoDouble(symbol, SYMBOL_BID);
-      const double ask        = SymbolInfoDouble(symbol, SYMBOL_ASK);
-      const double tick_value = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
-      const double tick_size  = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
+
+      const double bid       = cache.bid;
+      const double ask       = cache.ask;
+      const double tick_value = cache.tick_value;
+      const double tick_size = cache.tick_size;
+
       if(!PositionSelect(symbol)) return;
 
       ulong ticket = (ulong)PositionGetInteger(POSITION_TICKET);
@@ -1690,9 +1687,21 @@ private:
       return false;
    }
 
-//+------------------------------------------------------------------+
-//|                                                                  |
-//+------------------------------------------------------------------+
+// ============================================================
+// Symbol Cache
+// ============================================================
+   bool BuildSymbolCache(const string symbol, SymbolCache &c)
+   {
+      c.symbol = symbol;
+      c.bid = SymbolInfoDouble(symbol, SYMBOL_BID);
+      c.ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
+      c.tick_value = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
+      c.tick_size  = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
+
+      if(c.bid <= 0.0 || c.ask <= 0.0 || c.tick_size <= 0.0)
+         return false;
+      return true;
+   }
    bool BuildTradeContext(TradeContext &ctx, const string symbol)
    {
       ctx.Reset();
