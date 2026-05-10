@@ -77,14 +77,15 @@ Immediately after executing MM action
 
 ---
 
-# 🔄 Snapshot Flow
-
-
-1. Capture BEFORE snapshot
-2. Execute MM action (via handler)
-3. Capture AFTER snapshot
-4. Log via:
-   `m_logger.LogMMEventBase(...)`
+## 🔄 Snapshot Flow (Runtime)
+- Begin MM cycle tracking (INF-3 enforcement state)
+- Capture BEFORE snapshot via `EmitSnapshotBefore(...)`
+- Execute MM action (execution layer / handler)
+- Capture AFTER snapshot via `EmitSnapshotAfter(...)`
+- Enforce pairing integrity (INF-3): both BEFORE and AFTER must exist for each MM event
+- Log snapshots via:
+  - `m_logger.LogMMSnapshotBefore(...)`
+  - `m_logger.LogMMSnapshotAfter(...)`
 
 
 ---
@@ -92,7 +93,7 @@ Immediately after executing MM action
 # ⚠️ Rules
 
 - MUST capture BOTH BEFORE and AFTER snapshots
-- MUST follow Snapshot Cchema v1.3
+- MUST follow Snapshot Schema v1.3
 - MUST NOT redefine fields
 
 
@@ -117,5 +118,10 @@ All snapshots MUST include `cycle_id` corresponding to the active trade lifecycl
 - Ensures snapshots can be grouped into a complete lifecycle
 - Enables correct pairing of MM actions and state transitions
 
-
 ---
+
+## 🧠 Implementation Notes (Post-Sweep)
+- ENTRY snapshots must not rely on PositionGetInteger(POSITION_TYPE) before a position exists.
+  ENTRY current_price should be based on intended entry direction (entry bias → ask/bid selection).
+- EXIT snapshots should use the entry ATR anchor (from ATR entry tracker) so atr_value and stoploss_points remain meaningful during EXIT validation.
+

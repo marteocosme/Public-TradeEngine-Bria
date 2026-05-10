@@ -1,12 +1,18 @@
+## 🗄️ Document Status (Archived)
+
+**Version:** v1.0  
+
+**Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
+
+**Superseded By:** <MM_Event_Log_Schema.md>
+
+**Last Updated:** 2026-05-07 (UTC+8)
+
+**Archived On:** 2026-05-10  
+- ⚠️ This file is retained for historical reference and legacy log parsing only.
+- ⚠️ Do not edit content. Any changes must be made in the SSOT file.
+
 # MM Event Log Schema (MM_Events.csv / JSON)
-
-### 🔒 Document Status
-Version: v1.1  
-Status: ✅ ACTIVE (SSOT)  
-Last Updated: 2026-05-10 (UTC+8)
-
-## Supersedes
-- MM_Event_Log_Schema_v1.0.md
 
 ### 🎯 Purpose
 Defines the **authoritative schema** for Money Management Event logs:
@@ -96,11 +102,11 @@ Event `event_type` MUST be one of:
 
 **CLOSE-only (E2 fields; mandatory for MM_EVENT_CLOSE, empty otherwise):**
 
-1)  close_reason (string enum)  
-2)  close_price (double)  
-3)  close_profit (double)  
-4)  close_volume (double)  
-5)  deal_id (long)
+13) close_reason (string enum)  
+14) close_price (double)  
+15) close_profit (double)  
+16) close_volume (double)  
+17) deal_id (long)
 
 > Column order is fixed. Any missing/extra columns invalidate the row for schema compliance.
 
@@ -111,27 +117,17 @@ Event `event_type` MUST be one of:
 ### 4.1 Required vs Optional
 - Columns 1–12: MUST exist for every row.
 - Columns 13–17:
-  - MUST be populated when event_type = `MM_EVENT_CLOSE`
-  - MAY be populated when event_type = `MM_EVENT_SCALE_OUT` (when a broker deal is matched)
-  - MUST be empty for all other event types (ENTRY/BE/TRAIL/EXIT)
+  - MUST be populated when event_type = MM_EVENT_CLOSE
+  - MUST be empty for all other event types (ENTRY/SCALE/BE/TRAIL/EXIT)
 
 ### 4.2 close_reason (required for CLOSE)
 `close_reason` MUST be one of:
-- MM_EXPERT
-- MM_EXPERT: Exit Signal
-- MM_EXPERT: Scale Out
-- MANUAL_DESKTOP_TERMINAL
-- MANUAL_MOBILE_APP
-- MANUAL_WEB_PLATFORM
+- SIGNAL
+- MANUAL
 - TP_HIT
 - SL_HIT
-- STOP_OUT Event
-- ROLLOVER
-- VARIATION_MARGIN
-- CORPORATE_ACTION
-- SPLIT_ANNOUNCEMENT
+- STOP_OUT
 - UNKNOWN
-
 
 ### 4.3 Two-phase termination rules (MM-LOG-01 alignment)
 - `MM_EVENT_EXIT` A lifecycle MAY contain 0..1
@@ -169,16 +165,14 @@ Each JSON event MUST contain keys matching the CSV field names:
 - deal_id
 
 
-### 5.2 Required keys for MM_EVENT_CLOSE and MM_EVENT_SCALE_OUT
+### 5.2 Required keys for MM_EVENT_CLOSE only
 
-For MM_EVENT_CLOSE:
+For `MM_EVENT_CLOSE`:
 - close_reason / close_price / close_profit / close_volume / deal_id MUST be populated.
 
-For MM_EVENT_SCALE_OUT:
-- close_reason / close_price / close_profit / close_volume / deal_id MAY be populated when a broker deal is matched.
-
-For all other event types:
+For non-CLOSE events:
 - close_reason / close_price / close_profit / close_volume / deal_id MUST be null/empty.
+
 
 ---
 
@@ -205,12 +199,6 @@ The event log producer MUST emit fields consistent with the canonical event payl
 ---
 
 ## 8) Change Log
-
-### v1.1
-- Updated E2 close field rules: close_* and deal_id are now allowed for MM_EVENT_SCALE_OUT when a broker partial-close deal is matched.
-- Updated close_reason canonical values to reflect current broker-reason mapping outputs (including MM_EXPERT variants).
-- No change to column order.
-
 ### v1.0
 - Initial SSOT definition for MM event logs
 - Added CLOSE outcome fields (E2): 

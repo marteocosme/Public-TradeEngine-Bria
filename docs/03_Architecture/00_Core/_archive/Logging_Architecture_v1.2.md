@@ -1,13 +1,18 @@
+## 🗄️ Document Status (Archived)
+
+**Version:** v1.2
+
+**Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
+
+**Superseded By:** Logging_Architecture.md
+
+**Last Updated:** 2026-05-07 (UTC+8)
+
+**Archived On:** 2026-05-10 (UTC+8)
+- ⚠️ This file is retained for historical reference and legacy log parsing only.
+- ⚠️ Do not edit content. Any changes must be made in the SSOT file.
+
 # Logging Architecture
-
-## 🔒 Document Status
-
-**Version:** v1.3
-
-**Status:** ✅ ACTIVE (SSOT)
-
-**Last Updated:** 2026-05-10 (UTC+8)
-
 
 ### 📂 Location Note
 
@@ -52,44 +57,17 @@ Defines the logging system responsible for:
 ---
 
 # ✅ 🔄 Logging Pipeline
-## Snapshot Pipeline (State)
 ```
 TradeEngine
 ↓
 Snapshot (BEFORE / AFTER)
 ↓
-Logger (Snapshot Writer)
+Logger
 ↓
 File Output (CSV)
 ```
 
-## Event Pipeline (Lifecycle / Intent / Outcome)
-``` 
-TradeEngine
-↓
-MM Event (ENTRY / SCALE_OUT / BE / TRAIL / EXIT / CLOSE)
-↓
-Logger (Event Writer)
-↓
-File Output (CSV / JSON)
-```
-
 ---
-
-## ✅ 🧱 Event Payload Standardization (Post-Sweep)
-
-To prevent data corruption and reduce producer-side boilerplate, MM event records are initialized using a common initializer (`InitMMEvent(...)`).
-
-### InitMMEvent(...) Responsibilities
-- Sets common identity fields:
-  - event_time, event_type, phase, symbol, timeframe, cycle_id, trade_id, ticket
-- Applies safe defaults to non-applicable fields:
-  - close_* fields default to neutral values (blank/0) and deal_id defaults to 0
-  - scale_* fields default to 0
-  - action_summary defaults blank
-
-Event producers then populate only event-specific fields (e.g., action_summary, scale_steps/scale_fraction_total, broker evidence fields where applicable).
-
 
 ## 🔭 Observability Layer — Lifecycle Grouping
 
@@ -105,35 +83,11 @@ This enables reconstruction of full trade lifecycles across MM events and snapsh
 
 A trade lifecycle consists of:
 
+
 ENTRY
 → MM actions (SCALE_OUT / BREAK_EVEN / TRAIL)
 → (optional EXIT intent)
 → CLOSE (broker-confirmed outcome)
-
----
-
-### Broker Evidence Fields (close_* / deal_id) — Applicability
-- MM_EVENT_CLOSE:
-  - MUST populate close_reason, close_price, close_profit, close_volume, deal_id (final broker-confirmed closure).
-- MM_EVENT_SCALE_OUT:
-  - MAY populate close_reason, close_price, close_profit, close_volume, deal_id when a broker partial-close deal is matched.
-  - If no matching deal is found, emit neutral defaults.
-- ENTRY / BE / TRAIL / EXIT:
-  - close_* fields MUST remain neutral defaults (blank/0), by design.
-
-This prevents contamination of final outcome analytics while still preserving broker-confirmed evidence for partial closures.
-
----
-
-
-#### close_reason Canonical Values (Analytics-Friendly)
-close_reason is normalized into canonical strings for analytics and audit:
-- CLOSE (EXPERT): "MM_EXPERT: Exit Signal"
-- SCALE_OUT (EXPERT): "MM_EXPERT: Scale Out"
-- Manual closures: MANUAL_DESKTOP_TERMINAL / MANUAL_MOBILE_APP / MANUAL_WEB_PLATFORM
-- Broker outcomes: TP_HIT / SL_HIT / STOP_OUT Event / UNKNOWN / etc.
-
-Exact allowed values are defined in MM_Event_Log_Schema.md (SSOT).
 
 ---
 
@@ -158,8 +112,6 @@ Architectural rule:
 - The same `cycle_id` is reused for all subsequent MM actions
 - The lifecycle ends at `MM_EVENT_CLOSE` (broker-confirmed outcome)
 - `MM_EVENT_EXIT` is optional (intent only) and may not appear for TP/SL/STOP_OUT closures
-
-
 
 
 ---
@@ -304,26 +256,17 @@ Logger MUST NOT:
 - Decide MM actions
 - Change schema structure
 
+---
+
 Logger ONLY:
 
 - Formats data
 - Writes to file
 - Enforces structure
 
-
-## ✅ 🔧 Optional Lifecycle Controller Actions
-Lifecycle controller actions may be compile-time disabled in some builds to reduce runtime overhead or isolate logging validation.
-This does not change logging schema requirements; it only affects whether lifecycle controller hooks execute.
-
 ---
 
 # ✅ 📌 Version Notes
-
-##### v1.3 (2026-05-09)
-- Documented dual logging pipelines (Snapshots vs Events).
-- Documented InitMMEvent(...) as canonical event initializer and defaulting mechanism.
-- Updated architecture rules for broker evidence fields: close_* and deal_id are mandatory for CLOSE and allowed for SCALE_OUT when deal-matched.
-- Added close_reason canonical vocabulary guidance for analytics.
 
 ##### v1.2 (2026-05-07)
 - Converted to stable SSOT filename: Logging_Architecture.md (archived old versioned file)

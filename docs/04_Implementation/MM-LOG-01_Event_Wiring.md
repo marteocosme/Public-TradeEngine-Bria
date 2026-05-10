@@ -30,6 +30,26 @@ Scope:
 
 # 🧩 Event Mapping
 
+
+## 🔧 Event Payload Standardization (Post-Sweep)
+
+### InitMMEvent(...) — Canonical Event Initialization
+All MM event records are initialized using a shared initializer:
+- `InitMMEvent(evt, type, phase, symbol, ticket, when)`
+
+This initializer:
+- sets common identity fields (event_time, event_type, phase, symbol, timeframe, cycle_id, trade_id, ticket)
+- applies safe defaults:
+  - close_* fields default to neutral values (blank/0) and deal_id defaults to 0
+  - scale_* fields default to 0
+  - action_summary defaults blank
+
+Event producers then set only event-specific fields:
+- action_summary
+- scale_steps / scale_fraction_total
+- close_* fields when applicable (CLOSE always; SCALE_OUT optionally when deal matched)
+
+
 ## ENTRY
 
 - Trigger Location: 
@@ -61,6 +81,13 @@ Scope:
 - Logger Call:
 
     `m_logger.LogMMEventBase(...)`
+
+
+**Broker Evidence (E2 close fields):**
+- MM_EVENT_SCALE_OUT MAY populate close_reason, close_price, close_profit, close_volume, deal_id
+  when a broker partial-close deal is matched.
+- If no matching deal is found, these fields remain neutral defaults.
+
 ---
 
 ## BREAK_EVEN
@@ -111,12 +138,23 @@ Scope:
 ## CLOSE
 
 - Trigger Location:
-
+  
+  `CTradeEngine::UpdateCloseDetection(symbol)` detects transition (was open → now closed) and calls   `EmitCloseEvent(symbol)`.
 
 - Handler:
-    
+  
+  `CTradeEngine::EmitCloseEvent(symbol)` performs broker/deal matching using position lifecycle id (`POSITION_IDENTIFIER`) and emits MM_EVENT_CLOSE as the broker-confirmed lifecycle terminator.
    
-
 - Logger Call:
 
-    
+  `m_logger.LogMMEventBase(evt)` after populating close_reason/close_price/close_profit/close_volume/deal_id.
+
+**Notes**
+- MM_EVENT_CLOSE is emitted only when closure is broker-confirmed (deal-derived).
+- close_* and deal_id MUST be populated for CLOSE.
+
+---
+## 🔎 trade_id vs ticket (Current Implementation)
+- `ticket` is the broker identifier.
+- `trade_id` currently mirrors `ticket` as a placeholder mapping (assigned by InitMMEvent).
+- cycle_id remains the primary lifecycle grouping key across ENTRY → ... → CLOSE.

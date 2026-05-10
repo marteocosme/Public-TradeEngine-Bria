@@ -3,11 +3,11 @@
 
 ## 🔒 Document Status
 
-**Version:** v1.6
+**Version:** v1.5
 
 **Status:** ✅ ACTIVE (SSOT)  
 
-**Last Updated:** 2026-05-10 (UTC+8)
+**Last Updated:** 2026-05-07 (UTC+8)
 
 ---
 
@@ -31,10 +31,9 @@ Ensures logs are:
 
 
 ## Version
-v1.6
+v1.5
 
 ### Supersedes
-- v1.5
 - v1.4
 - v1.3
 - v1.2
@@ -142,7 +141,7 @@ MM‑LOG‑01 separates **engine intent** from **broker-confirmed outcome** to e
 
 #### E2 Close Outcome Fields — Applicability Rules (Authoritative)
 
-The following E2 close outcome fields are broker/deal-derived outcome fields:
+The following E2 close outcome fields are **authoritative ONLY** for `MM_EVENT_CLOSE`:
 
 - `close_reason`
 - `close_price`
@@ -151,26 +150,19 @@ The following E2 close outcome fields are broker/deal-derived outcome fields:
 - `deal_id`
 
 **Rules**
-- For MM_EVENT_CLOSE (final outcome):
-  - These fields **MUST** be populated with broker/deal-confirmed values (or `UNKNOWN` fallback for `close_reason`).
-  - MM_EVENT_CLOSE remains the **official lifecycle terminator**.
-
-- For MM_EVENT_SCALE_OUT (partial outcome evidence):
-  - These fields **MAY** be populated when a broker partial-close deal is matched.
-  - If no matching deal is found, emit neutral defaults (same as other non-close events).
-
-- For all non-CLOSE events (`MM_EVENT_ENTRY`, `MM_EVENT_EXIT`, `MM_EVENT_BE`, `MM_EVENT_TRAIL`): 
-  - These fields **MUST** be emitted as neutral defaults:
-    - `close_reason = ""`
-    - `close_price = 0.0`
-    - `close_profit = 0.0`
-    - `close_volume = 0.0`
-    - `deal_id = 0`
+- For `MM_EVENT_CLOSE`: these fields **MUST** be populated with broker/deal-confirmed values (or `UNKNOWN` fallback for `close_reason`).
+- For all non-CLOSE events (`MM_EVENT_ENTRY`, `MM_EVENT_EXIT`, `MM_EVENT_SCALE_OUT`, `MM_EVENT_BE`, `MM_EVENT_TRAIL`): these fields **MUST** be emitted as neutral defaults:
+  - `close_reason = ""`
+  - `close_price = 0.0`
+  - `close_profit = 0.0`
+  - `close_volume = 0.0`
+  - `deal_id = 0`
 
 **Rationale**
+Prevents data contamination, ensures analytics interpret close outcomes from a single authoritative lifecycle terminator (`MM_EVENT_CLOSE`).
 
-- Prevents data contamination by reserving final lifecycle termination to `MM_EVENT_CLOSE`.
-- Allows SCALE_OUT to carry broker-confirmed partial-close evidence for auditability without redefining termination semantics.
+
+
 
 ---
 
@@ -214,7 +206,7 @@ Previous versions:
 
 ---
 
-### Definition
+## Definition
 
 A unique identifier assigned to each trade lifecycle.
 
@@ -222,17 +214,10 @@ A lifecycle is defined as:
 
 ENTRY → (SCALE_OUT / BREAK_EVEN / TRAIL) → (optional EXIT intent) → CLOSE 
 
+
 ---
 
-### Purpose
-
-- Enables grouping of events into a single trade lifecycle
-- Allows full reconstruction of trade behavior
-- Supports validation, debugging, and backtesting analysis
-  
----
-
-### Rules
+## Rules
 
 - MUST increment on every ENTRY event
 - MUST remain constant for all events in the same lifecycle
@@ -242,9 +227,18 @@ ENTRY → (SCALE_OUT / BREAK_EVEN / TRAIL) → (optional EXIT intent) → CLOSE
 - Every lifecycle MUST terminate with MM_EVENT_CLOSE
 - MM_EVENT_EXIT is optional (intent only) and may not appear for TP/SL/STOP_OUT closures
 
+
 ---
 
-### ✅ Contract Requirement
+## Purpose
+
+- Enables grouping of events into a single trade lifecycle
+- Allows full reconstruction of trade behavior
+- Supports validation, debugging, and backtesting analysis
+
+---
+
+## ✅ Contract Requirement
 
 All MM-LOG-01 logs MUST include `cycle_id`.
 
@@ -459,14 +453,6 @@ All violations must:
 - Be treated as system failures
 
 ## Change Log
-
-### v1.6
-- Updated applicability rules for E2 close outcome fields:
-  - MM_EVENT_CLOSE remains mandatory and authoritative terminator (MUST populate close_* + deal_id)
-  - MM_EVENT_SCALE_OUT may populate close_* + deal_id when a broker partial-close deal is matched
-  - Other non-CLOSE events must continue to emit neutral defaults
-- No change to two-phase termination model (EXIT intent vs CLOSE outcome)
-- Removed duplicate “Purpose” section by merging lifecycle-grouping bullets into the cycle_id Purpose section (editorial cleanup; no rule changes).
 
 ### v1.5
 - Added explicit applicability rules for E2 close outcome fields:

@@ -2,9 +2,9 @@
 
 ## ✅ 🔒 Document Status
 
-Version: v1.0  
+Version: v1.1  
 Status: ✅ ACTIVE  
-Last Updated: 2026-05-08 (UTC+8) 
+Last Updated: 2026-05-10 (UTC+8) 
 
 ---
 
@@ -65,8 +65,10 @@ Provide full traceability and grouping of all logs belonging to a single trade l
 
 ## 🔗 Dependencies
 
-- MM-LOG-01_Logging_Schema_Contract.md (v1.3)
+- MM-LOG-01_Logging_Schema_Contract.md (SSOT filename)
 - Logging_Architecture.md
+- MM_Event_Log_Schema.md (SSOT filename)
+
 
 
 ## 🧪 Implementation Status — Logging Observability Upgrade
@@ -84,8 +86,8 @@ The following MM-LOG-01 observability upgrades have been implemented in code:
 
 Pending validation:
 
-- Confirm one lifecycle summary is emitted per completed EXIT
-- Confirm cycle_id remains consistent across ENTRY → MANAGE → EXIT
+- Confirm one lifecycle summary is emitted per completed CLOSE (lifecycle terminator)
+- Confirm cycle_id remains consistent across ENTRY → MANAGE → (optional EXIT) → CLOSE
 - Confirm no duplicate SCALE_OUT logs are emitted
 - Confirm summary values are accurate:
   - entry_time
@@ -102,4 +104,12 @@ Pending validation:
 Next validation step:
 
 Run a backtest and review the generated MM event, snapshot, and cycle summary logs.
+
+
+### Change Log
+#### v1.1 (2026-05-09)
+- Updated validation notes to confirm cycle summary emitted per CLOSE (not EXIT).
+- Updated dependency references to SSOT filenames.
+- Clarified lifecycle flow includes optional EXIT and mandatory CLOSE.
+
 

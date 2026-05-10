@@ -1,12 +1,17 @@
+## 🗄️ Document Status (Archived)
+
+**Version:** v1.2
+
+**Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
+**Last Updated:** 2026-05-09 (UTC+8)
+**Archived On:** 2026-05-10 (UTC+8)   
+
+**Superseded By:** <MM-LOG-01_Runtime_Validation_Checklist.md>
+- ⚠️ This file is retained for historical reference and legacy log parsing only.
+- ⚠️ Do not edit content. Any changes must be made in the SSOT file.
+
 # MM-LOG-01 Runtime Validation Checklist
 
-## 🔒 Document Status
-
-Version: v1.3
-Status: ✅ ACTIVE (SSOT) — CODE COMPLETE / PENDING RUNTIME VALIDATION
-Last Updated: 2026-05-10 (UTC+8)
-
----
 
 ## 🎯 Purpose
 
@@ -63,10 +68,7 @@ MM-LOG-01 Observability Upgrade is code-complete and awaiting runtime log valida
 
 - ✅ “MM_EVENT_SCALE_OUT writes deal_id and close_* fields (price/profit/volume/reason) when partial close succeeds.”
 - ✅ Fixed event log data corruption by ensuring all `MM_LogEventBase` instances are zero-initialized before write.
-- ✅ Updated E2 close outcome field applicability:
-  - MM_EVENT_CLOSE MUST populate close_* and deal_id (broker-confirmed final closure)
-  - MM_EVENT_SCALE_OUT MAY populate close_* and deal_id when a partial-close deal is matched
-  - Other non-CLOSE events keep neutral defaults
+- ✅ Enforced E2 close fields (`close_reason`/`close_price`/`close_profit`/`close_volume`/`deal_id`) to be meaningful only for `MM_EVENT_CLOSE` (broker-confirmed).
 - ✅ Improved `MM_EVENT_EXIT` semantics: intent-only with descriptive `action_summary` (e.g., `Exit signal: RVI (EXIT_MODE_CROSS)`).
 - ✅ Fixed timeframe corruption in event logs; now consistently logs valid `PERIOD_*` values (e.g., `PERIOD_M15`).
 - ✅ Expanded deal close reason mapping; CLOSE reasons now include `TP_HIT`, `SL_HIT`, and EA-driven closes like `MM_EXPERT: Exit Signal`.
@@ -107,7 +109,7 @@ MM-LOG-01 Observability Upgrade is code-complete and awaiting runtime log valida
 - [x] Every event log includes cycle_id
 - [x] Every snapshot log includes cycle_id
 - [x] cycle_id increments only on ENTRY
-- [x] cycle_id remains constant from ENTRY to CLOSE
+- [ ] cycle_id remains constant from ENTRY to CLOSE
 - [x] No event appears with an incorrect cycle_id
 - [x] All lifecycle rows can be grouped by cycle_id
 - [x] Each cycle_id has exactly one CLOSE event
@@ -161,16 +163,8 @@ For every MM_EVENT_CLOSE row:
 - [x] close_volume is populated and numeric
 - [x] deal_id is populated and numeric
 
-For MM_EVENT_SCALE_OUT rows:
-- [x] close_reason / close_price / close_profit / close_volume / deal_id MAY be populated when a broker partial-close deal is matched.
-- [x] If no matching deal is found, these fields should remain neutral defaults (empty/0).
-
-For other non-CLOSE events (ENTRY / BE / TRAIL / EXIT):
-- [x] close_reason = ""
-- [x] close_price = 0.0
-- [x] close_profit = 0.0
-- [x] close_volume = 0.0
-- [x] deal_id = 0
+For non-CLOSE events:
+- [x] close_reason / close_price / close_profit / close_volume / deal_id are empty
 
 ---
 
@@ -216,21 +210,12 @@ MM-LOG-01 may be marked COMPLETE only when:
 - Logs alone can reconstruct the full trade lifecycle
 - MM_EVENT_CLOSE exists exactly once per cycle and carries E2 close fields
 - Replace “Cycle summary logs are emitted correctly” with “Cycle summary logs are emitted correctly (one per CLOSE)”
-- SCALE_OUT rows may carry broker partial-close evidence (close_* + deal_id) when deal matching succeeds
 
 Until these criteria are satisfied, MM-LOG-01 remains:
 
 ⏳ CODE COMPLETE — PENDING RUNTIME VALIDATION
 
 ## Change Log
-
-### v1.3 (2026-05-09)
-- Aligned checklist with updated MM_Event_Log_Schema rules:
-  - SCALE_OUT may populate close_* + deal_id when partial-close deal is matched.
-  - CLOSE remains mandatory terminator and must populate close_* + deal_id.
-  - Other non-CLOSE events keep neutral defaults.
-- Resolved Patch Notes contradiction regarding E2 close field applicability.
-
 ### v1.2 (2026-05-08)
 - Added Patch Notes section under Current Phase Status to record validated fixes and logging behavior improvements.
 - Updated CLOSE reason validation list to include `MM_EXPERT: Exit Signal` to match current event outputs.
