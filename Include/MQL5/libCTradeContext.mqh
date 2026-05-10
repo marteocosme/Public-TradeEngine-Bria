@@ -35,9 +35,9 @@ struct TradeContext
    // Identity / Timing
    // -----------------------------
    string          Symbol;
-   ENUM_TIMEFRAMES EntryPeriod;      // trade execution timeframe (e.g., M15)
-   ENUM_TIMEFRAMES TopdownPeriod;    // higher timeframe for top-down trend (e.g., D1)
-   datetime        Time;         // time of BAR_SIGNAL on EntryPeriod
+   ENUM_TIMEFRAMES EntryPeriod;        // trade execution timeframe (e.g., M15)
+   ENUM_TIMEFRAMES TopdownPeriod;      // higher timeframe for top-down trend (e.g., D1)
+   datetime        Time;               // time of BAR_SIGNAL on EntryPeriod
 
    // -----------------------------
    // Engine Outputs (raw results)
@@ -311,8 +311,7 @@ SignalSnapshot BuildSignalSnapshot(const TradeContext &ctx)
 }
 
 
-#endif // __LIBCTRADECONTEXT_MQH__/
-
+#endif __LIBCTRADECONTEXT_MQH__
 
 /*
 ✅ How to Use This in Your Trade Engine (Recommended Flow)

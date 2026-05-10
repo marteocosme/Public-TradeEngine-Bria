@@ -15,16 +15,13 @@
 // ================================================================
 
 // --- FORCE DISABLE (comment out to re-enable)
-//#define DISABLE_LIFECYCLE_CONTROLLER
+#define DISABLE_LIFECYCLE_CONTROLLER
 
 // Default: ENABLED unless explicitly disabled
 #ifndef DISABLE_LIFECYCLE_CONTROLLER
-   #define ENABLE_LIFECYCLE_CONTROLLER
+#define ENABLE_LIFECYCLE_CONTROLLER
 #endif
 
-
-
-#define SCALE_STAGE_COUNT (ArraySize(g_scaleStages))
 
 #include <Trade\Trade.mqh>
 
@@ -57,10 +54,8 @@
 #include <MyInclude\NNFX\libCTradeContext.mqh>
 #include <MyInclude\NNFX\libCTradeVisualizer.mqh>
 #include <MyInclude\NNFX\libCUnifiedTradeLogger.mqh>
-
-#ifdef ENABLE_LIFECYCLE_CONTROLLER
 #include <MyInclude\NNFX\TradeEngine\TradeLifecycleController.mqh>
-#endif
+
 
 
 
@@ -181,11 +176,14 @@ input group "-----"
 // ================================================================
 // Scaling stages (ATREntry-based)
 // ================================================================
+
 ScaleStage g_scaleStages[] =
 {
    { 1.0, 0.50 },
    { 2.0, 0.25 }
 };
+
+#define SCALE_STAGE_COUNT (ArraySize(g_scaleStages))
 
 // ================================================================
 // Trade Engine
@@ -362,16 +360,7 @@ private:
          return;
 
       MM_LogEventBase evt;
-      ZeroMemory(evt);
-
-      evt.event_time = TimeCurrent();
-      evt.event_type = MM_EVENT_CLOSE;
-      evt.phase      = MM_PHASE_EXIT;
-      evt.symbol     = symbol;
-      evt.timeframe  = inpEntryPeriod;
-      evt.cycle_id   = m_cycle_id;
-      evt.trade_id   = (long)m_last_ticket;
-      evt.ticket     = m_last_ticket;
+      InitMMEvent(evt, MM_EVENT_CLOSE, MM_PHASE_EXIT, symbol, m_last_ticket, TimeCurrent());
       evt.action_summary = "Closed Trade (engine-detected)";
 
       // ✅ Always set a non-blank default (ZeroMemory makes string "")
@@ -802,9 +791,7 @@ public:
          return;
          }
 
-// ----------------------------------------
-// Entry Strategy Override (v1.1)
-// ----------------------------------------
+      // Entry Strategy Override (v1.1)
       EntryCandidate ec = m_entryStrategy.Evaluate(ctx, m_activeStrategy);
 
       if(!ec.allowed)
@@ -813,7 +800,7 @@ public:
          return;
          }
 
-// Override direction from strategy
+      // Override direction from strategy
       ctx.EntryBias    = ec.direction;
       ctx.IsTradeable  = true;
 
@@ -827,7 +814,7 @@ public:
       rp.StopATRMultiplier = inpSLxATRxPlier;
 
       m_cycle_id++;
-// --- MM Snapshot BEFORE (complete risk inputs) ---
+      // --- MM Snapshot BEFORE (complete risk inputs) ---
       MM_SNAPSHOT_BEFORE snap;
       snap.timestamp  = TimeCurrent();
       snap.symbol     = ctx.Symbol;
@@ -839,9 +826,8 @@ public:
       snap.mm_event_intent = ToMMEventString(MM_EVENT_ENTRY);
       snap.current_price = (ctx.EntryBias == Long) ? ask : bid;
 
-// ATR value actually used by MM (NOT recomputed)
+      // ATR value actually used by MM (NOT recomputed)
       snap.atr_value = ctx.ATREntry.Value;
-
 
       snap.balance     = AccountInfoDouble(ACCOUNT_BALANCE);
       snap.equity      = AccountInfoDouble(ACCOUNT_EQUITY);
@@ -850,12 +836,12 @@ public:
       snap.risk_model  = EnumToString(rp.Method);
       snap.risk_value  = rp.BaseRiskPercent;
 
-// --- TRUE MM inputs ---
+      // --- TRUE MM inputs ---
       snap.stoploss_points = ctx.ATREntry.Value * inpSLxATRxPlier;
       snap.value_per_point =
          tick_value / tick_size;
 
-// what MM actually risks
+      // what MM actually risks
       snap.risk_amount_used =
          m_risk.GetLastComputedRiskAmount(); // add getter if needed
 
@@ -874,21 +860,14 @@ public:
       m_entry_price = snap.current_price;
       m_entry_time  = TimeCurrent();
 
-// ✅ NOW snapshot what MM actually decided
+      // ✅ NOW snapshot what MM actually decided
       snap.current_risk_exposure = m_risk.GetLastComputedRiskAmount();
 
       BeginMMCycle(MM_EVENT_ENTRY);
       EmitSnapshotBefore(snap);
 
-
-
-
-
-      // --------------------------------------------------
       // Phase 5 — Step 4: Lifecycle CREATE (pass-through)
-      // --------------------------------------------------
       RejectionReason reject_reason = REJECT_NONE;
-
 #ifdef ENABLE_LIFECYCLE_CONTROLLER
       m_lifecycleController.RequestAction(
          0,                    // trade_id not assigned yet
@@ -961,22 +940,11 @@ public:
 
       // ✅ ENTRY LOGGING — Phase 4.4 (single source of truth)
       MM_LogEventBase evt;
-      ZeroMemory(evt);   // ✅ if already using (recommended)
-      evt.cycle_id = m_cycle_id;
-      evt.event_time = ctx.Time;                 // BAR_SIGNAL time
-      evt.event_type = MM_EVENT_ENTRY;
-      evt.phase      = MM_PHASE_ENTRY;
+      InitMMEvent(evt, MM_EVENT_ENTRY, MM_PHASE_ENTRY, ctx.Symbol, ticket, ctx.Time);
       evt.action_summary = "Open new trade";
-      evt.scale_steps = 0;
-      evt.scale_fraction_total = 0;
-      evt.symbol     = ctx.Symbol;
-      evt.timeframe  = inpEntryPeriod;
-      evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-      evt.ticket     = ticket;
-
       m_logger.LogMMEventBase(evt);
    }
-   
+
    // --------------------------------------------------
    // ----- ManageOpenPosition
    // --------------------------------------------------
@@ -1043,9 +1011,7 @@ public:
             snap.mm_event_intent = ToMMEventString(MM_EVENT_SCALE_OUT);
 
             // --- Market Context (Schema v1.1) ---
-            snap.current_price =
-               (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
-               ? bid : ask;
+            snap.current_price = (dir == Long) ? bid : ask;
 
             // ATR value actually used by MM (NOT recomputed)
             snap.atr_value = ctx.ATREntry.Value;
@@ -1106,10 +1072,12 @@ public:
                // ----------------------------------------------------
                // ✅ event logging (keep this inside success)
                MM_LogEventBase evt;
-               ZeroMemory(evt);  // ✅ CRITICAL FIX
+               InitMMEvent(evt, MM_EVENT_SCALE_OUT, MM_PHASE_MANAGE, ctx.Symbol, ticket, ctx.Time);
+               evt.action_summary = "Close " + DoubleToString(total_closed_fraction * 100, 1) + "% of position";
+               evt.scale_steps = scale_steps;
+               evt.scale_fraction_total = total_closed_fraction;
 
-
-// ✅ Populate broker-confirmed close_* columns for SCALE_OUT
+               // ✅ Populate broker-confirmed close_* columns for SCALE_OUT
                evt.close_reason = "UNKNOWN";
                evt.close_price  = 0.0;
                evt.close_profit = 0.0;
@@ -1137,27 +1105,8 @@ public:
                   evt.close_reason = (rs == "" ? "UNKNOWN" : rs);
                   }
 
-               evt.cycle_id = m_cycle_id;
-               evt.event_time = ctx.Time; // BAR_SIGNAL time
-               evt.event_type = MM_EVENT_SCALE_OUT;
-               evt.phase = MM_PHASE_MANAGE;
-               evt.action_summary = "Close " + DoubleToString(total_closed_fraction * 100, 1) + "% of position";
-
-               evt.scale_steps = scale_steps;
-               evt.scale_fraction_total = total_closed_fraction;
-
-               evt.symbol = ctx.Symbol;
-               evt.timeframe = inpEntryPeriod;
-               evt.trade_id = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-               evt.ticket = ticket;
-
-               m_logger.LogMMEventBase(evt);
-
-
-
                // close_* fields are populated for SCALE_OUT when a broker deal is matched
-
-
+               m_logger.LogMMEventBase(evt);
 
                }
             while(false);
@@ -1287,23 +1236,8 @@ public:
 
             // 3️⃣ BREAK-EVEN LOGGING — Phase 4.4
             MM_LogEventBase evt;
-            ZeroMemory(evt);  // ✅ CRITICAL FIX
-            evt.cycle_id = m_cycle_id;
-            evt.event_time = ctx.Time;              // BAR_SIGNAL time
-            evt.event_type = MM_EVENT_BE;
-            evt.phase      = MM_PHASE_MANAGE;
+            InitMMEvent(evt, MM_EVENT_BE, MM_PHASE_MANAGE, ctx.Symbol, ticket, ctx.Time);
             evt.action_summary = "Move SL to Break Even";
-            evt.scale_steps = 0;
-            evt.scale_fraction_total = 0 ;
-            evt.symbol     = ctx.Symbol;
-            evt.timeframe  = inpEntryPeriod;
-            evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-            evt.ticket     = ticket;
-
-
-            // ✅ DO NOT TOUCH CLOSE FIELDS
-            // leave as 0 / empty
-
             m_logger.LogMMEventBase(evt);
 
             be_applied = true;
@@ -1430,22 +1364,8 @@ public:
          // ----------------------------------------------------
          // ✅ event log only if success
          MM_LogEventBase evt;
-         ZeroMemory(evt);  // ✅ CRITICAL FIX
-         evt.cycle_id = m_cycle_id;
-         evt.event_time = ctx.Time;                // BAR_SIGNAL time
-         evt.event_type = MM_EVENT_TRAIL;
-         evt.phase      = MM_PHASE_MANAGE;
+         InitMMEvent(evt, MM_EVENT_TRAIL, MM_PHASE_MANAGE, ctx.Symbol, ticket, ctx.Time);
          evt.action_summary = "Trail Stop Loss";
-         evt.scale_steps = 0;
-         evt.scale_fraction_total = 0;
-         evt.symbol     = ctx.Symbol;
-         evt.timeframe  = inpEntryPeriod;
-         evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-         evt.ticket     = ticket;
-
-         // ✅ DO NOT TOUCH CLOSE FIELDS
-         // leave as 0 / empty
-
          m_logger.LogMMEventBase(evt);
 
          }
@@ -1516,7 +1436,13 @@ public:
       ctx.Time   = iTime(symbol, inpEntryPeriod, BAR_CURRENT);
       ctx.Exit.ShouldExit = true;
       ctx.Exit.Reason    = EXIT_REVERSAL;
+
+      // ✅ EXIT ATR Anchor Fix (MM-LOG-01): use entry ATR anchor from tracker
+      ctx.ATREntry.Value   = m_atrTracker.GetATR(ticket);
+      ctx.ATREntry.IsValid = (ctx.ATREntry.Value > 0.0);
+
       RejectionReason reject_reason = REJECT_NONE;
+
 
       // ==========================
       // MM_SNAPSHOT_BEFORE — EXIT
@@ -1534,9 +1460,7 @@ public:
       snap.mm_event_intent = ToMMEventString(MM_EVENT_EXIT);
 
       // --- Market Context (Schema v1.1) ---
-      snap.current_price =
-         (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
-         ? bid : ask;
+      snap.current_price = snap.current_price = (dir == Long) ? bid : ask;
 
       // ATR value actually used by MM (NOT recomputed)
       snap.atr_value = ctx.ATREntry.Value;
@@ -1582,7 +1506,8 @@ public:
          {
          if(!m_exec.ExecuteExit(ctx))
             {
-            Print("⚠️ EXIT execution failed");
+            Print("⚠️ EXIT execution fail" + " m_cycle_id: " + IntegerToString(m_cycle_id));
+
             break;
             }
          exit_success = true;
@@ -1590,22 +1515,8 @@ public:
          // ✅ EXIT LOGGING — Phase 4.4
          // ✅ log event ONLY on sucess
          MM_LogEventBase evt;
-         ZeroMemory(evt);  // ✅ CRITICAL FIX
-         evt.cycle_id = m_cycle_id;
-         evt.event_time = ctx.Time;
-         evt.event_type = MM_EVENT_EXIT;
-         evt.phase      = MM_PHASE_EXIT;
+         InitMMEvent(evt, MM_EVENT_EXIT, MM_PHASE_EXIT, ctx.Symbol, ticket, ctx.Time);
          evt.action_summary = "Exit signal: " + EnumToString(inpExitIndicator) + " (" + EnumToString(inpExitMode) + ")";
-         evt.scale_steps = 0;
-         evt.scale_fraction_total = 0;
-         evt.symbol     = ctx.Symbol;
-         evt.timeframe  = inpEntryPeriod;
-         evt.trade_id   = (long)ticket; // Dedicated trade_id generator inside CTradeEngine (Later/Phase 5)
-         evt.ticket     = ticket;
-
-         // ✅ DO NOT TOUCH CLOSE FIELDS
-         // leave as 0 / empty
-
          m_logger.LogMMEventBase(evt);
 
          }
@@ -1702,6 +1613,42 @@ private:
          return false;
       return true;
    }
+
+// ============================================================
+// initialize common event fields
+// ============================================================
+
+   void InitMMEvent(MM_LogEventBase &evt,
+                    const ENUM_MM_EVENT_TYPE type,
+                    const ENUM_MM_PHASE phase,
+                    const string symbol,
+                    const ulong ticket,
+                    const datetime when)
+   {
+      ZeroMemory(evt);
+      evt.event_time = when;
+      evt.event_type = type;
+      evt.phase      = phase;
+      evt.symbol     = symbol;
+      evt.timeframe  = inpEntryPeriod;
+
+      evt.cycle_id   = m_cycle_id;
+      evt.trade_id   = (long)ticket;
+      evt.ticket     = ticket;
+
+      // Defaults (safe; overridden by CLOSE/SCALE_OUT when matched)
+      evt.close_reason = "";
+      evt.close_price  = 0.0;
+      evt.close_profit = 0.0;
+      evt.close_volume = 0.0;
+      evt.deal_id      = 0;
+
+      evt.scale_steps = 0;
+      evt.scale_fraction_total = 0.0;
+      evt.action_summary = "";
+   }
+
+
    bool BuildTradeContext(TradeContext &ctx, const string symbol)
    {
       ctx.Reset();
@@ -1808,10 +1755,4 @@ private:
 };
 
 #endif // __LIBCTRADEENGINE_MQH__
-
-
-
-
-
-
 //+------------------------------------------------------------------+
