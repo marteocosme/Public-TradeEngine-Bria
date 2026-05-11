@@ -254,6 +254,18 @@ private:
    ulong m_next_correlation_id;
    ulong m_current_correlation_id;
 
+// ============================================================
+// v2.0 Outcome Buffer (Option C1: SUCCESS/FAIL/SKIP)
+// Filled by action block, consumed by EmitSnapshotAfter()
+// ============================================================
+   bool   m_out_action_executed;
+   string m_out_execution_reason;
+   double m_out_previous_stoploss;
+   double m_out_new_stoploss;
+   double m_out_closed_lots;
+   string m_out_event_outcome;      // "SUCCESS" | "FAIL" | "SKIP"
+
+   string m_last_position_type;     // "LONG" | "SHORT" | "NA"
 
 
 
@@ -264,6 +276,33 @@ private:
       m_before_emitted = false;
       m_after_emitted  = false;
       m_current_correlation_id = ++m_next_correlation_id;
+
+
+// Reset v2.0 outcome buffer (Option C1)
+      m_out_previous_stoploss   = 0.0;
+      m_out_new_stoploss        = 0.0;
+      m_out_closed_lots         = 0.0;
+      m_out_execution_reason    = "NOT_ELIGIBLE";
+      m_out_event_outcome       = "SKIP";  // default until proven SUCCESS or FAI
+      m_out_action_executed     = false;
+
+   }
+
+
+   string PositionTypeToString(const enum_position p) const
+   {
+      if(p == Long)  return "LONG";
+      if(p == Short) return "SHORT";
+      return "NA"; // NoTrade or any other value
+   }
+
+   enum_position GetLivePositionDirection(const string symbol) const
+   {
+      if(!PositionSelect(symbol))
+         return NoTrade;
+
+      const long ptype = (long)PositionGetInteger(POSITION_TYPE);
+      return (ptype == POSITION_TYPE_BUY ? Long : Short);
    }
 
    void EndMMCycleCheck()
@@ -294,26 +333,37 @@ private:
       MM_LogSnapshotBefore rec;
       ZeroMemory(rec);
 
+      // Timing / classification
+      rec.timestamp = snap.timestamp;
+      rec.symbol    = snap.symbol;
+      enum_position liveDir = GetLivePositionDirection(rec.symbol);
+      string pt = PositionTypeToString(liveDir);
+      rec.position_type = (pt != "NA" ? pt : m_last_position_type);
+      rec.timeframe = snap.timeframe;
+
       // Correlation
       rec.correlation_id = m_current_correlation_id;
 
       // Identity (v2.0)
       rec.cycle_id = (snap.cycle_id > 0 ? snap.cycle_id : m_cycle_id);
-
-      // ✅ For now: internal_trade_id == cycle_id (deterministic & stable).
-      // You can split later if needed.
       rec.internal_trade_id = (long)rec.cycle_id;
 
-      // Ticket: pre-entry can be 0
-      rec.ticket = (ulong)snap.trade_context_id;
+      // Ticket/PositionId from LIVE state if possible (now rec.symbol is set)
+      ulong live_ticket = 0;
+      long  live_posid  = 0;
+      if(TryGetLiveIdentity(rec.symbol, live_ticket, live_posid))
+         {
+         rec.ticket = live_ticket;
+         rec.position_id = live_posid;
+         }
+      else
+         {
+         // fallback to cached
+         rec.ticket = m_last_ticket;
+         rec.position_id = m_last_position_id;
+         }
 
-      // Position identifier if available (0 pre-entry)
-      rec.position_id = (PositionSelect(snap.symbol) ? (long)PositionGetInteger(POSITION_IDENTIFIER) : m_last_position_id);
-
-      // Timing / classification
-      rec.timestamp = snap.timestamp;
-      rec.symbol    = snap.symbol;
-      rec.timeframe = snap.timeframe;
+      // Classification
       rec.mm_phase  = snap.mm_phase;
       rec.mm_event  = snap.mm_event_intent;
 
@@ -336,9 +386,9 @@ private:
       rec.value_per_point = snap.value_per_point;
 
       // Risk inputs actually used (you already set these in ENTRY snap)
-      rec.risk_model = snap.risk_model;
-      rec.risk_value = snap.risk_value;
-      rec.risk_amount_used = snap.risk_amount_used;
+      rec.risk_model = CurrentRiskModelString();
+      rec.risk_value = CurrentRiskValue();
+      rec.risk_amount_used = snap.current_risk_exposure;
 
       rec.scale_atr_multiple = snap.scale_atr_multiple;
       rec.scale_fraction     = snap.scale_fraction;
@@ -361,18 +411,35 @@ private:
       MM_LogSnapshotAfter rec;
       ZeroMemory(rec);
 
+      // Timing
+      rec.timestamp = snap.timestamp;
+      rec.symbol    = snap.symbol;
+      enum_position liveDir = GetLivePositionDirection(rec.symbol);
+      string pt = PositionTypeToString(liveDir);
+      rec.position_type = (pt != "NA" ? pt : m_last_position_type);
+      rec.timeframe = snap.timeframe;
+
+      // Correlation
       rec.correlation_id = m_current_correlation_id;
 
       // Identity (v2.0)
-      rec.cycle_id = (m_cycle_id);                 // lifecycle grouping
-      rec.internal_trade_id = (long)m_cycle_id;     // temporary: internal == cycle
-      rec.ticket = (ulong)snap.trade_context_id;    // holds ticket for post-entry actions (0 only for pre-entry)
-      rec.position_id = (PositionSelect(snap.symbol) ? (long)PositionGetInteger(POSITION_IDENTIFIER) : m_last_position_id);
+      rec.cycle_id = (m_cycle_id);                    // lifecycle grouping
+      rec.internal_trade_id = (long)m_cycle_id;       // temporary: internal == cycle
 
-      // Timing / classification
-      rec.timestamp = snap.timestamp;
-      rec.symbol    = snap.symbol;
-      rec.timeframe = snap.timeframe;
+      ulong live_ticket = 0;
+      long  live_posid  = 0;
+      if(TryGetLiveIdentity(rec.symbol, live_ticket, live_posid))
+         {
+         rec.ticket = live_ticket;
+         rec.position_id = live_posid;
+         }
+      else
+         {
+         rec.ticket = m_last_ticket;
+         rec.position_id = m_last_position_id;
+         }
+
+      // Classification
       rec.mm_phase  = snap.mm_phase;
       rec.mm_event  = snap.mm_event_result;
 
@@ -401,9 +468,20 @@ private:
 
       // ATR anchor: use tracker when possible
       if(rec.ticket > 0)
-         rec.atr_value = m_atrTracker.GetATR(rec.ticket);
-      else
+         {
+         if(rec.mm_event == "MM_EVENT_ENTRY")
+            rec.atr_value = snap.atr_value;
+         else if(rec.ticket > 0)
+            rec.atr_value = m_atrTracker.GetATR(rec.ticket);
+         else
+            rec.atr_value = 0.0;
+         }
+
+      // Guard against invalid/sentinel values such as DBL_MAX
+      if(rec.atr_value <= 0.0 || rec.atr_value >= 1e100)
+         {
          rec.atr_value = 0.0;
+         }
 
       // Execution state
       rec.take_profit  = pos_exists ? PositionGetDouble(POSITION_TP) : snap.take_profit;
@@ -414,21 +492,32 @@ private:
       rec.value_per_point = snap.value_per_point;
 
       // Risk inputs actually used (best-effort; fill from config + last computed)
-      rec.risk_model = EnumToString(inpRiskMethod);
-      rec.risk_value = (inpRiskMethod == RISK_FIXED ? inpRiskFixAmount : inpRiskPercent);
-      rec.risk_amount_used = m_risk.GetLastComputedRiskAmount();
+      rec.risk_model = CurrentRiskModelString();
+      rec.risk_value = CurrentRiskValue();
+      rec.risk_amount_used = rec.current_risk_exposure;
 
       // Scale context: if not applicable, keep 0
       rec.scale_atr_multiple = 0.0;
       rec.scale_fraction     = 0.0;
 
-      // Outcome fields must be populated by the caller action block (next patch)
-      rec.action_executed   = true;
-      rec.execution_reason  = "";
-      rec.previous_stoploss = 0.0;
-      rec.new_stoploss      = 0.0;
-      rec.closed_lots       = 0.0;
-      rec.event_outcome     = "SUCCESS";
+
+      // v2.0 Outcome (Option C1)
+      rec.action_executed   = m_out_action_executed;
+      rec.execution_reason  = m_out_execution_reason;
+      rec.previous_stoploss = m_out_previous_stoploss;
+      rec.new_stoploss      = m_out_new_stoploss;
+      rec.closed_lots       = m_out_closed_lots;
+      rec.event_outcome     = m_out_event_outcome;
+
+      // Safety normalization
+      if(rec.execution_reason == "")
+         {
+         // If not executed, reason must not be blank
+         if(!rec.action_executed)
+            rec.execution_reason = "NOT_ELIGIBLE";
+         }
+      if(rec.event_outcome == "")
+         rec.event_outcome = "SKIP";
 
       m_logger.LogMMSnapshotAfter(rec);
       m_after_emitted = true;
@@ -507,23 +596,44 @@ private:
       MM_LogCycleSummary summary;
       ZeroMemory(summary);
 
+
+// --- Identity ---
       summary.cycle_id = m_cycle_id;
-      summary.trade_id = (long)m_last_ticket;
+      summary.internal_trade_id = (long)m_cycle_id;   // v2.1 rule: internal_trade_id == cycle_id for now
+      summary.trade_id = (long)m_last_ticket;         // legacy-compatible alias
+      summary.ticket = m_last_ticket;
+      summary.position_id = m_last_position_id;
+      summary.position_type = (m_last_position_type == "" ? "NA" : m_last_position_type);
+
+// --- Symbol / Lifecycle Timing ---
       summary.symbol = symbol;
-
       summary.entry_time = m_entry_time;
-      summary.exit_time  = TimeCurrent();
+      summary.exit_time = TimeCurrent();
 
+      summary.duration_sec = (int)(summary.exit_time - summary.entry_time);
+      if(summary.duration_sec < 0)
+         summary.duration_sec = 0;
+
+// --- Price / PnL ---
       summary.entry_price = m_entry_price;
-      summary.exit_price  = evt.close_price;   // ✅ REAL value
+      summary.exit_price = evt.close_price;
+      summary.pnl = evt.close_profit;
 
-      summary.pnl = evt.close_profit;          // ✅ REAL value
-
+// --- Lifecycle Aggregates ---
       summary.scale_count = m_scale_count;
       summary.trail_count = m_trail_count;
       summary.be_triggered = m_be_triggered;
 
-      // ✅ Emit
+// --- Broker Close Evidence ---
+      summary.close_reason = (evt.close_reason == "" ? "UNKNOWN" : evt.close_reason);
+      summary.close_volume = evt.close_volume;
+      summary.deal_id = evt.deal_id;
+
+// --- Lifecycle Status ---
+      summary.lifecycle_status = "CLOSED";
+
+// ✅ Emit
+
       m_logger.LogCycleSummary(summary);
 
    }
@@ -769,6 +879,7 @@ public:
 
       m_next_correlation_id = 0;
       m_current_correlation_id = 0;
+      m_last_position_type = "NA";
 
    }
 
@@ -820,6 +931,10 @@ public:
          m_last_ticket = (ulong)PositionGetInteger(POSITION_TICKET);
          m_last_volume = PositionGetDouble(POSITION_VOLUME);
          m_last_position_id = (long)PositionGetInteger(POSITION_IDENTIFIER);
+
+         long dir = (long)PositionGetInteger(POSITION_TYPE);
+         m_last_position_type = PositionTypeToString(GetLivePositionDirection(symbol));
+
          }
    }
 
@@ -902,6 +1017,7 @@ public:
       m_cycle_id++;
       // --- MM Snapshot BEFORE (complete risk inputs) ---
       MM_SNAPSHOT_BEFORE snap;
+      ZeroMemory(snap);
       snap.timestamp  = TimeCurrent();
       snap.symbol     = ctx.Symbol;
       snap.timeframe  = inpEntryPeriod;
@@ -949,6 +1065,9 @@ public:
       // ✅ NOW snapshot what MM actually decided
       snap.current_risk_exposure = m_risk.GetLastComputedRiskAmount();
 
+      // Cache intended entry direction for ENTRY BEFORE/AFTER snapshots
+      m_last_position_type = PositionTypeToString(ctx.EntryBias);
+
       BeginMMCycle(MM_EVENT_ENTRY);
       EmitSnapshotBefore(snap);
 
@@ -970,8 +1089,23 @@ public:
                    inpTPxATRxPlier
                 );
 
+      if(ok)
+         {
+         m_out_action_executed  = true;
+         m_out_event_outcome    = "SUCCESS";
+         m_out_execution_reason = "";
+         }
+      else
+         {
+         // Entry attempt failed -> FAIL (not SKIP)
+         m_out_action_executed  = false;
+         m_out_event_outcome    = "FAIL";
+         m_out_execution_reason = "EXECUTION_FAILED";
+         }
+
       // ✅ MM_SNAPSHOT_AFTER (ENTRY only)
       MM_SNAPSHOT_AFTER snap_after;
+      ZeroMemory(snap_after);
       snap_after.timestamp = TimeCurrent();
       snap_after.symbol    = ctx.Symbol;
       snap_after.timeframe = inpEntryPeriod;
@@ -981,6 +1115,7 @@ public:
       snap_after.current_position_lots = lots;
       snap_after.current_risk_exposure =
          m_risk.GetLastComputedRiskAmount();
+      snap_after.atr_value = ctx.ATREntry.Value;
 
       snap_after.stoploss_points = snap.stoploss_points;
       snap_after.value_per_point = snap.value_per_point;
@@ -1028,6 +1163,7 @@ public:
       MM_LogEventBase evt;
       InitMMEvent(evt, MM_EVENT_ENTRY, MM_PHASE_ENTRY, ctx.Symbol, ticket, ctx.Time);
       evt.action_summary = "Open new trade";
+      evt.position_type = PositionTypeToString(ctx.EntryBias);
       m_logger.LogMMEventBase(evt);
    }
 
@@ -1050,6 +1186,7 @@ public:
 
       // ✅ ADD THIS (REQUIRED)
       enum_position dir = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? Long : Short);
+      m_last_position_type = PositionTypeToString(dir);
 
       if(ticket <= 0) return;
 
@@ -1085,6 +1222,7 @@ public:
             // MM_SNAPSHOT_BEFORE — SCALE_OUT
             // ===============================
             MM_SNAPSHOT_BEFORE snap;
+            ZeroMemory(snap);
             snap.timestamp = TimeCurrent();
             snap.symbol    = ctx.Symbol;
             snap.timeframe = inpEntryPeriod;
@@ -1128,6 +1266,12 @@ public:
             BeginMMCycle(MM_EVENT_SCALE_OUT);
             EmitSnapshotBefore(snap);
 
+            // Default: not executed unless proven otherwise
+            m_out_action_executed  = false;
+            m_out_execution_reason = "NOT_ELIGIBLE";
+            m_out_closed_lots      = 0.0;
+            m_out_event_outcome    = "SKIP";
+
             // =========================
             // SAFE EXECUTION BLOCK
             // =========================
@@ -1136,15 +1280,29 @@ public:
             do
                {
                if(!m_scale.Evaluate(ctx, g_scaleStages[i], closeLots))
+                  {
+                  m_out_action_executed  = false;
+                  m_out_execution_reason = "EVALUATE_FALSE";
+                  m_out_closed_lots      = 0.0;
+                  m_out_event_outcome    = "SKIP";
                   break;
 
+                  }
                if(!m_exec.PartialClose(symbol, closeLots))
                   {
                   Print("⚠️ SCALE_OUT execution failed");
+                  m_out_action_executed  = false;
+                  m_out_execution_reason = "EXECUTION_FAILED";
+                  m_out_closed_lots      = 0.0;
+                  m_out_event_outcome    = "FAIL";
                   break;
                   }
 
                scale_executed = true;
+               m_out_action_executed  = true;
+               m_out_execution_reason = "";
+               m_out_closed_lots      = closeLots;
+               m_out_event_outcome    = "SUCCESS";
                scale_steps++;
                m_scale_count++;
                total_closed_fraction += g_scaleStages[i].closeFraction;
@@ -1206,6 +1364,7 @@ public:
             // MM_SNAPSHOT_AFTER — SCALE_OUT
             // ===============================
             MM_SNAPSHOT_AFTER snap_after;
+            ZeroMemory(snap_after);
             snap_after.timestamp = TimeCurrent();
             snap_after.symbol    = ctx.Symbol;
             snap_after.timeframe = inpEntryPeriod;
@@ -1259,6 +1418,7 @@ public:
          // MM_SNAPSHOT_BEFORE — BREAK EVEN
          // ===============================
          MM_SNAPSHOT_BEFORE snap;
+         ZeroMemory(snap);
          snap.timestamp = TimeCurrent();
          snap.symbol    = ctx.Symbol;
          snap.timeframe = inpEntryPeriod;
@@ -1299,6 +1459,13 @@ public:
          // ✅ BEGIN INF-3
          BeginMMCycle(MM_EVENT_BE);
          EmitSnapshotBefore(snap);
+         m_out_action_executed     = false;
+         m_out_execution_reason    = "NOT_TRIGGERED";
+         m_out_previous_stoploss   = 0.0;
+         m_out_new_stoploss        = 0.0;
+         m_out_closed_lots         = 0.0;
+         m_out_event_outcome       = "SKIP";
+
 
          // =========================
          // SAFE EXECUTION BLOCK
@@ -1308,12 +1475,22 @@ public:
          do
             {
             if(!m_be.Evaluate(ctx, inpBE_ATR, inpBE_ExtraPips, newSL))
+               {
+               m_out_action_executed  = false;
+               m_out_execution_reason = "EVALUATE_FALSE";
+               m_out_event_outcome    = "SKIP";
                break;
+
+               }
             double oldSL = PositionGetDouble(POSITION_SL);
             if(!m_exec.ModifyStopLoss(symbol, newSL))
                {
                Print("⚠️ Break-Even execution failed");
+               m_out_action_executed  = false;
+               m_out_execution_reason = "EXECUTION_FAILED";
+               m_out_event_outcome    = "FAIL";
                break;
+
                }
 
             m_atrTracker.MarkBEApplied(ticket); // 1️⃣ Mark BE applied FIRST (prevents double logging)
@@ -1327,6 +1504,11 @@ public:
             m_logger.LogMMEventBase(evt);
 
             be_applied = true;
+            m_out_action_executed     = true;
+            m_out_execution_reason    = "";
+            m_out_previous_stoploss   = oldSL;
+            m_out_new_stoploss        = newSL;
+            m_out_event_outcome       = "SUCCESS";
             m_be_triggered = true;
 
             }
@@ -1336,6 +1518,7 @@ public:
          // MM_SNAPSHOT_AFTER — BREAK EVEN
          // ===============================
          MM_SNAPSHOT_AFTER snap_after;
+         ZeroMemory(snap_after);
          snap_after.timestamp = TimeCurrent();
          snap_after.symbol    = ctx.Symbol;
          snap_after.timeframe = inpEntryPeriod;
@@ -1382,6 +1565,7 @@ public:
       // MM_SNAPSHOT_BEFORE — TRAILING STOP
       // ==================================
       MM_SNAPSHOT_BEFORE snap;
+      ZeroMemory(snap);
       snap.timestamp = TimeCurrent();
       snap.symbol    = ctx.Symbol;
       snap.timeframe = inpEntryPeriod;
@@ -1421,6 +1605,13 @@ public:
       // ✅ INF-3 START
       BeginMMCycle(MM_EVENT_TRAIL);
       EmitSnapshotBefore(snap);
+      m_out_action_executed     = false;
+      m_out_execution_reason    = "NOT_TRIGGERED";
+      m_out_previous_stoploss   = 0.0;
+      m_out_new_stoploss        = 0.0;
+      m_out_closed_lots         = 0.0;
+      m_out_event_outcome       = "SKIP";
+
 
       // =========================
       // SAFE EXECUTION BLOCK
@@ -1430,11 +1621,21 @@ public:
       do
          {
          if(!m_trail.Evaluate(ctx, inpTrailStartATR, inpTrailATR, newSL))
+            {
+            m_out_action_executed  = false;
+            m_out_execution_reason = "EVALUATE_FALSE";
+            m_out_event_outcome    = "SKIP";
             break;
+
+            }
+
 
          if(!m_exec.ModifyStopLoss(symbol, newSL))
             {
             Print("⚠️ TRAILING execution failed");
+            m_out_action_executed  = false;
+            m_out_execution_reason = "EXECUTION_FAILED";
+            m_out_event_outcome    = "FAIL";
             break;
             }
          else
@@ -1443,6 +1644,11 @@ public:
             }
 
          trail_applied = true;
+         m_out_action_executed     = true;
+         m_out_execution_reason    = "";
+         m_out_previous_stoploss   = oldSL;
+         m_out_new_stoploss        = newSL;
+         m_out_event_outcome       = "SUCCESS";
          m_trail_count++;
 
          // ----------------------------------------------------
@@ -1461,6 +1667,7 @@ public:
       // MM_SNAPSHOT_AFTER — TRAILING STOP
       // ==================================
       MM_SNAPSHOT_AFTER snap_after;
+      ZeroMemory(snap_after);
       snap_after.timestamp = TimeCurrent();
       snap_after.symbol    = ctx.Symbol;
       snap_after.timeframe = inpEntryPeriod;
@@ -1506,6 +1713,7 @@ public:
 
       ulong ticket = (ulong)PositionGetInteger(POSITION_TICKET);
       enum_position dir = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? Long : Short);
+      m_last_position_type = PositionTypeToString(dir);
 
       // --- Exit signal evaluation ---
       ExitPSARParams ps{inpPSAR_Steps, inpPSAR_Max};
@@ -1534,6 +1742,7 @@ public:
       // MM_SNAPSHOT_BEFORE — EXIT
       // ==========================
       MM_SNAPSHOT_BEFORE snap;
+      ZeroMemory(snap);
       snap.timestamp = TimeCurrent();
       snap.symbol    = ctx.Symbol;
       snap.timeframe = inpEntryPeriod;
@@ -1571,8 +1780,9 @@ public:
       // ✅ INF-3 START
       BeginMMCycle(MM_EVENT_EXIT);
       EmitSnapshotBefore(snap);
-
-
+      m_out_action_executed  = false;
+      m_out_execution_reason = "NOT_ATTEMPTED";
+      m_out_event_outcome    = "SKIP";
 
 #ifdef ENABLE_LIFECYCLE_CONTROLLER
       // Phase 5 — Step 6: Lifecycle EXIT (pass-through)
@@ -1593,10 +1803,16 @@ public:
          if(!m_exec.ExecuteExit(ctx))
             {
             Print("⚠️ EXIT execution fail" + " m_cycle_id: " + IntegerToString(m_cycle_id));
-
+            m_out_action_executed  = false;
+            m_out_execution_reason = "EXECUTION_FAILED";
+            m_out_event_outcome    = "FAIL";
             break;
+
             }
          exit_success = true;
+         m_out_action_executed  = true;
+         m_out_execution_reason = "";
+         m_out_event_outcome    = "SUCCESS";
 
          // ✅ EXIT LOGGING — Phase 4.4
          // ✅ log event ONLY on sucess
@@ -1612,6 +1828,7 @@ public:
       // MM_SNAPSHOT_AFTER — EXIT
       // =========================
       MM_SNAPSHOT_AFTER snap_after;
+      ZeroMemory(snap_after);
       snap_after.timestamp = TimeCurrent();
       snap_after.symbol    = ctx.Symbol;
       snap_after.timeframe = inpEntryPeriod;
@@ -1700,6 +1917,41 @@ private:
       return true;
    }
 
+
+// ============================================================
+// v2.0 Snapshot Helpers (Option 2 Risk Consistency)
+// ============================================================
+
+// Always return a stable risk model string (v2.0)
+   string CurrentRiskModelString() const
+   {
+      return EnumToString(inpRiskMethod);
+   }
+
+// Always return the configured risk value (v2.0)
+// - percent model: inpRiskPercent
+// - fixed model:   inpRiskFixAmount
+   double CurrentRiskValue() const
+   {
+      // If you have enum values for fixed risk, map it here.
+      // If not sure, keep percent as default and override later.
+      if(inpRiskMethod == RISK_FIXED)  // adjust if your enum name differs
+         return inpRiskFixAmount;
+      return inpRiskPercent;
+   }
+
+// Defensive: use live ticket/position_id when possible
+   bool TryGetLiveIdentity(const string symbol, ulong &ticket, long &position_id) const
+   {
+      if(!PositionSelect(symbol))
+         return false;
+
+      ticket = (ulong)PositionGetInteger(POSITION_TICKET);
+      position_id = (long)PositionGetInteger(POSITION_IDENTIFIER);
+      return true;
+   }
+
+
 // ============================================================
 // initialize common event fields
 // ============================================================
@@ -1722,6 +1974,12 @@ private:
       evt.trade_id   = (long)ticket;
       evt.correlation_id = m_current_correlation_id;
       evt.ticket     = ticket;
+
+      // Default from live position if available, otherwise fallback
+      enum_position liveDir = GetLivePositionDirection(symbol);
+      string pt = PositionTypeToString(liveDir);
+      evt.position_type = (pt != "NA" ? pt : m_last_position_type);
+
 
       // Defaults (safe; overridden by CLOSE/SCALE_OUT when matched)
       evt.close_reason = "";

@@ -117,6 +117,14 @@ This enables reconstruction of full trade lifecycles across MM events and snapsh
   - MM Event ↔ Snapshot BEFORE ↔ Snapshot AFTER
   for the same MM action attempt
 
+#### internal_trade_id (v2.0) — Current Implementation
+For v2.0, the engine sets:
+- `internal_trade_id == cycle_id`
+
+This preserves a stable deterministic identity while the system operates in a
+one-entry-per-lifecycle mode. The field is reserved for future divergence when
+trade identity must be stable across multi-ticket or multi-position structures.
+
 #### Join Rules (Analytics & Validation)
 - Primary lifecycle grouping: `cycle_id`
 - Broker evidence linkage (CLOSE/SCALE_OUT deals): `position_id`

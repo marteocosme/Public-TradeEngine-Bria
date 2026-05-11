@@ -1,11 +1,11 @@
 ### 🗄️ Document Status (Archived)
-**Version:** v1.3
+**Version:** v2.0
 
 **Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
 
 **Superseded By:** <MM_Snapshot_Schema.md>
 
-**Last Updated:** 2026-05-07 (UTC+8)
+**Last Updated:** 2026-05-11 (UTC+8)
 
 **Archived On:** Last Updated: 2026-05-11 (UTC+8)
 
@@ -16,7 +16,9 @@
 
 # MM Snapshot Schema
 
+
 ## Supersedes
+- MM_Snapshot_Schema_v1.3.md
 - MM_Snapshot_Schema_v1.2.md
 - MM_Snapshot_Schema_v1.1.md
 
@@ -25,14 +27,27 @@
 
 - v1.0 → Initial schema version (archived)
 - v1.1 → Intermediate version (archived)
+- v1.2 → Added Execution Outcome fields (archived)
+- v1.3 → Doc clarifications (archived)
 
 Location: `/00_Core/_archive/`
 
 
 
-## Change Summary
-- Added Execution Outcome fields
-- Improved observability for MM actions
+## Change Summary (v2.0)
+
+**Breaking change release.**
+- Switched Snapshot logging to **FULL-STATE** for BOTH BEFORE and AFTER (no blank fields).
+- Deprecated and removed `trade_context_id` from the schema (replaced with explicit identity fields).
+- Added explicit identity model:
+  - `cycle_id`, `internal_trade_id`, `ticket`, `position_id`
+- Added `correlation_id` to bind:
+  - Event ↔ Snapshot BEFORE ↔ Snapshot AFTER
+- Added MM inputs actually used:
+  - `risk_model`, `risk_value`, `risk_amount_used`
+- Formalized N/A rules:
+  - numeric N/A = 0, string N/A = "" (no denormals, no blanks-as-missing)
+
 
 ## Change Log
 
@@ -108,6 +123,149 @@ Any deviation invalidates the schema contract.
 - Introduce Single Schema Definition (code-level enforcement)
 - Apply Logging Hardening (header dispatcher integration)
 - Add schema validation checks
+
+
+---
+
+# MM Snapshot Schema v2.0 (SSOT)
+
+## 1. Purpose
+This schema defines the snapshot contract used to make Money Management (MM) decisions fully observable, reconstructable, and auditable from logs alone.
+Snapshots capture:
+- State BEFORE an MM action
+- Execution Outcome (what happened + why)
+- State AFTER an MM action
+
+**v2.0 policy: FULL-STATE**
+- BOTH BEFORE and AFTER snapshots MUST populate the full core state set (no blanks-as-missing).
+- If a field is not applicable for an event, it MUST be set to a stable sentinel:
+  - numeric fields → 0
+  - string fields → "" (empty string)
+
+This prevents uninitialized/denormal artifacts (e.g., `5e-324`) and enables deterministic parsing.
+
+## 2. Snapshot Types
+Two snapshot types exist and are used uniformly across all MM actions:
+- MM_SNAPSHOT_BEFORE — state immediately before an MM decision/execution attempt
+- MM_SNAPSHOT_AFTER  — state immediately after an MM decision/execution attempt
+
+## 3. Deprecation (Breaking Change)
+### Deprecated/Removed Field
+- `trade_context_id` — removed in v2.0
+
+### Replacement Identity Fields (v2.0)
+- `cycle_id` (int) — lifecycle grouping id (shared with MM Event log)
+- `internal_trade_id` (long) — deterministic engine id (stable across lifecycle)
+- `ticket` (ulong) — broker ticket (0 pre-entry)
+- `position_id` (long) — POSITION_IDENTIFIER (stable lifecycle id across deals; important for hedging/netting)
+- `correlation_id` (ulong) — binds Event ↔ Snapshot BEFORE ↔ Snapshot AFTER for the same MM action
+
+
+#### Implementation Note (v2.0)
+**Current rule:** `internal_trade_id == cycle_id`.
+
+Rationale:
+- The engine currently models **one trade lifecycle per entry**:
+  ENTRY → (SCALE_OUT / BE / TRAIL / EXIT) → CLOSE.
+- Therefore, the lifecycle grouping id (`cycle_id`) is sufficient as the deterministic trade identity in the current design.
+
+Future:
+- `internal_trade_id` is reserved for cases where a single trade concept may span multiple broker tickets/positions
+  (e.g., scale-in, multi-order entries, persistence across restarts, complex netting/hedging flows).
+
+
+## 4. Actions Covered
+This schema applies to:
+- MM_EVENT_ENTRY
+- MM_EVENT_SCALE_OUT
+- MM_EVENT_BE
+- MM_EVENT_TRAIL
+- MM_EVENT_EXIT
+- MM_EVENT_CLOSE (broker-confirmed lifecycle outcome)
+
+## 5. Column Order Guarantee (v2.0)
+All logs MUST follow the exact column order below. Missing or extra columns invalidate the log.
+
+### 5.1 Snapshot Columns (v2.0) — Full-State
+1.  debug_event_id
+2.  correlation_id
+
+**Identity**
+3.  cycle_id
+4.  internal_trade_id
+5.  ticket
+6.  position_id
+
+**Timing / Classification**
+7.  timestamp
+8.  symbol
+9.  timeframe
+10. record_type
+11. mm_phase
+12. mm_event
+
+**Account (Full-State)**
+13. balance
+14. equity
+15. free_margin
+
+**Exposure (Full-State)**
+16. current_position_lots
+17. current_risk_exposure
+
+**Market Context (Full-State)**
+18. current_price
+19. atr_value
+
+**Execution State (Full-State)**
+20. take_profit
+21. floating_pnl
+22. realized_pnl
+
+**Risk Geometry (Full-State)**
+23. stoploss_points
+24. value_per_point
+
+**MM Inputs Actually Used (Full-State)**
+25. risk_model
+26. risk_value
+27. risk_amount_used
+
+**Scale Context (Full-State, N/A=0)**
+28. scale_atr_multiple
+29. scale_fraction
+
+**Execution Outcome (Always Populated)**
+30. action_executed
+31. execution_reason
+32. previous_stoploss
+33. new_stoploss
+34. closed_lots
+35. event_outcome   (SUCCESS | FAIL | SKIP)
+
+## 6. Field Population Rules (Strict)
+- BEFORE snapshot MUST be emitted before any MM decision logic mutates state.
+- AFTER snapshot MUST be emitted after the MM attempt completes (success/fail/skip).
+- FULL-STATE rule: AFTER MUST NOT write blank placeholders for numeric fields.
+- action_executed MUST be TRUE or FALSE (never empty).
+- execution_reason MUST be populated when action_executed = FALSE.
+- Scale context fields MUST be 0 for non-SCALE_OUT events.
+- Stoploss outcome fields apply only to BE/TRAIL:
+  - previous_stoploss and new_stoploss MUST be 0 for non BE/TRAIL events.
+- closed_lots applies only to SCALE_OUT:
+  - closed_lots MUST be 0 for non SCALE_OUT events.
+- CLOSE rule:
+  - CLOSE is broker-confirmed outcome, not an engine execution attempt.
+  - action_executed = TRUE indicates closure confirmation succeeded.
+
+## 7. Reconstruction Guarantee
+This schema guarantees that every MM action is reconstructable using:
+- Snapshot BEFORE (Full-State)
+- Execution Outcome (Always Populated)
+- Snapshot AFTER (Full-State)
+
+---
+
 
 # MM Snapshot Schema v1.2
 **Document ID:** MM-SNAPSHOT-SCHEMA-v1.2
@@ -414,7 +572,7 @@ All three layers are REQUIRED for valid reconstruction.
 This schema version is locked.
 
 - No structural changes allowed after approval
-- Any modification requires a new version (v1.4+)
+- Any modification requires a new version (v2.1+ or v3.0)
 - Historical versions must remain unchanged
 
 

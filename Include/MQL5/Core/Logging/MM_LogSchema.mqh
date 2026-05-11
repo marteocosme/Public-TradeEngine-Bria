@@ -1,8 +1,7 @@
 ﻿//+------------------------------------------------------------------+
-//| MM_LogSchema.mqh                                           |
-//| Single Source Schema Definition (MM-LOG-01 Enforcement)         |
-//| Aligned with: MM_Snapshot_Schema_v1.1.md                        |
-//| Marteo Cosme                                                    |
+//| MM_LogSchema.mqh                                                 |
+//| Single Source Schema Definition (MM-LOG-01 Enforcement)          |
+//| Marteo Cosme                                                     |
 //+------------------------------------------------------------------+
 #property strict
 #ifndef __MM_LOG_SCHEMA_MQH__
@@ -20,7 +19,7 @@ public:
    // ============================================================
    static string Version()
    {
-      return "v2.0";
+      return "v2.1";
    }
 
    // ============================================================
@@ -39,6 +38,7 @@ public:
          "internal_trade_id",
          "ticket",
          "position_id",
+         "position_type",
 
          // --- Timing / Classification ---
          "timestamp",
@@ -95,8 +95,8 @@ public:
    // ============================================================
    static int SnapShotColumnCount()
    {
-      return 35;
-      
+      return 36;
+
    }
 
 
@@ -107,17 +107,33 @@ public:
    {
       FileWrite(
          h,
+         // --- Identity ---
          "cycle_id",
+         "internal_trade_id",
          "trade_id",
+         "ticket",
+         "position_id",
+         "position_type",
+         // --- Symbol / Lifecycle Timing ---
          "symbol",
          "entry_time",
          "exit_time",
+         "duration_sec",
+         // --- Price / PnL ---
          "entry_price",
          "exit_price",
          "pnl",
+         // --- Lifecycle Aggregates ---
          "scale_count",
          "trail_count",
-         "be_triggered"
+         "be_triggered",
+         // --- Broker Close Evidence ---
+         "close_reason",
+         "close_volume",
+         "deal_id",
+         // --- Lifecycle Status ---
+         "lifecycle_status"
+
       );
    }
 
@@ -126,10 +142,7 @@ public:
    // ============================================================
    static int SummaryColumnCount()
    {
-      // Must match SummaryHeader() exactly
-      // cycle_id, trade_id, symbol, entry_time, exit_time, entry_price, exit_price,
-      // pnl, scale_count, trail_count, be_triggered
-      return 11;
+      return 20;
 
    }
 
@@ -150,6 +163,7 @@ public:
          "cycle_id",
          "trade_id",
          "ticket",
+         "position_type",
          "action_summary",
          "scale_steps",
          "scale_fraction_total",
@@ -171,7 +185,7 @@ public:
       // debug_event_id, correlation_id, event_time, symbol, timeframe, phase, event_type,
       // cycle_id, trade_id, ticket, action_summary, scale_steps, scale_fraction_total,
       // close_reason, close_price, close_profit, close_volume, deal_id
-      return 18;
+      return 19;
 
    }
 

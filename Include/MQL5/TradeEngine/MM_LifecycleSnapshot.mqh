@@ -91,6 +91,7 @@ struct MM_SNAPSHOT_AFTER
 
    double   take_profit;
    double   realized_pnl;
+   double   atr_value;
 
 };
 //+------------------------------------------------------------------+

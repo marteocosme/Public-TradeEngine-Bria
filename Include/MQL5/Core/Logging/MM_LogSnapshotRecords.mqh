@@ -20,6 +20,7 @@ struct MM_LogSnapshotBefore
    long  internal_trade_id;
    ulong ticket;
    long  position_id;
+   string position_type; // "LONG" | "SHORT" | "NA"
 
    // --- Identity & Timing ---
    datetime timestamp;
@@ -68,7 +69,7 @@ struct MM_LogSnapshotBefore
    double previous_stoploss;
    double new_stoploss;
    double closed_lots;
-   string event_outcome;     // "", or "SUCCESS/FAIL/SKIP" (prefer "" in BEFORE)
+   string event_outcome;     // "", or "SUCCESS \ FAIL \ SKIP" (prefer "" in BEFORE)
 
 };
 
@@ -89,6 +90,7 @@ struct MM_LogSnapshotAfter
    long  internal_trade_id;
    ulong ticket;
    long  position_id;
+   string position_type; // "LONG" | "SHORT" | "NA"
 
    // --- Identity & Timing ---
    datetime timestamp;

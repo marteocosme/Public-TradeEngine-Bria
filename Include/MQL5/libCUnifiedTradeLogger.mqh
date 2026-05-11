@@ -27,6 +27,7 @@ struct MM_LogEventBase
    ENUM_TIMEFRAMES     timeframe;    // Strategy timeframe
    long                trade_id;     // Deterministic internal ID
    ulong               ticket;       // Broker ticket (0 if N/A)
+   string              position_type;// "LONG" | "SHORT" | "NA"
 
    // ✅ NEW FIELD (safe extension)
    int                 cycle_id;   // Lifecycle grouping ID
@@ -164,6 +165,7 @@ private:
          evt.cycle_id,
          evt.trade_id,
          evt.ticket,
+         evt.position_type,
          evt.action_summary,
          evt.scale_steps,
          evt.scale_fraction_total,
@@ -266,7 +268,7 @@ public:
          }
 
 
-      int actual_columns = 35; // must match your FileWrite fields
+      int actual_columns = 36; // must match your FileWrite fields
 
       if(actual_columns != MM_EXPECTED_SNAPSHOT_COLUMNS)
          {
@@ -285,6 +287,7 @@ public:
          rec.internal_trade_id,
          rec.ticket,
          rec.position_id,
+         rec.position_type,
 
          TimeToString(rec.timestamp, TIME_DATE | TIME_SECONDS),
          rec.symbol,
@@ -352,7 +355,7 @@ public:
          }
 
 
-      int actual_columns = 35; // must match your FileWrite fields
+      int actual_columns = 36; // must match your FileWrite fields
 
       if(actual_columns != MM_EXPECTED_SNAPSHOT_COLUMNS)
          {
@@ -387,6 +390,7 @@ public:
          rec.internal_trade_id,
          rec.ticket,
          rec.position_id,
+         rec.position_type,
 
          TimeToString(rec.timestamp, TIME_DATE | TIME_SECONDS),
          rec.symbol,
@@ -470,19 +474,38 @@ public:
 
          }
       FileWrite(h,
+                // --- Identity ---
                 s.cycle_id,
+                s.internal_trade_id,
                 s.trade_id,
+                s.ticket,
+                s.position_id,
+                s.position_type,
+                // --- Symbol / Lifecycle Timing ---
                 s.symbol,
-                s.entry_time,
-                s.exit_time,
+                TimeToString(s.entry_time, TIME_DATE | TIME_SECONDS),
+                TimeToString(s.exit_time, TIME_DATE | TIME_SECONDS),
+                s.duration_sec,
+                // --- Price / PnL ---
                 s.entry_price,
                 s.exit_price,
                 s.pnl,
+                // --- Lifecycle Aggregates ---
                 s.scale_count,
                 s.trail_count,
-                s.be_triggered
+                s.be_triggered,
+                // --- Broker Close Evidence ---
+                s.close_reason,
+                s.close_volume,
+                s.deal_id,
+                // --- Lifecycle Status ---
+                s.lifecycle_status
+
                );
+      FileClose(h);
+
    }
+
 };
 
 

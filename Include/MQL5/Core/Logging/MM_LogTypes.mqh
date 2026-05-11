@@ -6,20 +6,36 @@
 
 struct MM_LogCycleSummary
 {
-   int      cycle_id;
-   long     trade_id;
-   string   symbol;
+  // --- Identity ---
+  int   cycle_id;
+  long  internal_trade_id;   // v2.1: equals cycle_id for now
+  long  trade_id;            // legacy-compatible; currently same as ticket
+  ulong ticket;
+  long  position_id;
+  string position_type;      // "LONG" | "SHORT" | "NA"
 
-   datetime entry_time;
-   datetime exit_time;
+  // --- Symbol / Lifecycle Timing ---
+  string symbol;
+  datetime entry_time;
+  datetime exit_time;
+  int duration_sec;
 
-   double   entry_price;
-   double   exit_price;
+  // --- Price / PnL ---
+  double entry_price;
+  double exit_price;
+  double pnl;
 
-   double   pnl;
+  // --- Lifecycle Aggregates ---
+  int  scale_count;
+  int  trail_count;
+  bool be_triggered;
 
-   int      scale_count;
-   int      trail_count;
+  // --- Broker Close Evidence ---
+  string close_reason;
+  double close_volume;
+  ulong deal_id;
 
-   bool     be_triggered;
+  // --- Lifecycle Status ---
+  string lifecycle_status;   // "CLOSED" for completed lifecycle rows
+
 };

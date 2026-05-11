@@ -159,6 +159,20 @@ Two snapshot types exist and are used uniformly across all MM actions:
 - `position_id` (long) — POSITION_IDENTIFIER (stable lifecycle id across deals; important for hedging/netting)
 - `correlation_id` (ulong) — binds Event ↔ Snapshot BEFORE ↔ Snapshot AFTER for the same MM action
 
+
+#### Implementation Note (v2.0)
+**Current rule:** `internal_trade_id == cycle_id`.
+
+Rationale:
+- The engine currently models **one trade lifecycle per entry**:
+  ENTRY → (SCALE_OUT / BE / TRAIL / EXIT) → CLOSE.
+- Therefore, the lifecycle grouping id (`cycle_id`) is sufficient as the deterministic trade identity in the current design.
+
+Future:
+- `internal_trade_id` is reserved for cases where a single trade concept may span multiple broker tickets/positions
+  (e.g., scale-in, multi-order entries, persistence across restarts, complex netting/hedging flows).
+
+
 ## 4. Actions Covered
 This schema applies to:
 - MM_EVENT_ENTRY
