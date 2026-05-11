@@ -1,173 +1,96 @@
-# MM-LOG-01 Logging Completion and Validation
 
----
+## MM-LOG-01 Logging Completion and Validation (v2.0)
 
-## Status
-✅ Complete (Validated against Schema v1.2)
+### Status
+⏳ In Progress (Target: Validate against Schema v2.0)
 
----
-
-## Phase Mapping
-
+### Phase Mapping
 Phase: Phase 4 — Logging & Observability  
-Extended in: Phase 4B — Logging Hardening  
+Extended in: Phase 4B — Logging Hardening
 
-This document confirms full completion and validation of MM-LOG-01.
+This document validates MM-LOG-01 against:
+- MM_Snapshot_Schema.md (v2.0)
 
----
-
-## Validation Scope
-
+### Validation Scope
 This validation covers:
-
 - Snapshot integrity (BEFORE / AFTER)
-- Schema compliance (field names and order)
-- Column count enforcement
+- Schema compliance (field names, order, column count)
+- Full-State enforcement (AFTER has no blank core fields)
+- Identity model compliance:
+  - cycle_id, internal_trade_id, ticket, position_id
+- Correlation enforcement:
+  - correlation_id binds Event ↔ Snapshot BEFORE ↔ Snapshot AFTER
 - Execution State correctness (post-action values)
-- Execution Outcome coverage (MM context)
-- Data completeness for reconstruction
+- Execution Outcome coverage (executed/failed/skip + reason)
+- Normalization rules (N/A numeric=0; no denormal artifacts)
 
 Excluded:
-
 - Broker execution logging (OrderSend / OrderModify)
-- Execution result codes or external errors
-
 → Covered under EXEC-LOG-01
 
----
-
-
-## ✅ Validation Categories
-
-### Trade Constraints
-- Lot size must be within broker limits
-- SL/TP distances must meet minimum stop level
-
-
-### Risk Constraints
-- Lot size must match risk model
-- Exposure must not exceed allowed %
-
-### Execution Constraints
-- Symbol must be tradable
-- Market conditions must allow execution
-
----
-
-## Validation Success Criteria
-
-MM-LOG-01 is considered VALIDATED when:
-
-- All snapshots conform to schema v1.2
-- BEFORE / AFTER snapshots are always paired
+### Validation Success Criteria
+MM-LOG-01 v2.0 is VALIDATED when:
+- All snapshots conform to schema v2.0
+- BEFORE / AFTER snapshots are always paired (INF-3)
 - Column count matches schema definition
-- Execution Outcome fields are present and accurate
-- Execution State fields reflect post-action values
-- No critical fields are missing:
-  - symbol
-  - mm_phase
-  - mm_event
-- Logs pass runtime validation checks with no schema errors
+- Full-State AFTER: core fields are populated (no blanks-as-missing)
+- Identity fields are consistent and non-garbage:
+  - ticket/position_id/cycle_id match Events and broker history where applicable
+- correlation_id is present and consistent across:
+  - MM Event log
+  - Snapshot BEFORE
+  - Snapshot AFTER
+- Execution Outcome fields are present and accurate:
+  - action_executed always TRUE/FALSE
+  - execution_reason populated when FALSE
+  - event_outcome is one of SUCCESS/FAIL/SKIP
 
----
+### ✅ Validation Categories
+#### Schema Integrity
+- Single schema definition enforced
+- Column order consistent
+- Header alignment with schema verified
+- Column mismatch detection verified
 
-## Validated Capabilities
+#### Snapshot Integrity
+- BEFORE snapshot emitted ✅
+- AFTER snapshot emitted ✅
+- BEFORE/AFTER pairing enforced ✅ (INF-3)
 
-### Snapshot Logging
+#### Full-State Enforcement
+- AFTER snapshot contains full core state ✅
+  - balance, equity, free_margin
+  - current_price, atr_value
+  - scale fields normalized to 0 when N/A
 
-- BEFORE snapshot emitted ✅  
-- AFTER snapshot emitted ✅  
-- BEFORE/AFTER pairing enforced ✅  
-- INF-3 enforcement validated ✅  
+#### Identity & Correlation
+- cycle_id present and correct ✅
+- internal_trade_id present and stable ✅
+- ticket present (0 pre-entry; broker ticket post-entry) ✅
+- position_id present when position exists ✅
+- correlation_id binds Event ↔ BEFORE ↔ AFTER ✅
 
----
+#### Execution Outcome Validation
+- SCALE_OUT logs:
+  - action_executed, closed_lots, execution_reason ✅
+- BREAK-EVEN logs:
+  - action_executed, previous_stoploss, new_stoploss ✅
+- TRAILING logs:
+  - action_executed, previous_stoploss, new_stoploss ✅
+- EXIT logs:
+  - action_executed, execution_reason ✅
+- CLOSE logs:
+  - action_executed=TRUE indicates confirmation ✅
 
-### Execution State Validation (Section 5.3)
-
-- take_profit correctly logged ✅  
-- realized_pnl correctly logged ✅  
-
----
-
-### Execution Outcome Validation (Section 5.4)
-
-- SCALE_OUT action_executed logged ✅  
-- SCALE_OUT closed_lots recorded ✅  
-- BREAK-EVEN previous_stoploss → new_stoploss recorded ✅  
-- TRAILING previous_stoploss → new_stoploss recorded ✅  
-- Non-executed actions include execution_reason ✅  
-
----
-
-### Schema Integrity
-
-- Single schema definition enforced ✅  
-- Column order consistent ✅  
-- No duplication of schema definitions ✅  
-
----
-
-### Header Validation
-
-- Header written correctly ✅  
-- Header duplication prevented ✅  
-- Header alignment with schema verified ✅  
-
----
-
-### Runtime Validation
-
-- Column count validation implemented ✅  
-- Column mismatch detection verified ✅  
-- Critical field validation active ✅  
-
----
-
-## Implementation Reference
-
+### Implementation Reference
 Validated against:
+- MM_LogSchema.mqh (v2.0 schema enforcement)
+- MM_LogSnapshotRecords.mqh (v2.0 record alignment)
+- CUnifiedTradeLogger (snapshot writer)
+- TradeEngine MM handlers:
+  - ENTRY, SCALE_OUT, BREAK-EVEN, TRAILING, EXIT, CLOSE
 
-- MM_LogSchema_v1_2.mqh (schema enforcement)
-- CUnifiedTradeLogger (logging engine)
-- TradeEngine MM event handlers:
-  - ENTRY
-  - SCALE_OUT
-  - BREAK-EVEN
-  - TRAILING
-  - EXIT
-
-All validation results are based on runtime backtest logs.
-
----
-
-## Traceability Assurance
-
-The logging system guarantees:
-
-- Every MM action is captured
-- Every state transition is recorded
-- Every action outcome is logged
-- All data is reconstructable
-
-This ensures deterministic replay and audit capability.
-
----
-
-## Final Outcome
-
-MM-LOG-01 has been:
-
-- Fully implemented
-- Structurally aligned with schema v1.2
-- Runtime validated
-- Hardened against schema violations
-
----
-
-## Immutability Rule
-
-This document is version-locked.
-
-- No structural changes allowed after approval
+### Immutability Rule
+This document is version-locked after approval.
 - Any modification requires a new version
 - Historical validation must remain reproducible

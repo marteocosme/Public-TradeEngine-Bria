@@ -1,4 +1,4 @@
-# **📘 NNFX Money Management Specification v1.1**
+# **📘 NNFX Money Management Specification v2.0**
 
 ## Purpose
 
@@ -149,7 +149,7 @@ This action MUST be logged according to MM-LOG-01:
 
 Logs must conform to:
 
-→ MM_Snapshot_Schema_v1.2.md
+→ MM_Snapshot_Schema.md
 
 #### Parameters
 
@@ -208,9 +208,24 @@ The system MUST emit:
 2. Execution Outcome  
 3. AFTER snapshot  
 
+#### Snapshot Policy (v2.0)
+Snapshots are **FULL-STATE** for BOTH BEFORE and AFTER:
+- AFTER snapshots MUST NOT omit core fields (no blanks-as-missing).
+- If a field is not applicable, it MUST be normalized:
+  - numeric → 0
+  - string → ""
+
+#### Identity & Correlation Policy (v2.0)
+The logging system MUST use explicit identity fields (trade_context_id is deprecated):
+- cycle_id — lifecycle grouping id
+- internal_trade_id — deterministic engine id
+- ticket — broker ticket (0 pre-entry)
+- position_id — POSITION_IDENTIFIER lifecycle id
+- correlation_id — binds Event ↔ Snapshot BEFORE ↔ Snapshot AFTER
+
 These must conform to:
 
-→ MM_Snapshot_Schema_v1.2.md
+→ MM_Snapshot_Schema.md (v2.0)
 
 ---
 
@@ -261,7 +276,7 @@ The MM system MUST ensure:
 This specification integrates with:
 
 - MM-LOG-01_Logging_Schema_Contract.md
-- MM_Snapshot_Schema_v1.2.md
+- MM_Snapshot_Schema.md
 
 Any MM behavior MUST produce logs compliant with these contracts.
 
@@ -294,7 +309,7 @@ To ensure consistency between Money Management logic and logging schema (MM-LOG-
 
 This specification may describe concepts in general terms, while the logging system uses canonical field names defined in:
 
-→ MM_Snapshot_Schema_v1.2.md
+→ MM_Snapshot_Schema.md
 
 ### 
 

@@ -1,71 +1,142 @@
+//+------------------------------------------------------------------+
+//|                                                      ProjectName |
+//|                                      Copyright 2020, CompanyName |
+//|                                       http://www.companyname.net |
+//+------------------------------------------------------------------+
+
 
 //+------------------------------------------------------------------+
-//| MM_LogSnapshotBefore                                             |
-//| Logger-facing DTO for MM_SNAPSHOT_BEFORE (Schema v1.1)           |
+//  MM_LogSnapshotBefore  (v2.0)
+//  FULL-STATE snapshot BEFORE
 //+------------------------------------------------------------------+
+
 struct MM_LogSnapshotBefore
 {
+   // --- Meta ---
+   ulong correlation_id;
+
+   // --- Identity (v2.0) ---
+   int   cycle_id;
+   long  internal_trade_id;
+   ulong ticket;
+   long  position_id;
+
    // --- Identity & Timing ---
-   datetime         timestamp;
-   string           symbol;
-   ENUM_TIMEFRAMES  timeframe;
-   ulong             trade_context_id;
+   datetime timestamp;
+   string   symbol;
+   ENUM_TIMEFRAMES timeframe;
 
-   // --- Lifecycle Intent ---
-   string           mm_phase;         // ENTRY / MANAGE / EXIT
-   string           mm_event_intent;  // ENTRY / SCALE_OUT / BE / TRAIL / EXIT
+   // --- Classification ---
+   string mm_phase;
+   string mm_event;          // intent for BEFORE
+   // record_type is written by logger as "MM_SNAPSHOT_BEFORE"
 
-   // --- Account State ---
-   double           balance;
-   double           equity;
-   double           free_margin;      // ACCOUNT_MARGIN_FREE
+   // --- Account (Full-State) ---
+   double balance;
+   double equity;
+   double free_margin;
 
-   // --- Exposure State ---
-   double           current_position_lots;
-   double           current_risk_exposure; // ENTRY-anchored risk
+   // --- Exposure (Full-State) ---
+   double current_position_lots;
+   double current_risk_exposure;
 
-   // --- Market Context (v1.1) ---
-   double           current_price;    // Bid / Ask as appropriate
-   double           atr_value;        // ATR value actually used by MM
+   // --- Market Context (Full-State) ---
+   double current_price;
+   double atr_value;
 
-   // --- Execution-State Observability ---
-   double           take_profit;
-   double           floating_pnl;
+   // --- Execution State ---
+   double take_profit;
+   double floating_pnl;
+   double realized_pnl;      // usually 0 in BEFORE
 
    // --- Risk Geometry ---
-   double           stoploss_points;
-   double           value_per_point;
+   double stoploss_points;
+   double value_per_point;
 
-   // --- SCALE_OUT Trigger Context (conditional) ---
-   double           scale_atr_multiple; // 0 if not SCALE_OUT
-   double           scale_fraction;     // 0 if not SCALE_OUT
+   // --- MM Inputs actually used ---
+   string risk_model;
+   double risk_value;
+   double risk_amount_used;
+
+   // --- Scale Context (N/A=0) ---
+   double scale_atr_multiple;
+   double scale_fraction;
+
+   // --- Execution Outcome (neutral defaults in BEFORE) ---
+   bool   action_executed;
+   string execution_reason;
+   double previous_stoploss;
+   double new_stoploss;
+   double closed_lots;
+   string event_outcome;     // "", or "SUCCESS/FAIL/SKIP" (prefer "" in BEFORE)
+
 };
 
+
 //+------------------------------------------------------------------+
-//| MM_LogSnapshotAfter                                              |
-//| Logger-facing DTO for MM_SNAPSHOT_AFTER (Schema v1.1)            |
+//  MM_LogSnapshotAfter  (v2.0)
+//  FULL-STATE snapshot AFTER
 //+------------------------------------------------------------------+
+
+
 struct MM_LogSnapshotAfter
 {
+   // --- Meta ---
+   ulong correlation_id;
+
+   // --- Identity (v2.0) ---
+   int   cycle_id;
+   long  internal_trade_id;
+   ulong ticket;
+   long  position_id;
+
    // --- Identity & Timing ---
-   datetime         timestamp;
-   string           symbol;
-   ENUM_TIMEFRAMES  timeframe;
-   ulong             trade_context_id;
-      
-   // --- Lifecycle Intent ---
-   string           mm_phase;         // ENTRY / MANAGE / EXIT
-   string           mm_event_result;  // ENTRY / SCALE_OUT / BE / TRAIL / EXIT
+   datetime timestamp;
+   string   symbol;
+   ENUM_TIMEFRAMES timeframe;
 
-   // --- Exposure Result ---
-   double           current_position_lots;
-   double           current_risk_exposure; // ENTRY-anchored risk
+   // --- Classification ---
+   string mm_phase;
+   string mm_event;          // result for AFTER
+   // record_type is written by logger as "MM_SNAPSHOT_AFTER"
 
-   // --- Execution Outcome ---
-   double           take_profit;
-   double           realized_pnl;
+   // --- Account (Full-State) ---
+   double balance;
+   double equity;
+   double free_margin;
 
-   // --- Risk Geometry (unchanged) ---
-   double           stoploss_points;
-   double           value_per_point;
+   // --- Exposure (Full-State) ---
+   double current_position_lots;
+   double current_risk_exposure;
+
+   // --- Market Context (Full-State) ---
+   double current_price;
+   double atr_value;
+
+   // --- Execution State ---
+   double take_profit;
+   double floating_pnl;
+   double realized_pnl;
+
+   // --- Risk Geometry ---
+   double stoploss_points;
+   double value_per_point;
+
+   // --- MM Inputs actually used ---
+   string risk_model;
+   double risk_value;
+   double risk_amount_used;
+
+   // --- Scale Context (N/A=0) ---
+   double scale_atr_multiple;
+   double scale_fraction;
+
+   // --- Execution Outcome (always populated) ---
+   bool   action_executed;
+   string execution_reason;
+   double previous_stoploss;
+   double new_stoploss;
+   double closed_lots;
+   string event_outcome;     // "SUCCESS" | "FAIL" | "SKIP"
 };
+//+------------------------------------------------------------------+

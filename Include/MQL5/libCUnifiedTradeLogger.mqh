@@ -30,6 +30,7 @@ struct MM_LogEventBase
 
    // ✅ NEW FIELD (safe extension)
    int                 cycle_id;   // Lifecycle grouping ID
+   ulong               correlation_id;
    int                 scale_steps;
    double              scale_fraction_total;
    string              action_summary;
@@ -154,6 +155,7 @@ private:
       FileWrite(
          h,
          NextDebugEventId(),              // DEBUG ONLY
+         evt.correlation_id,              // NEW correlation_id
          TimeToString(evt.event_time, TIME_DATE | TIME_SECONDS),
          evt.symbol,
          EnumToString(evt.timeframe),
@@ -264,7 +266,7 @@ public:
          }
 
 
-      int actual_columns = 21; // must match your FileWrite fields
+      int actual_columns = 35; // must match your FileWrite fields
 
       if(actual_columns != MM_EXPECTED_SNAPSHOT_COLUMNS)
          {
@@ -275,39 +277,53 @@ public:
 
       FileWrite(
          h,
-         NextDebugEventId(),            // debug_event_id
-         rec.trade_context_id,          // trade_id
-         0,                             // ticket (snapshot-level)
+
+         NextDebugEventId(),
+         rec.correlation_id,
+
+         rec.cycle_id,
+         rec.internal_trade_id,
+         rec.ticket,
+         rec.position_id,
+
          TimeToString(rec.timestamp, TIME_DATE | TIME_SECONDS),
          rec.symbol,
-         "MM_SNAPSHOT_BEFORE",          // ✅ STRING TAG (not enum)
+         EnumToString(rec.timeframe),
+         "MM_SNAPSHOT_BEFORE",
          rec.mm_phase,
-         rec.mm_event_intent,
+         rec.mm_event,
 
-         // --- Account ---
          rec.balance,
          rec.equity,
          rec.free_margin,
 
-         // --- Exposure ---
          rec.current_position_lots,
          rec.current_risk_exposure,
 
-         // --- Market Context ---
          rec.current_price,
          rec.atr_value,
 
-         // --- Execution State ---
          rec.take_profit,
          rec.floating_pnl,
+         rec.realized_pnl,
 
-         // --- Risk Geometry ---
          rec.stoploss_points,
          rec.value_per_point,
 
-         // --- SCALE_OUT context ---
+         rec.risk_model,
+         rec.risk_value,
+         rec.risk_amount_used,
+
          rec.scale_atr_multiple,
-         rec.scale_fraction
+         rec.scale_fraction,
+
+         rec.action_executed,
+         rec.execution_reason,
+         rec.previous_stoploss,
+         rec.new_stoploss,
+         rec.closed_lots,
+         rec.event_outcome
+
       );
       FileClose(h);
 
@@ -336,7 +352,7 @@ public:
          }
 
 
-      int actual_columns = 21; // must match your FileWrite fields
+      int actual_columns = 35; // must match your FileWrite fields
 
       if(actual_columns != MM_EXPECTED_SNAPSHOT_COLUMNS)
          {
@@ -345,7 +361,7 @@ public:
                " Got=", actual_columns);
          }
 
-      if(rec.mm_phase == "" || rec.mm_event_result == "")
+      if(rec.mm_phase == "" || rec.mm_event == "")
          {
          Print("❌ INVALID SNAPSHOT AFTER: missing mm_phase/mm_event");
          }
@@ -364,41 +380,52 @@ public:
 
       FileWrite( // intentionally blank fields (not required in AFTER snapshot)
          h,
+         NextDebugEventId(),
+         rec.correlation_id,
 
-         // --- Meta ---
-         NextDebugEventId(),                                      // "debug_event_id", 1
-         rec.trade_context_id,                                    // "trade_id", 2
-         0,                                                       // ticket, 3
-         TimeToString(rec.timestamp, TIME_DATE | TIME_SECONDS),   //"timestamp", 4
-         rec.symbol,                                              // "symbol", 5
-         "MM_SNAPSHOT_AFTER",                                     // "record_type", 6
-         rec.mm_phase,                                            // "mm_phase", 7
-         rec.mm_event_result,                                     // "mm_event", 8
+         rec.cycle_id,
+         rec.internal_trade_id,
+         rec.ticket,
+         rec.position_id,
 
-         // --- Account ---
-         "", // balance, 9 -- not require
-         "", // equity, 10 -- not require
-         "", // free_margin, 11 -- not require
+         TimeToString(rec.timestamp, TIME_DATE | TIME_SECONDS),
+         rec.symbol,
+         EnumToString(rec.timeframe),
+         "MM_SNAPSHOT_AFTER",
+         rec.mm_phase,
+         rec.mm_event,
 
-         // --- Exposure ---
-         rec.current_position_lots,                               // "current_position_lots", 12
-         rec.current_risk_exposure,                               // "current_risk_exposure", 13
+         rec.balance,
+         rec.equity,
+         rec.free_margin,
 
-         // --- Market Context ---
-         "", // current_price -- not require                      // "current_price", 14
-         "", // atr_value -- not require                          // "atr_value", 15
+         rec.current_position_lots,
+         rec.current_risk_exposure,
 
-         // --- Execution ---
-         rec.take_profit,                                         // "take_profit", 16
-         rec.realized_pnl,                                        // "pnl", 17
+         rec.current_price,
+         rec.atr_value,
 
-         // --- Risk Geometry ---
-         rec.stoploss_points,                                     // "stoploss_points", 18
-         rec.value_per_point,                                     // "value_per_point", 19
+         rec.take_profit,
+         rec.floating_pnl,
+         rec.realized_pnl,
 
-         // --- Scale Context ---
-         "", // "scale_atr_multiple", 20
-         "" // "scale_fraction", 21
+         rec.stoploss_points,
+         rec.value_per_point,
+
+         rec.risk_model,
+         rec.risk_value,
+         rec.risk_amount_used,
+
+         rec.scale_atr_multiple,
+         rec.scale_fraction,
+
+         rec.action_executed,
+         rec.execution_reason,
+         rec.previous_stoploss,
+         rec.new_stoploss,
+         rec.closed_lots,
+         rec.event_outcome
+
       );
 
       FileClose(h);

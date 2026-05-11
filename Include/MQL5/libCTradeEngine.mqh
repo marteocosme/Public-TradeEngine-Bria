@@ -251,6 +251,9 @@ private:
    bool m_after_emitted;
    ENUM_MM_EVENT_TYPE m_current_event;
 
+   ulong m_next_correlation_id;
+   ulong m_current_correlation_id;
+
 
 
 
@@ -260,6 +263,7 @@ private:
       m_current_event = evt;
       m_before_emitted = false;
       m_after_emitted  = false;
+      m_current_correlation_id = ++m_next_correlation_id;
    }
 
    void EndMMCycleCheck()
@@ -288,36 +292,66 @@ private:
    void EmitSnapshotBefore(const MM_SNAPSHOT_BEFORE &snap)
    {
       MM_LogSnapshotBefore rec;
+      ZeroMemory(rec);
 
+      // Correlation
+      rec.correlation_id = m_current_correlation_id;
+
+      // Identity (v2.0)
+      rec.cycle_id = (snap.cycle_id > 0 ? snap.cycle_id : m_cycle_id);
+
+      // ✅ For now: internal_trade_id == cycle_id (deterministic & stable).
+      // You can split later if needed.
+      rec.internal_trade_id = (long)rec.cycle_id;
+
+      // Ticket: pre-entry can be 0
+      rec.ticket = (ulong)snap.trade_context_id;
+
+      // Position identifier if available (0 pre-entry)
+      rec.position_id = (PositionSelect(snap.symbol) ? (long)PositionGetInteger(POSITION_IDENTIFIER) : m_last_position_id);
+
+      // Timing / classification
       rec.timestamp = snap.timestamp;
       rec.symbol    = snap.symbol;
       rec.timeframe = snap.timeframe;
-      rec.trade_context_id = snap.trade_context_id;
+      rec.mm_phase  = snap.mm_phase;
+      rec.mm_event  = snap.mm_event_intent;
 
-      rec.mm_phase        = snap.mm_phase;
-      rec.mm_event_intent = snap.mm_event_intent;
-
-      rec.balance     = snap.balance;
-      rec.equity      = snap.equity;
+      // Full-state (already present in BEFORE snap)
+      rec.balance = snap.balance;
+      rec.equity  = snap.equity;
       rec.free_margin = snap.free_margin;
 
       rec.current_position_lots = snap.current_position_lots;
       rec.current_risk_exposure = snap.current_risk_exposure;
 
       rec.current_price = snap.current_price;
-      rec.atr_value     = snap.atr_value;
+      rec.atr_value      = snap.atr_value;
 
-      rec.take_profit  = snap.take_profit;
-      rec.floating_pnl = snap.floating_pnl;
+      rec.take_profit   = snap.take_profit;
+      rec.floating_pnl  = snap.floating_pnl;
+      rec.realized_pnl  = 0.0;
 
       rec.stoploss_points = snap.stoploss_points;
       rec.value_per_point = snap.value_per_point;
 
+      // Risk inputs actually used (you already set these in ENTRY snap)
+      rec.risk_model = snap.risk_model;
+      rec.risk_value = snap.risk_value;
+      rec.risk_amount_used = snap.risk_amount_used;
+
       rec.scale_atr_multiple = snap.scale_atr_multiple;
       rec.scale_fraction     = snap.scale_fraction;
 
-      m_logger.LogMMSnapshotBefore(rec);
+      // Outcome defaults for BEFORE (neutral)
+      rec.action_executed   = false;
+      rec.execution_reason  = "";
+      rec.previous_stoploss = 0.0;
+      rec.new_stoploss      = 0.0;
+      rec.closed_lots       = 0.0;
+      rec.event_outcome     = "";
 
+      m_logger.LogMMSnapshotBefore(rec);
       m_before_emitted = true;
 
    }
@@ -325,32 +359,80 @@ private:
    void EmitSnapshotAfter(const MM_SNAPSHOT_AFTER &snap)
    {
       MM_LogSnapshotAfter rec;
+      ZeroMemory(rec);
 
-      // --- Identity & Timing ---
-      rec.timestamp        = snap.timestamp;
-      rec.symbol           = snap.symbol;
-      rec.timeframe        = snap.timeframe;
-      rec.trade_context_id = snap.trade_context_id;
+      rec.correlation_id = m_current_correlation_id;
 
-      rec.mm_phase        = snap.mm_phase;
-      rec.mm_event_result = snap.mm_event_result;
+      // Identity (v2.0)
+      rec.cycle_id = (m_cycle_id);                 // lifecycle grouping
+      rec.internal_trade_id = (long)m_cycle_id;     // temporary: internal == cycle
+      rec.ticket = (ulong)snap.trade_context_id;    // holds ticket for post-entry actions (0 only for pre-entry)
+      rec.position_id = (PositionSelect(snap.symbol) ? (long)PositionGetInteger(POSITION_IDENTIFIER) : m_last_position_id);
 
-      // --- Exposure Result ---
-      rec.current_position_lots   = snap.current_position_lots;
+      // Timing / classification
+      rec.timestamp = snap.timestamp;
+      rec.symbol    = snap.symbol;
+      rec.timeframe = snap.timeframe;
+      rec.mm_phase  = snap.mm_phase;
+      rec.mm_event  = snap.mm_event_result;
+
+      // FULL-STATE: account always available
+      rec.balance = AccountInfoDouble(ACCOUNT_BALANCE);
+      rec.equity  = AccountInfoDouble(ACCOUNT_EQUITY);
+      rec.free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+
+      // FULL-STATE: derive from live position if exists
+      bool pos_exists = PositionSelect(rec.symbol);
+      rec.current_position_lots = pos_exists ? PositionGetDouble(POSITION_VOLUME) : 0.0;
       rec.current_risk_exposure = snap.current_risk_exposure;
 
-      // --- Execution Outcome ---
-      rec.take_profit  = snap.take_profit;
+      // Market context
+      double bid = SymbolInfoDouble(rec.symbol, SYMBOL_BID);
+      double ask = SymbolInfoDouble(rec.symbol, SYMBOL_ASK);
+      if(pos_exists)
+         {
+         bool is_buy = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+         rec.current_price = is_buy ? bid : ask;
+         }
+      else
+         {
+         rec.current_price = bid; // fallback
+         }
+
+      // ATR anchor: use tracker when possible
+      if(rec.ticket > 0)
+         rec.atr_value = m_atrTracker.GetATR(rec.ticket);
+      else
+         rec.atr_value = 0.0;
+
+      // Execution state
+      rec.take_profit  = pos_exists ? PositionGetDouble(POSITION_TP) : snap.take_profit;
+      rec.floating_pnl = pos_exists ? PositionGetDouble(POSITION_PROFIT) : 0.0;
       rec.realized_pnl = snap.realized_pnl;
 
-      // --- Risk Geometry ---
       rec.stoploss_points = snap.stoploss_points;
       rec.value_per_point = snap.value_per_point;
 
-      // ✅ Send to UnifiedTradeLogger
-      m_logger.LogMMSnapshotAfter(rec);
+      // Risk inputs actually used (best-effort; fill from config + last computed)
+      rec.risk_model = EnumToString(inpRiskMethod);
+      rec.risk_value = (inpRiskMethod == RISK_FIXED ? inpRiskFixAmount : inpRiskPercent);
+      rec.risk_amount_used = m_risk.GetLastComputedRiskAmount();
 
+      // Scale context: if not applicable, keep 0
+      rec.scale_atr_multiple = 0.0;
+      rec.scale_fraction     = 0.0;
+
+      // Outcome fields must be populated by the caller action block (next patch)
+      rec.action_executed   = true;
+      rec.execution_reason  = "";
+      rec.previous_stoploss = 0.0;
+      rec.new_stoploss      = 0.0;
+      rec.closed_lots       = 0.0;
+      rec.event_outcome     = "SUCCESS";
+
+      m_logger.LogMMSnapshotAfter(rec);
       m_after_emitted = true;
+
    }
 
    void EmitCloseEvent(const string symbol)
@@ -684,6 +766,10 @@ public:
       m_last_position_id  = 0;
       m_last_ticket = 0;
       m_last_volume = 0.0;
+
+      m_next_correlation_id = 0;
+      m_current_correlation_id = 0;
+
    }
 
    CTradeEngine::~CTradeEngine()
@@ -1634,6 +1720,7 @@ private:
 
       evt.cycle_id   = m_cycle_id;
       evt.trade_id   = (long)ticket;
+      evt.correlation_id = m_current_correlation_id;
       evt.ticket     = ticket;
 
       // Defaults (safe; overridden by CLOSE/SCALE_OUT when matched)

@@ -1,13 +1,18 @@
+## 🗄️ Document Status (Archived)
+
+**Version:** v1.3
+
+**Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
+
+**Superseded By:** Logging_Architecture.md
+
+**Last Updated:** 2026-05-10 (UTC+8)
+
+**Archived On:** 2026-05-11 (UTC+8)
+- ⚠️ This file is retained for historical reference and legacy log parsing only.
+- ⚠️ Do not edit content. Any changes must be made in the SSOT file.
+ 
 # Logging Architecture
-
-## 🔒 Document Status
-
-**Version:** v1.4
-
-**Status:** ✅ ACTIVE (SSOT)
-
-**Last Updated:** 2026-05-11 (UTC+8)
-
 
 ### 📂 Location Note
 
@@ -100,28 +105,6 @@ To improve traceability and auditability, the logging system introduces **lifecy
 This enables reconstruction of full trade lifecycles across MM events and snapshots.
 
 ---
-
-
-### 🆔 Identity & Correlation Model (v2.0)
-
-#### Deprecation Notice
-- `trade_context_id` is **deprecated/removed** in Snapshot schema v2.0.
-- Logging MUST use explicit identity fields instead.
-
-#### Required Identity Fields (Snapshots & Events)
-- `cycle_id` — lifecycle grouping id (generated at ENTRY; reused for all subsequent actions)
-- `internal_trade_id` — deterministic engine id (stable identifier independent of broker ticket)
-- `ticket` — broker ticket (0 pre-entry; populated after entry when available)
-- `position_id` — POSITION_IDENTIFIER (critical for hedging/netting deal matching)
-- `correlation_id` — binds:
-  - MM Event ↔ Snapshot BEFORE ↔ Snapshot AFTER
-  for the same MM action attempt
-
-#### Join Rules (Analytics & Validation)
-- Primary lifecycle grouping: `cycle_id`
-- Broker evidence linkage (CLOSE/SCALE_OUT deals): `position_id`
-- Action correlation linkage: `correlation_id`
-
 
 ### Lifecycle Definition
 
@@ -247,9 +230,8 @@ All log records can be grouped by `cycle_id` to reconstruct:
 
 ### Implementation Logic
 
-- Use the centralized Header Dispatcher (CLogHeaderDispatcher) as the canonical mechanism
-- Must prevent duplicate headers across all log files
-- Producers (TradeEngine) MUST NOT manage header logic directly
+- Use `NeedsHeader()` or equivalent check
+- Must prevent duplicate headers
 
 ---
 
@@ -284,34 +266,6 @@ Each BEFORE snapshot must be followed by AFTER snapshot.
 - No orphan entries
 - Strict ordering preserved
 
-
-## ✅ 🧾 Snapshot Full‑State Policy (v2.0)
-
-### Rule
-MM Snapshots are **FULL‑STATE** for BOTH BEFORE and AFTER.
-
-### Meaning
-- BEFORE snapshot captures the complete relevant state immediately before an MM action attempt.
-- AFTER snapshot captures the complete relevant state immediately after the MM action attempt.
-- AFTER snapshots MUST NOT omit core fields (no blanks-as-missing).
-
-### N/A Normalization (Strict)
-When a field is not applicable for an event:
-- Numeric fields MUST be `0`
-- String fields MUST be `""` (empty string)
-
-This prevents uninitialized/denormal artifacts and enables deterministic parsing and delta analysis.
-
-### Core Fields Required in BOTH BEFORE and AFTER
-- Account: balance, equity, free_margin
-- Exposure: current_position_lots, current_risk_exposure
-- Market context: current_price, atr_value
-- Execution state: take_profit, floating_pnl, realized_pnl
-- Risk geometry: stoploss_points, value_per_point
-- Scale context: scale_atr_multiple, scale_fraction (0 when N/A)
-- Execution outcome: action_executed, execution_reason, previous_stoploss, new_stoploss, closed_lots, event_outcome
-
-
 ---
 
 # ✅ 🚀 Execution Outcome Logging
@@ -332,7 +286,7 @@ Execution results must be written in AFTER snapshot.
 
 ### Reference
 
-- MM_Snapshot_Schema.md (v2.0 SSOT)
+- MM_Snapshot_Schema_v1.2 §5.3
 
 ---
 
@@ -369,13 +323,6 @@ This does not change logging schema requirements; it only affects whether lifecy
 ---
 
 # ✅ 📌 Version Notes
-
-##### v1.4 (2026-05-11)
-- Aligned architecture with MM Snapshot Schema v2.0:
-  - Full-State snapshots for BEFORE and AFTER (no blanks-as-missing)
-  - Deprecated/removed trade_context_id in favor of explicit identity fields
-  - Documented correlation_id model for Event ↔ Snapshot BEFORE ↔ Snapshot AFTER
-- Clarified header handling to prefer centralized Header Dispatcher mechanism
 
 ##### v1.3 (2026-05-09)
 - Documented dual logging pipelines (Snapshots vs Events).
