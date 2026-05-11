@@ -597,7 +597,7 @@ private:
       ZeroMemory(summary);
 
 
-// --- Identity ---
+      // --- Identity ---
       summary.cycle_id = m_cycle_id;
       summary.internal_trade_id = (long)m_cycle_id;   // v2.1 rule: internal_trade_id == cycle_id for now
       summary.trade_id = (long)m_last_ticket;         // legacy-compatible alias
@@ -605,7 +605,7 @@ private:
       summary.position_id = m_last_position_id;
       summary.position_type = (m_last_position_type == "" ? "NA" : m_last_position_type);
 
-// --- Symbol / Lifecycle Timing ---
+      // --- Symbol / Lifecycle Timing ---
       summary.symbol = symbol;
       summary.entry_time = m_entry_time;
       summary.exit_time = TimeCurrent();
@@ -614,26 +614,25 @@ private:
       if(summary.duration_sec < 0)
          summary.duration_sec = 0;
 
-// --- Price / PnL ---
+      // --- Price / PnL ---
       summary.entry_price = m_entry_price;
       summary.exit_price = evt.close_price;
       summary.pnl = evt.close_profit;
 
-// --- Lifecycle Aggregates ---
+      // --- Lifecycle Aggregates ---
       summary.scale_count = m_scale_count;
       summary.trail_count = m_trail_count;
       summary.be_triggered = m_be_triggered;
 
-// --- Broker Close Evidence ---
+      // --- Broker Close Evidence ---
       summary.close_reason = (evt.close_reason == "" ? "UNKNOWN" : evt.close_reason);
       summary.close_volume = evt.close_volume;
       summary.deal_id = evt.deal_id;
 
-// --- Lifecycle Status ---
+      // --- Lifecycle Status ---
       summary.lifecycle_status = "CLOSED";
 
-// ✅ Emit
-
+      // ✅ Emit
       m_logger.LogCycleSummary(summary);
 
    }
