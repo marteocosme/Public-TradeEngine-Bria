@@ -224,6 +224,7 @@ private:
 
    double               m_entry_price;
    datetime             m_entry_time;
+   double               m_cycle_realized_pnl; // ✅ NEW: tracks total pnl per cycle
 
    // --------------------------------------------------
    // Phase 5 — Trade Lifecycle Orchestration
@@ -266,6 +267,7 @@ private:
    string m_out_event_outcome;      // "SUCCESS" | "FAIL" | "SKIP"
 
    string m_last_position_type;     // "LONG" | "SHORT" | "NA"
+
 
 
 
@@ -567,6 +569,7 @@ private:
          // evt.close_reason = (reason == "" ? "UNKNOWN" : reason);
          evt.close_price  = price;
          evt.close_profit = profit;
+         m_cycle_realized_pnl += profit; // ✅ add final leg pnl
          evt.close_volume = volume;
          evt.deal_id      = deal_id;
          }
@@ -617,7 +620,8 @@ private:
       // --- Price / PnL ---
       summary.entry_price = m_entry_price;
       summary.exit_price = evt.close_price;
-      summary.pnl = evt.close_profit;
+      // summary.pnl = evt.close_profit; // ❌ BUG
+      summary.pnl = m_cycle_realized_pnl; // ✅ FIXED
 
       // --- Lifecycle Aggregates ---
       summary.scale_count = m_scale_count;
@@ -1014,6 +1018,7 @@ public:
       rp.StopATRMultiplier = inpSLxATRxPlier;
 
       m_cycle_id++;
+      m_cycle_realized_pnl = 0.0; // ✅ RESET per new cycle
       // --- MM Snapshot BEFORE (complete risk inputs) ---
       MM_SNAPSHOT_BEFORE snap;
       ZeroMemory(snap);
@@ -1344,6 +1349,7 @@ public:
                   evt.deal_id      = d;
                   evt.close_price  = p;
                   evt.close_profit = prof;
+                  m_cycle_realized_pnl += prof; // ✅ accumulate partial pnl
                   evt.close_volume = vol;
                   evt.close_reason = (rs == "" ? "UNKNOWN" : rs);
                   }
