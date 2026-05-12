@@ -1,13 +1,18 @@
+## 🗄️ Document Status (Archived)
+
+**Version:** v1.4
+
+**Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
+
+**Superseded By:** Logging_Architecture.md
+
+**Last Updated:** 2026-05-11 (UTC+8)
+
+**Archived On:** 2026-05-12 (UTC+8)
+- ⚠️ This file is retained for historical reference and legacy log parsing only.
+- ⚠️ Do not edit content. Any changes must be made in the SSOT file.
+
 # Logging Architecture
-
-## 🔒 Document Status
-
-**Version:** v1.5
-
-**Status:** ✅ ACTIVE (SSOT)
-
-**Last Updated:** 2026-05-12 (UTC+8)
-
 
 ### 📂 Location Note
 
@@ -24,7 +29,6 @@ This document is aligned with:
 
 - MM_Snapshot_Schema.md (SSOT)
 - MM_Event_Log_Schema.md (SSOT)
-- MM_Cycle_Summary_Schema.md (SSOT)
 - MM-LOG-01_Logging_Schema_Contract.md (SSOT)
 - MM-LOG-01_Runtime_Validation_Checklist.md (SSOT)
 
@@ -73,19 +77,6 @@ MM Event (ENTRY / SCALE_OUT / BE / TRAIL / EXIT / CLOSE)
 Logger (Event Writer)
 ↓
 File Output (CSV / JSON)
-```
-
-## Cycle Summary Pipeline (Completed Lifecycle Aggregate)
-```
-TradeEngine
-↓
-Lifecycle CLOSE detected (MM_EVENT_CLOSE)
-↓
-Cycle Summary constructed
-↓
-Logger (Cycle Summary Writer)
-↓
-File Output (CSV)
 ```
 
 ---
@@ -224,10 +215,10 @@ During MM management:
 At CLOSE (`MM_EVENT_CLOSE`):
 
 - Closure is confirmed (broker/deal outcome)
-- MM_EVENT_CLOSE is emitted as Event-only broker confirmation
-- Cycle Summary is emitted (one row per completed lifecycle)
-- No Snapshot BEFORE/AFTER pair is required for CLOSE under the current v2.1 model
+- Final BEFORE and AFTER snapshots are emitted for closure observation
+- Cycle Summary is emitted (one row per closed lifecycle)
 - Lifecycle completes
+
 
 ---
 
@@ -236,11 +227,8 @@ At CLOSE (`MM_EVENT_CLOSE`):
 All log records can be grouped by `cycle_id` to reconstruct:
 
 - Full trade lifecycle
-- State transitions (Snapshot log)
-- MM decisions and execution outcomes (Snapshot log)
-- Lifecycle events and broker-confirmed outcomes (Event log)
-- Completed lifecycle aggregates (Cycle Summary log)
-
+- State transitions
+- MM decisions and execution outcomes
 
 ---
 
@@ -394,13 +382,6 @@ This does not change logging schema requirements; it only affects whether lifecy
 ---
 
 # ✅ 📌 Version Notes
-
-##### v1.5 (2026-05-12)
-- Added Cycle Summary pipeline and schema reference.
-- Aligned CLOSE lifecycle handling with v2.1 runtime:
-  - CLOSE is Event-only broker confirmation.
-  - Removed requirement for Snapshot BEFORE/AFTER at CLOSE.
-- Documented Cycle Summary as completed lifecycle aggregate layer.
 
 ##### v1.4 (2026-05-11)
 - Aligned architecture with MM Snapshot Schema v2.0:

@@ -11,9 +11,9 @@ Previous versions are stored in:
 # MM Snapshot Schema
 
 ## Status ✅ Active (SSOT) 
-Version: v2.0
+Version: v2.1
 Status: ✅ Active ✅ LOCKED
-Last Updated: 2026-05-11 (UTC+8)
+Last Updated: 2026-05-12 (UTC+8)
  
 
 ## Supersedes
@@ -32,8 +32,30 @@ Last Updated: 2026-05-11 (UTC+8)
 Location: `/00_Core/_archive/`
 
 
+## Change Summary (v2.1)
 
-## Change Summary (v2.0)
+**Additive schema release.**
+
+- Added `position_type` to Snapshot identity fields.
+- `position_type` uses stable string values:
+  - `LONG`
+  - `SHORT`
+  - `NA`
+- Snapshot column count increased from 35 to 36.
+- Confirmed `correlation_id` pairing across BEFORE and AFTER snapshots.
+- Confirmed `internal_trade_id == cycle_id` for the current implementation.
+- Confirmed C1 outcome semantics:
+  - `SUCCESS`
+  - `FAIL`
+  - `SKIP`
+- Confirmed failed/skipped AFTER rows include `execution_reason`.
+- Confirmed ENTRY AFTER no longer emits `SKIP`; ENTRY AFTER uses `SUCCESS` or `FAIL`.
+- Confirmed no DBL_MAX / invalid ATR sentinel values are emitted.
+- Clarified that `MM_EVENT_CLOSE` is currently Event-only broker confirmation and does not require Snapshot BEFORE/AFTER pairs under v2.1.
+
+
+### Change Summary (v2.0)
+**Historical baseline for v2.1.**
 
 **Breaking change release.**
 - Switched Snapshot logging to **FULL-STATE** for BOTH BEFORE and AFTER (no blank fields).
@@ -49,6 +71,38 @@ Location: `/00_Core/_archive/`
 
 
 ## Change Log
+
+### v2.1 (2026-05-12)
+- Added `position_type` after `position_id`.
+- Increased Snapshot schema column count from 35 to 36.
+- Validated `position_type` values as `LONG`, `SHORT`, or `NA`.
+- Validated BEFORE/AFTER pairing by `correlation_id`.
+- Validated Full-State AFTER population.
+- Validated C1 outcome semantics for AFTER snapshots:
+  - `SUCCESS`
+  - `FAIL`
+  - `SKIP`
+- Validated that failed/skipped AFTER rows include `execution_reason`.
+- Validated ENTRY AFTER outcomes as `SUCCESS` or `FAIL` only.
+- Validated ATR sanitation; no DBL_MAX or invalid ATR sentinel values are emitted.
+- Clarified CLOSE handling: `MM_EVENT_CLOSE` is Event-only broker confirmation in the current v2.1 runtime model.
+
+### v2.0 (2026-05-11)
+- Introduced Full-State BEFORE/AFTER snapshot policy.
+- Removed `trade_context_id`.
+- Added explicit identity fields:
+  - `cycle_id`
+  - `internal_trade_id`
+  - `ticket`
+  - `position_id`
+- Added `correlation_id`.
+- Added risk input fields:
+  - `risk_model`
+  - `risk_value`
+  - `risk_amount_used`
+- Formalized stable N/A rules:
+  - numeric N/A = 0
+  - string N/A = ""
 
 ### v1.3
 - Aligned schema coverage with MM-LOG-01 contract v1.4 by explicitly including MM_EVENT_CLOSE as a covered lifecycle action (no column changes).
@@ -93,7 +147,12 @@ This schema does NOT cover:
 
 Status: Implemented ✅  
 Phase: Phase 4 — Logging & Observability  
-Validation: Partial (manual log inspection)
+Runtime Validation: ✅ Passed under v2.1
+Validation: Outputs:
+- `NNFX_TradeEvents_MM_Snapshots.csv`
+- `NNFX_TradeEvents_MM_Events.csv`
+- `NNFX_TradeEvents_MM_Cycle_Summary.csv`
+
 
 ## Implementation Binding
 
@@ -126,7 +185,7 @@ Any deviation invalidates the schema contract.
 
 ---
 
-# MM Snapshot Schema v2.0 (SSOT)
+# MM Snapshot Schema v2.1 (SSOT)
 
 ## 1. Purpose
 This schema defines the snapshot contract used to make Money Management (MM) decisions fully observable, reconstructable, and auditable from logs alone.
@@ -173,91 +232,167 @@ Future:
   (e.g., scale-in, multi-order entries, persistence across restarts, complex netting/hedging flows).
 
 
-## 4. Actions Covered
-This schema applies to:
-- MM_EVENT_ENTRY
-- MM_EVENT_SCALE_OUT
-- MM_EVENT_BE
-- MM_EVENT_TRAIL
-- MM_EVENT_EXIT
-- MM_EVENT_CLOSE (broker-confirmed lifecycle outcome)
+#### position_type Rule (v2.1)
 
-## 5. Column Order Guarantee (v2.0)
+`position_type` provides direction context for the position at snapshot time.
+
+Allowed values:
+
+- `LONG`
+- `SHORT`
+- `NA`
+
+Population rules:
+
+- If a live position is selectable, `position_type` MUST reflect the live position direction
+- If a live position is not selectable, the logger MAY use last-known cached direction.
+- If direction cannot be derived, `position_type` MUST be `NA`.
+- Trend values such as `UpTrend` or `DownTrend` are not valid for `position_type`.
+
+
+## 4. Actions Covered
+This schema applies to Snapshot BEFORE/AFTER pairs for:
+
+- `MM_EVENT_ENTRY`
+- `MM_EVENT_SCALE_OUT`
+- `MM_EVENT_BE`
+- `MM_EVENT_TRAIL`
+- `MM_EVENT_EXIT`
+
+### CLOSE Handling
+
+`MM_EVENT_CLOSE` is currently emitted as an Event-only broker-confirmed lifecycle terminator.
+
+Under the current v2.1 runtime model:
+
+- CLOSE does not require a Snapshot BEFORE/AFTER pair.
+- CLOSE evidence is recorded in the Event log.
+- Completed lifecycle aggregation is recorded in the Cycle Summary log.
+- A future schema version may introduce CLOSE snapshots if explicitly required.
+
+
+## 5. Column Order Guarantee (v2.1)
 All logs MUST follow the exact column order below. Missing or extra columns invalidate the log.
 
-### 5.1 Snapshot Columns (v2.0) — Full-State
-1.  debug_event_id
-2.  correlation_id
+### 5.1 Snapshot Columns (v2.1) — Full-State
+1.  `debug_event_id`
+2.  `correlation_id`
 
 **Identity**
-3.  cycle_id
-4.  internal_trade_id
-5.  ticket
-6.  position_id
+3.  `cycle_id`
+4.  `internal_trade_id`
+5.  `ticket`
+6.  `position_id`
+7.  `position_type`
 
 **Timing / Classification**
-7.  timestamp
-8.  symbol
-9.  timeframe
-10. record_type
-11. mm_phase
-12. mm_event
+8.  `timestamp`
+9.  `symbol`
+10. `timeframe`
+11. `record_type`
+12. `mm_phase`
+13. `mm_event`
 
 **Account (Full-State)**
-13. balance
-14. equity
-15. free_margin
+14. `balance`
+15. `equity`
+16. `free_margin`
 
 **Exposure (Full-State)**
-16. current_position_lots
-17. current_risk_exposure
+17. `current_position_lots`
+18. `current_risk_exposure`
 
 **Market Context (Full-State)**
-18. current_price
-19. atr_value
+19. `current_price`
+20. `atr_value`
 
 **Execution State (Full-State)**
-20. take_profit
-21. floating_pnl
-22. realized_pnl
+21. `take_profit`
+22. `floating_pnl`
+23. `realized_pnl`
 
 **Risk Geometry (Full-State)**
-23. stoploss_points
-24. value_per_point
+24. `stoploss_points`
+25. `value_per_point`
 
 **MM Inputs Actually Used (Full-State)**
-25. risk_model
-26. risk_value
-27. risk_amount_used
+26. `risk_model`
+27. `risk_value`
+28. `risk_amount_used`
 
 **Scale Context (Full-State, N/A=0)**
-28. scale_atr_multiple
-29. scale_fraction
+29. `scale_atr_multiple`
+30. `scale_fraction`
 
 **Execution Outcome (Always Populated)**
-30. action_executed
-31. execution_reason
-32. previous_stoploss
-33. new_stoploss
-34. closed_lots
-35. event_outcome   (SUCCESS | FAIL | SKIP)
+31. `action_executed`
+32. `execution_reason`
+33. `previous_stoploss`
+34. `new_stoploss`
+35. `closed_lots`
+36. `event_outcome` 
 
 ## 6. Field Population Rules (Strict)
-- BEFORE snapshot MUST be emitted before any MM decision logic mutates state.
-- AFTER snapshot MUST be emitted after the MM attempt completes (success/fail/skip).
-- FULL-STATE rule: AFTER MUST NOT write blank placeholders for numeric fields.
-- action_executed MUST be TRUE or FALSE (never empty).
-- execution_reason MUST be populated when action_executed = FALSE.
-- Scale context fields MUST be 0 for non-SCALE_OUT events.
-- Stoploss outcome fields apply only to BE/TRAIL:
-  - previous_stoploss and new_stoploss MUST be 0 for non BE/TRAIL events.
-- closed_lots applies only to SCALE_OUT:
-  - closed_lots MUST be 0 for non SCALE_OUT events.
-- CLOSE rule:
-  - CLOSE is broker-confirmed outcome, not an engine execution attempt.
-  - action_executed = TRUE indicates closure confirmation succeeded.
 
-## 7. Reconstruction Guarantee
+- BEFORE snapshot MUST be emitted before an MM decision/execution attempt.
+- AFTER snapshot MUST be emitted after the MM attempt completes.
+- FULL-STATE rule: AFTER MUST NOT write blank placeholders for numeric fields.
+- Numeric N/A MUST be `0`.
+- String N/A MUST be `""`, except controlled enum-like fields such as `position_type` and `event_outcome`.
+- `position_type` MUST be one of:
+  - `LONG`
+  - `SHORT`
+  - `NA`
+- `action_executed` MUST be `true` or `false`.
+- BEFORE rows MUST keep outcome fields neutral:
+  - `action_executed = false`
+  - `execution_reason = ""`
+  - `previous_stoploss = 0`
+  - `new_stoploss = 0`
+  - `closed_lots = 0`
+  - `event_outcome = ""`
+- AFTER rows MUST set `event_outcome` to one of:
+  - `SUCCESS`
+  - `FAIL`
+  - `SKIP`
+- `execution_reason` MUST be populated when `action_executed = false`.
+- ENTRY AFTER MUST use `SUCCESS` or `FAIL`, not `SKIP`.
+- Scale context fields MUST be `0` for non-SCALE_OUT events.
+- Stoploss outcome fields apply only to BE/TRAIL:
+  - `previous_stoploss`
+  - `new_stoploss`
+- `previous_stoploss` and `new_stoploss` MUST be `0` for non-BE/TRAIL events.
+- `closed_lots` applies only to SCALE_OUT.
+- `closed_lots` MUST be `0` for non-SCALE_OUT events.
+- ATR values MUST NOT emit DBL_MAX or invalid sentinel values.
+
+
+### 7. Runtime Validation Evidence — v2.1
+
+Runtime validation passed for the Snapshot log under v2.1.
+
+Validated rules:
+
+- 36-column schema matched exactly.
+- No missing columns.
+- No extra columns.
+- Critical identity fields were populated.
+- `position_type` contained only valid values.
+- BEFORE/AFTER pairing by `correlation_id` passed.
+- `internal_trade_id == cycle_id` passed.
+- Ticket identity sanity checks passed.
+- Full-State AFTER population passed.
+- BEFORE rows remained outcome-neutral.
+- AFTER rows used only valid outcomes:
+  - `SUCCESS`
+  - `FAIL`
+  - `SKIP`
+- Failed/skipped AFTER rows had populated `execution_reason`.
+- ENTRY AFTER rows used `SUCCESS` or `FAIL` only.
+- No DBL_MAX / invalid ATR values were emitted.
+- No denormal / uninitialized numeric values were detected.
+
+## 8. Reconstruction Guarantee
 This schema guarantees that every MM action is reconstructable using:
 - Snapshot BEFORE (Full-State)
 - Execution Outcome (Always Populated)
@@ -265,315 +400,21 @@ This schema guarantees that every MM action is reconstructable using:
 
 ---
 
+## Archived Historical Versions
 
-# MM Snapshot Schema v1.2
-**Document ID:** MM-SNAPSHOT-SCHEMA-v1.2
+Historical schema versions are stored under:
 
-**Applies** To: TradeEngine-Bria (NNFX)
+`/docs/02_Specs/00_Core/_archive/`
 
-**Related Spec:** MM-LOG-01 — Logging Completion & Validation
+This active SSOT file only defines the latest Snapshot schema.
 
-**Status:** ✅ Frozen (Do not modify without version bump)
+Archived versions include:
 
+- `MM_Snapshot_Schema_v1.3.md`
+- `MM_Snapshot_Schema_v1.2.md`
+- `MM_Snapshot_Schema_v1.1.md`
 
-## 1. Purpose
-This document defines the frozen snapshot contract used to make all Money Management (MM) decisions **fully observable, reconstructable, and auditable from logs alone.**
-
-The snapshot system captures state-before and state-after every MM action, without influencing MM logic itself.
-
-
-Version v1.1 extends v1.0 by explicitly logging market context required for precise reconstruction:
-
-Current market price
-ATR value actually used by MM
-
-
-``` 
-⚠️ Rule: Once frozen, no fields may be added, removed, or repurposed without incrementing the schema version.
-```
-
-
-
-## 2. Snapshot Types
-Two snapshot types exist and are used uniformly across all MM actions:
-
-- **MM_SNAPSHOT_BEFORE —** Captures state immediately before an MM decision
-- **MM_SNAPSHOT_AFTER —** Captures state immediately after an MM decision
-
-Both snapshots are **purely observational.**
-
-
-### BEFORE vs AFTER Snapshot Rules
-
-#### BEFORE Snapshot
-
-- Represents system state BEFORE MM action
-- MUST NOT contain Execution Outcome values
-- Execution Outcome fields MUST be empty
-
-
-#### AFTER Snapshot
-
-- Represents system state AFTER MM action
-- MUST include Execution State values
-- MUST include Execution Outcome fields
-
-### CLOSE Snapshot Rules (MM_EVENT_CLOSE)
-- CLOSE is a broker-confirmed lifecycle outcome (not an engine execution attempt).
-- BEFORE snapshot: observational capture immediately before closure confirmation is recorded.
-- AFTER snapshot: observational capture immediately after closure is confirmed (position lots may be 0).
-- Execution Outcome fields remain valid:
-  - action_executed = TRUE indicates closure was confirmed
-  - execution_reason may remain empty unless closure confirmation failed (rare/unknown cases)
-
-
-## 3. MM Actions Covered
-This schema applies to the following MM paths:
-
-|   | MM Action | Code Event | Covered |
-| --- | --- | --- | --- |
-| 1 | Entry	| MM_EVENT_ENTRY	| ✅
-| 2 | Scale-Out |	MM_EVENT_SCALE_OUT	| ✅ |
-| 3 | Break-Even | 	MM_EVENT_BE | 	✅ |
-| 4 | Trailing Stop |	MM_EVENT_TRAIL	| ✅ |
-| 5 | Exit |	MM_EVENT_EXIT	| ✅ |
-| 6 | Close (Broker-confirnmed) | MM_EVENT_CLOSE | ✅ |
-
-
-## 4. MM_SNAPSHOT_BEFORE Schema
-### 4.1 Identity & Timing
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 | timestamp |	datetime |	Snapshot capture time |	All |
-| 2 | symbol	| string |	Trading symbol	| All
-| 3 | timeframe	| ENUM_TIMEFRAMES |	Execution timeframe |	All
-| 4 | trade_context_id	| ulong |	Trade / ticket identifier (0 pre-entry) |	All
-
-
-### 4.2 Lifecycle Intent
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 |  mm_phase	| string |	MM lifecycle phase (ENTRY / MANAGE / EXIT) | 	All |
-| 2 | mm_event_intent |	string |	MM intent (ENTRY, SCALE_OUT, BE, TRAIL, EXIT) |	All
-
-
-
-### 4.3 Account State
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 | balance |	double |	Account balance at decision time |	All |
-| 2 | equity |	double |	Account equity at decision time |	All |
-| 3 | free_margin |	double | 	Free margin (ACCOUNT_MARGIN_FREE) |	All |
-
-
-
-### 4.4 Exposure State
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 | current_position_lots	|  double	| Current open volume |	All |
-| 2 | current_risk_exposure	| double | ENTRY-anchored risk amount |	All |
-
-### 4.5 Market Context (NEW in v1.1)
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 | current_price  |	double | Market price at MM decision time (Bid/Ask as appropriate) | All |
-| 2 | atr_value  |	double | ATR value actually used by MM at decision time | All |
-
-### 4.6 Execution-State Observability
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 | take_profit  |	double |	Current TP price |	MANAGE / EXIT |
-| 2 | floating_pnl |	double	| Floating P/L at decision time |	MANAGE / EXIT |
-
-
-
-### 4.7 Risk Geometry (ENTRY-Anchored)
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 | stoploss_points |	double |	SL distance in points |	All |
-| 2 | value_per_point |	double |	Monetary value per point |	All |
-
-
-### 4.8 SCALE_OUT Trigger Context (Conditional)
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 | scale_atr_multiple | double |	ATR multiple triggering scale-out |	SCALE_OUT |
-| 2| scale_fraction	| double |	Fraction of position to close | SCALE_OUT |
-
-```
-⚠️ These fields must be zero for non-SCALE_OUT snapshots.
-```
-
-## 5. MM_SNAPSHOT_AFTER Schema
-### 5.1 Identity & Timing
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 |  timestamp | datetime |	Snapshot capture time |	All |
-| 2 | symbol |	string |	Trading symbol |	All |
-| 3 | timeframe |	ENUM_TIMEFRAMES |	Execution timeframe | 	All |
-
-
-
-### 5.2 Exposure Result
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 | current_position_lots |	double |	Current position volume after MM action |	All |
-| 2 | current_risk_exposure |	double |	ENTRY-anchored risk amount	| All |
-
-
-#### Notes
-
-- current_position_lots reflects LIVE position size at snapshot time
-- current_risk_exposure is anchored to ENTRY risk
-- current_risk_exposure does NOT change during:
-  - BREAK-EVEN
-  - TRAILING
-  - SCALE_OUT
-
-This ensures risk consistency for reconstruction analysis.
-
-
-
-
-### 5.3 Execution State
-
-These fields represent the resulting trade state AFTER a Money Management (MM) action is applied.
-
-They describe the resulting system state rather than the decision process itself.
-
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 | take_profit |	double |	TP after MM action	| MANAGE / EXIT |
-| 2 | realized_pnl |	double	| Realized P/L after MM action |	SCALE_OUT / EXIT |
-
-
-#### Notes
-
-- These values reflect the system AFTER execution.
-- They are required for reconstructing trade outcomes.
-
-
-### 5.4 Execution Outcome
-
-These fields represent the outcome of the Money Management decision process.
-
-They describe:
-- Whether an action was executed
-- What change occurred
-- Why an action was not executed (if applicable)
-
-
-|  | Field | Type | Description | Used By |
-|--- |------|------|-------------|--------|
-| 1 | action_executed | bool | Whether the MM action was executed | All |
-| 2 | execution_reason | string | Reason if action was skipped or failed | All |
-| 3 | previous_stoploss | double | Previous SL before modification | BE, TRAIL |
-| 4 | new_stoploss | double | New SL after modification | BE, TRAIL |
-| 5 | closed_lots | double | Lots closed during scale-out | SCALE_OUT |
-
-
-#### Execution Outcome Rules
-
-- action_executed MUST be TRUE or FALSE (not empty)
-- execution_reason MUST be populated when action_executed = FALSE
-- previous_stoploss and new_stoploss apply ONLY to BE and TRAIL
-- closed_lots applies ONLY to SCALE_OUT
-
-
-
-### 5.5 Risk Geometry (Unchanged)
-
-|  | Field |	Type |	Description |	Used By |
-| --- | --- | --- |	--- | --- |
-| 1 | stoploss_points |	double |	SL distance (unchanged)	| All |
-| 2 | value_per_point |	double |	Value per point (unchanged) |	All |
-
-## 6. Field Population Rules (Strict)
-
-- BEFORE snapshots **must be emitted before any MM decision logic**
-- AFTER snapshots **must be emitted only after MM action succeeds**
-- No snapshot may mutate system state
-- No MM logic may depend on snapshot values
-
-
-## 7. Versioning Rules
-
-- Any schema change → new version (v1.1, v2.0, etc.)
-- Old versions remain valid for historical log parsing
-- MM-LOG-01 validation is tied to v1.0 only
-
-
-### 8. Compliance Statement
-✅ ENTRY, SCALE_OUT, BREAK-EVEN, TRAILING, and EXIT have been validated against this schema.3
-
-✅ MM decisions are fully reconstructable from logs alone.
-
-✅ This schema satisfies MM-LOG-01 observability requirements.
-
-## 9. Column Order Guarantee
-
-All logs MUST follow the exact column order defined in this schema.
-
-- Column order MUST NOT change
-- Missing or extra columns invalidate the log
-- Column integrity MUST be enforced at runtime
-
-This is required for machine parsing and validation.
-
-
-## 10. Reconstruction Guarantee
-
-This schema guarantees that:
-
-- Every MM decision is captured
-- Every state transition can be reconstructed
-- Every action outcome is traceable
-
-Each event must provide:
-
-1. BEFORE state
-2. Execution Outcome
-3. AFTER state
-
-All three layers are REQUIRED for valid reconstruction.
-
-
-## 11. Event Field Mapping
-
-### SCALE_OUT
-- action_executed
-- closed_lots
-
-### BREAK-EVEN
-- action_executed
-- previous_stoploss
-- new_stoploss
-
-### TRAILING
-- action_executed
-- previous_stoploss
-- new_stoploss
-
-
-## 12 Immutability Rule
-
-This schema version is locked.
-
-- No structural changes allowed after approval
-- Any modification requires a new version (v2.1+ or v3.0)
-- Historical versions must remain unchanged
-
+Historical content MUST NOT override this v2.1 schema.
 
 --- 
-#### End of Document — MM_Snapshot_Schema
+# End of Document — MM_Snapshot_Schema v2.1

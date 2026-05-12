@@ -1,16 +1,17 @@
+## 🗄️ Document Status (Archived)
+
+**Version:** v1.3
+
+**Status:** 🗄️ ARCHIVED (SUPERSEDED) —  HISTORICAL REFERENCE
+**Last Updated:** 2026-05-10 (UTC+8)
+**Archived On:** 2026-05-12 (UTC+8)   
+
+**Superseded By:** <MM-LOG-01_Runtime_Validation_Checklist.md>
+- ⚠️ This file is retained for historical reference and legacy log parsing only.
+- ⚠️ Do not edit content. Any changes must be made in the SSOT file.
+
 # MM-LOG-01 Runtime Validation Checklist
 
-## 🔒 Document Status
-
-Version: v1.4
-
-Status: ✅ ACTIVE (SSOT) — CODE COMPLETE / PENDING RUNTIME VALIDATION
-
-Last Updated: 2026-05-12 (UTC+8)
-
-Runtime Schema Version: v2.1
-
----
 
 ## 🎯 Purpose
 
@@ -48,21 +49,7 @@ Event fields are defined by:
 
 ## Current Phase Status
 
-
-MM-LOG-01 Observability Upgrade is code-complete and runtime validation has passed under the v2.1 logging model.
-
-Validated runtime outputs:
-
-- `NNFX_TradeEvents_MM_Snapshots.csv`
-- `NNFX_TradeEvents_MM_Events.csv`
-- `NNFX_TradeEvents_MM_Cycle_Summary.csv`
-
-Validation status:
-
-- Snapshot Log v2.1: PASSED
-- Event Log v2.1: PASSED
-- Cycle Summary Log v2.1: PASSED
-
+MM-LOG-01 Observability Upgrade is code-complete and awaiting runtime log validation.
 
 ### Implemented upgrades:
 
@@ -89,19 +76,17 @@ Validation status:
 - ✅ Fixed timeframe corruption in event logs; now consistently logs valid `PERIOD_*` values (e.g., `PERIOD_M15`).
 - ✅ Expanded deal close reason mapping; CLOSE reasons now include `TP_HIT`, `SL_HIT`, and EA-driven closes like `MM_EXPERT: Exit Signal`.
 
-#### Runtime Validation Result:
-- ✅ cycle_id lifecycle consistency validated
-- ✅ BEFORE / AFTER snapshot integrity validated
-- ✅ correlation_id pairing validated
-- ✅ position_type validated across Snapshot, Event, and Cycle Summary logs
-- ✅ SCALE_OUT event evidence validated
-- ✅ action_summary correctness validated
-- ✅ one Cycle Summary row per CLOSE validated
-- ✅ PnL and summary field accuracy validated against Event CLOSE evidence
-- ✅ no DBL_MAX / garbage / uninitialized values detected
-- ✅ Event ↔ Snapshot correlation validated
-- ✅ Cycle Summary ↔ Event CLOSE reconciliation validated
 
+
+### Pending validation:
+
+- cycle_id lifecycle consistency
+- BEFORE / AFTER snapshot integrity
+- SCALE_OUT consolidation
+- action_summary correctness
+- one cycle summary per CLOSE
+- PnL and summary field accuracy
+- absence of garbage or uninitialized values
 
 
 
@@ -141,23 +126,22 @@ Validation status:
 
 - [x] Every MM event has a BEFORE snapshot
 - [x] Every MM event has an AFTER snapshot
-- [x] CLOSE is emitted as an Event-only broker-confirmed lifecycle terminator under the current v2.1 runtime model.
-- [x] CLOSE does not require a Snapshot BEFORE/AFTER pair unless a future schema version explicitly adds CLOSE snapshots.
+- [ ] CLOSE events have a BEFORE and AFTER snapshot pair
 - [x] BEFORE and AFTER snapshots share the same cycle_id
-- [x] BEFORE mm_event_intent matches AFTER mm_event_result for the same action
+- [ ] BEFORE mm_event_intent matches AFTER mm_event_result for the same action
 - [x] No orphan BEFORE snapshot exists
 - [x] No orphan AFTER snapshot exists
 - [x] Snapshot rows conform to MM_Snapshot_Schema_v1.2.md
-- [x] No garbage or uninitialized numeric values appear
+- [ ] No garbage or uninitialized numeric values appear
 
 ---
 
 ### 4. SCALE_OUT Consolidation Validation
 
-- [x] Multiple internal SCALE_OUT steps are consolidated into one logical event
-- [x] scale_steps is populated correctly
-- [x] scale_fraction_total is populated correctly
-- [x] No duplicate SCALE_OUT event spam appears
+- [ ] Multiple internal SCALE_OUT steps are consolidated into one logical event
+- [ ] scale_steps is populated correctly
+- [ ] scale_fraction_total is populated correctly
+- [ ] No duplicate SCALE_OUT event spam appears
 
 ---
 
@@ -197,18 +181,18 @@ For other non-CLOSE events (ENTRY / BE / TRAIL / EXIT):
 
 ### 7. Cycle Summary Validation
 
-- [x] Cycle summary CSV file is generated
-- [x] One summary row is emitted after each CLOSE
-- [x] Number of cycle summary rows equals number of `MM_EVENT_CLOSE` events
-- [x] summary `cycle_id` matches event lifecycle `cycle_id`
-- [x] `entry_time` is valid
-- [x] `exit_time` is valid
-- [x] `entry_price` is valid
-- [x] `exit_price` is valid
-- [x] `pnl` is realistic and validated against MT5 result
-- [x] `scale_count` is correct
-- [x] `trail_count` is correct
-- [x] `be_triggered` is correct
+- [ ] Cycle summary CSV file is generated
+- [ ] One summary row is emitted after each CLOSE
+- [ ] Number of cycle summary rows equals number of `MM_EVENT_CLOSE` events
+- [ ] summary `cycle_id` matches event lifecycle `cycle_id`
+- [ ] `entry_time` is valid
+- [ ] `exit_time` is valid
+- [ ] `entry_price` is valid
+- [ ] `exit_price` is valid
+- [ ] `pnl` is realistic and validated against MT5 result
+- [ ] `scale_count` is correct
+- [ ] `trail_count` is correct
+- [ ] `be_triggered` is correct
 
 ---
 
@@ -217,8 +201,8 @@ For other non-CLOSE events (ENTRY / BE / TRAIL / EXIT):
 - [x] Full trade lifecycle can be reconstructed using logs only
 - [x] ENTRY → MANAGE → (optional EXIT) → CLOSE sequence is visible
 - [x] MM actions are observable in order
-- [x] SL / size / risk evolution matches snapshot records
-- [x] No unexplained timeline gaps exist
+- [ ] SL / size / risk evolution matches snapshot records
+- [ ] No unexplained timeline gaps exist
 
 ---
 
@@ -239,23 +223,11 @@ MM-LOG-01 may be marked COMPLETE only when:
 - Replace “Cycle summary logs are emitted correctly” with “Cycle summary logs are emitted correctly (one per CLOSE)”
 - SCALE_OUT rows may carry broker partial-close evidence (close_* + deal_id) when deal matching succeeds
 
-Runtime validation criteria are satisfied for the current v2.1 logging model.
+Until these criteria are satisfied, MM-LOG-01 remains:
 
-✅ MM-LOG-01 status:
-
-RUNTIME VALIDATION PASSED — v2.1
-
+⏳ CODE COMPLETE — PENDING RUNTIME VALIDATION
 
 ## Change Log
-
-### v1.4 (2026-05-12)
-- Updated checklist status from CODE COMPLETE / PENDING RUNTIME VALIDATION to RUNTIME VALIDATION PASSED.
-- Recorded runtime schema version as v2.1.
-- Confirmed Snapshot Log v2.1 validation passed.
-- Confirmed Event Log v2.1 validation passed.
-- Confirmed Cycle Summary Log v2.1 validation passed.
-- Added validation result notes for position_type, correlation_id, internal_trade_id, Cycle Summary v2.1 close evidence, duration_sec, and lifecycle_status.
-- Clarified that CLOSE is currently Event-only broker confirmation and does not require Snapshot BEFORE/AFTER pairs under v2.1.
 
 ### v1.3 (2026-05-09)
 - Aligned checklist with updated MM_Event_Log_Schema rules:
