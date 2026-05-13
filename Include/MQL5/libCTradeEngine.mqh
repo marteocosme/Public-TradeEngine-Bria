@@ -290,6 +290,23 @@ private:
 
    }
 
+   void AssignCloseCorrelationId(MM_LogEventBase &evt)
+   {
+      // Preserve correlation only when CLOSE is the broker-confirmed result
+      // of an explicit engine-driven EXIT action.
+      const bool preserve_exit_correlation =
+         (m_current_event == MM_EVENT_EXIT &&
+          evt.close_reason == "MM_EXPERT: Exit Signal");
+
+      if(preserve_exit_correlation)
+         return;
+
+      // Broker-driven or externally detected closes must get their own
+      // action-level correlation_id.
+      m_current_correlation_id = ++m_next_correlation_id;
+      evt.correlation_id = m_current_correlation_id;
+   }
+
 
    string PositionTypeToString(const enum_position p) const
    {
@@ -583,6 +600,7 @@ private:
          evt.deal_id      = 0;
          }
 
+      AssignCloseCorrelationId(evt);
       Print("CLOSE DEBUG -> reason=[", evt.close_reason, "] deal=", evt.deal_id,
             " price=", evt.close_price, " profit=", evt.close_profit);
 
