@@ -81,12 +81,21 @@ TradeEngine
 ↓
 Lifecycle CLOSE detected (MM_EVENT_CLOSE)
 ↓
-Cycle Summary constructed
+Cycle Summary constructed from completed lifecycle state and realized-PnL events
 ↓
 Logger (Cycle Summary Writer)
 ↓
 File Output (CSV)
 ```
+Cycle Summary is the completed-lifecycle aggregate layer. It uses cycle_id as the lifecycle grouping key.
+
+Cycle Summary broker close evidence is reconciled against the mandatory MM_EVENT_CLOSE row.
+
+Cycle Summary pnl is total realized lifecycle PnL and is aggregated from:
+- successful MM_EVENT_SCALE_OUT close_profit values
+- mandatory MM_EVENT_CLOSE close_profit value
+
+Cycle Summary pnl is not limited to the final MM_EVENT_CLOSE close_profit when scale-out events occurred.
 
 ---
 
@@ -127,9 +136,12 @@ This enables reconstruction of full trade lifecycles across MM events and snapsh
 - `internal_trade_id` — deterministic engine id (stable identifier independent of broker ticket)
 - `ticket` — broker ticket (0 pre-entry; populated after entry when available)
 - `position_id` — POSITION_IDENTIFIER (critical for hedging/netting deal matching)
-- `correlation_id` — binds:
-  - MM Event ↔ Snapshot BEFORE ↔ Snapshot AFTER
-  for the same MM action attempt
+- `correlation_id` — action-level trace identifier:
+  - binds MM Event ↔ Snapshot BEFORE ↔ Snapshot AFTER for the same non-CLOSE MM action attempt
+  - groups one logical MM action/evaluation chain inside a `cycle_id`
+  - differs from `cycle_id`, which groups the full trade lifecycle
+  - differs from `debug_event_id`, which identifies one physical log row
+
 
 #### internal_trade_id (v2.0) — Current Implementation
 For v2.0, the engine sets:
@@ -144,6 +156,19 @@ trade identity must be stable across multi-ticket or multi-position structures.
 - Broker evidence linkage (CLOSE/SCALE_OUT deals): `position_id`
 - Action correlation linkage: `correlation_id`
 
+#### MM_EVENT_CLOSE correlation behavior (P5-FIX-02A)
+
+`MM_EVENT_CLOSE` is emitted by close detection after the engine observes that a previously open position is no longer open. Under the current v2.1 runtime model, CLOSE is Event-only broker confirmation and does not require a Snapshot BEFORE/AFTER pair.
+
+Because CLOSE may originate from either an explicit engine exit request or a broker-side close condition, CLOSE correlation behavior is conditional.
+
+Valid shared correlation pattern:
+
+```text
+MM_EVENT_EXIT → MM_EVENT_CLOSE
+close_reason = MM_EXPERT: Exit Signal
+same correlation_id = valid
+```
 
 ### Lifecycle Definition
 
@@ -187,11 +212,17 @@ To prevent lifecycle gaps in real execution:
 - `MM_EVENT_EXIT` represents engine intent to close (signal/manual request). It is optional.
 - `MM_EVENT_CLOSE` represents broker/deal-confirmed closure (TP/SL/STOP_OUT/SIGNAL/MANUAL). It is mandatory.
 
-Architectural rule:
+**Architectural rule:**
 - EXIT and CLOSE are different sources of truth:
   - EXIT originates from the engine decision path
   - CLOSE originates from broker/deal confirmation
 - Validation and Cycle Summary MUST use CLOSE as the lifecycle terminator.
+
+**Correlation rule:**
+- Engine-driven EXIT → CLOSE may share correlation_id when close_reason = "MM_EXPERT: Exit Signal".
+- Broker-driven CLOSE events such as TP_HIT, SL_HIT, STOP_OUT Event, UNKNOWN, or manual/external closes must receive a dedicated CLOSE correlation_id.
+- Broker-driven CLOSE must not inherit correlation_id from prior ENTRY, SCALE_OUT, BE, or TRAIL events.
+
 
 
 ---
@@ -226,8 +257,13 @@ At CLOSE (`MM_EVENT_CLOSE`):
 - Closure is confirmed (broker/deal outcome)
 - MM_EVENT_CLOSE is emitted as Event-only broker confirmation
 - Cycle Summary is emitted (one row per completed lifecycle)
+- Cycle Summary broker close evidence is reconciled against MM_EVENT_CLOSE
+- Cycle Summary pnl is aggregated across realized-PnL lifecycle events:
+  - successful MM_EVENT_SCALE_OUT close_profit values
+  - mandatory MM_EVENT_CLOSE close_profit value
 - No Snapshot BEFORE/AFTER pair is required for CLOSE under the current v2.1 model
 - Lifecycle completes
+
 
 ---
 
@@ -401,6 +437,15 @@ This does not change logging schema requirements; it only affects whether lifecy
   - CLOSE is Event-only broker confirmation.
   - Removed requirement for Snapshot BEFORE/AFTER at CLOSE.
 - Documented Cycle Summary as completed lifecycle aggregate layer.
+- P5-FIX-03 documentation alignment:
+  - Clarified correlation_id as an action-level trace identifier inside a cycle_id.
+  - Documented conditional MM_EVENT_CLOSE correlation behavior:
+    - MM_EVENT_EXIT → MM_EVENT_CLOSE may share correlation_id when close_reason = "MM_EXPERT: Exit Signal".
+    - Broker-driven CLOSE events such as TP_HIT, SL_HIT, STOP_OUT Event, UNKNOWN, or manual/external closes must receive a dedicated CLOSE correlation_id.
+    - Broker-driven CLOSE must not inherit correlation_id from prior ENTRY, SCALE_OUT, BE, or TRAIL events.
+  - Clarified Cycle Summary pnl as total realized lifecycle PnL aggregated from successful SCALE_OUT close_profit values plus the mandatory CLOSE close_profit value.
+  - Clarified that Cycle Summary close evidence reconciles against MM_EVENT_CLOSE, while Cycle Summary pnl reconciles against realized-PnL lifecycle events.
+
 
 ##### v1.4 (2026-05-11)
 - Aligned architecture with MM Snapshot Schema v2.0:

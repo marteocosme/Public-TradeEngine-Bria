@@ -23,8 +23,9 @@ This schema is the SSOT for:
 - Field names
 - Field types
 - Completed lifecycle aggregation rules
+- Total lifecycle PnL aggregation rules across SCALE_OUT and CLOSE events
 - Event CLOSE reconciliation rules
-
+- 
 ---
 
 ## 1. Scope
@@ -56,7 +57,7 @@ The logging model uses three complementary outputs:
 - Event Log — records confirmed lifecycle/MM events
 - Cycle Summary Log — records completed lifecycle aggregates
 
-Cycle Summary is reconciled primarily against `MM_EVENT_CLOSE` rows from the Event Log.
+Cycle Summary is reconciled against the completed lifecycle Event rows for the same cycle_id. Broker close evidence is reconciled against the mandatory `MM_EVENT_CLOSE` row, while lifecycle PnL is aggregated from successful realized-PnL events, including `MM_EVENT_SCALE_OUT` and `MM_EVENT_CLOSE`.
 
 ### Join Rules
 
@@ -202,9 +203,18 @@ Must match Event CLOSE `close_price`.
 
 #### pnl
 
-Broker-confirmed lifecycle PnL.
 
-Must match Event CLOSE `close_profit`.
+Total realized lifecycle PnL for the completed cycle.
+
+Cycle Summary pnl MUST represent the aggregate realized PnL across the full trade lifecycle, not only the final CLOSE leg.
+
+Calculation rule:
+
+```text
+summary.pnl =
+  SUM(Event.close_profit where event_type = MM_EVENT_SCALE_OUT and close_profit is broker-confirmed)
++ SUM(Event.close_profit where event_type = MM_EVENT_CLOSE)
+```
 
 ---
 
@@ -221,6 +231,22 @@ Count of successful `MM_EVENT_TRAIL` events for the cycle.
 #### be_triggered
 
 Boolean indicating whether at least one successful `MM_EVENT_BE` occurred in the cycle.
+
+#### Lifecycle aggregate relationship to pnl
+
+scale_count, trail_count, and be_triggered summarize lifecycle behavior, but only realized-PnL events contribute to summary.pnl.
+
+PnL-affecting lifecycle events:
+- successful MM_EVENT_SCALE_OUT
+- mandatory MM_EVENT_CLOSE
+
+Non-PnL lifecycle events:
+- MM_EVENT_ENTRY
+- MM_EVENT_BE
+- MM_EVENT_TRAIL
+- MM_EVENT_EXIT
+
+A BE or TRAIL event may influence the eventual close condition, but it does not directly contribute close_profit and must not be added to summary.pnl.
 
 ---
 
@@ -290,24 +316,25 @@ lifecycle_status = CLOSED
 
 ## 6. Reconciliation Rules
 
-Cycle Summary rows MUST reconcile with Event CLOSE rows.
+Cycle Summary rows MUST reconcile with the completed lifecycle Event rows for the same cycle_id.
 
-For each completed `cycle_id`:
+For each completed cycle_id, broker close evidence MUST reconcile with the mandatory MM_EVENT_CLOSE row:
 
-- `summary.ticket == Event CLOSE.ticket`
-- `summary.position_type == Event CLOSE.position_type`
-- `summary.exit_time == Event CLOSE.event_time`
-- `summary.exit_price == Event CLOSE.close_price`
-- `summary.pnl == Event CLOSE.close_profit`
-- `summary.close_reason == Event CLOSE.close_reason`
-- `summary.close_volume == Event CLOSE.close_volume`
-- `summary.deal_id == Event CLOSE.deal_id`
+- summary.ticket == Event CLOSE.ticket
+- summary.position_type == Event CLOSE.position_type
+- summary.exit_time == Event CLOSE.event_time
+- summary.exit_price == Event CLOSE.close_price
+- summary.close_reason == Event CLOSE.close_reason
+- summary.close_volume == Event CLOSE.close_volume
+- summary.deal_id == Event CLOSE.deal_id
 
-Lifecycle aggregates MUST reconcile with Event rows:
+Lifecycle pnl MUST reconcile against realized-PnL Event rows:
 
-- `scale_count == count(MM_EVENT_SCALE_OUT per cycle)`
-- `trail_count == count(MM_EVENT_TRAIL per cycle)`
-- `be_triggered == exists(MM_EVENT_BE per cycle)`
+```text
+summary.pnl =
+  SUM(Event.close_profit where event_type = MM_EVENT_SCALE_OUT)
++ SUM(Event.close_profit where event_type = MM_EVENT_CLOSE)
+```
 
 ---
 
@@ -328,7 +355,9 @@ Validated rules:
 - `position_type` matched Event CLOSE.
 - `exit_time` matched Event CLOSE `event_time`.
 - `exit_price` matched Event CLOSE `close_price`.
-- `pnl` matched Event CLOSE `close_profit`.
+- pnl matched total realized lifecycle PnL aggregated from successful MM_EVENT_SCALE_OUT close_profit values plus the mandatory MM_EVENT_CLOSE close_profit value. 
+- For close-only cycles without SCALE_OUT, pnl matched Event CLOSE close_profit.
+- For cycles with successful SCALE_OUT events, pnl included partial realized PnL plus final CLOSE realized PnL.
 - `close_reason` matched Event CLOSE `close_reason`.
 - `close_volume` matched Event CLOSE `close_volume`.
 - `deal_id` matched Event CLOSE `deal_id`.
@@ -379,5 +408,19 @@ Validated rules:
   - `scale_count`
   - `trail_count`
   - `be_triggered`
+- P5-FIX-03 documentation alignment:
+  - Clarified Cycle Summary pnl as total realized lifecycle PnL.
+  - Replaced outdated rule that pnl must equal only Event CLOSE close_profit.
+  - Documented pnl aggregation rule:
+    - include successful MM_EVENT_SCALE_OUT close_profit values
+    - include mandatory MM_EVENT_CLOSE close_profit value
+    - exclude ENTRY, BE, TRAIL, and EXIT events from pnl aggregation
+  - Clarified that Event CLOSE remains the reconciliation source for broker close evidence fields:
+    - exit_time
+    - exit_price
+    - close_reason
+    - close_volume
+    - deal_id
+  - Clarified that Cycle Summary uses cycle_id for lifecycle aggregation and does not define correlation_id ownership.  
 
 ##### End of Document — MM_Cycle_Summary_Schema v2.1

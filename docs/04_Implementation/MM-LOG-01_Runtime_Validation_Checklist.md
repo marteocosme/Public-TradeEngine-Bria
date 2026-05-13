@@ -75,6 +75,11 @@ Validation status:
 - MM_EVENT_CLOSE implemented (broker-confirmed closure)
 - Cycle Summary emission moved to CLOSE (lifecycle terminator)
 - Event Log Schema (E2 fields) implemented and populated
+- Cycle Summary PnL aggregation corrected to include successful SCALE_OUT close_profit values plus final CLOSE close_profit.
+- Conditional MM_EVENT_CLOSE correlation behavior implemented:
+  - engine-driven EXIT → CLOSE may share correlation_id
+  - broker-driven TP/SL/manual/unknown CLOSE receives a dedicated CLOSE correlation_id
+
 
 
 ### Recent Changes / Validation Notes (Patch Notes)
@@ -88,19 +93,29 @@ Validation status:
 - ✅ Improved `MM_EVENT_EXIT` semantics: intent-only with descriptive `action_summary` (e.g., `Exit signal: RVI (EXIT_MODE_CROSS)`).
 - ✅ Fixed timeframe corruption in event logs; now consistently logs valid `PERIOD_*` values (e.g., `PERIOD_M15`).
 - ✅ Expanded deal close reason mapping; CLOSE reasons now include `TP_HIT`, `SL_HIT`, and EA-driven closes like `MM_EXPERT: Exit Signal`.
+- ✅ P5-FIX-01: Cycle Summary pnl now represents total realized lifecycle PnL:
+  - successful MM_EVENT_SCALE_OUT close_profit values
+  - plus mandatory MM_EVENT_CLOSE close_profit value
+- ✅ P5-FIX-02A: MM_EVENT_CLOSE correlation_id behavior is now conditional:
+  - MM_EVENT_EXIT → MM_EVENT_CLOSE may share correlation_id when close_reason = MM_EXPERT: Exit Signal
+  - broker-driven CLOSE rows such as TP_HIT, SL_HIT, STOP_OUT, UNKNOWN, or manual/external close receive a dedicated CLOSE correlation_id
+  - broker-driven CLOSE must not inherit correlation_id from ENTRY, SCALE_OUT, BE, or TRAIL
+
 
 #### Runtime Validation Result:
-- ✅ cycle_id lifecycle consistency validated
+- ✅ `cycle_id` lifecycle consistency validated
 - ✅ BEFORE / AFTER snapshot integrity validated
-- ✅ correlation_id pairing validated
+- ✅ `correlation_id` pairing validated for non-CLOSE actions and conditional CLOSE correlation behavior validated.
 - ✅ position_type validated across Snapshot, Event, and Cycle Summary logs
 - ✅ SCALE_OUT event evidence validated
 - ✅ action_summary correctness validated
 - ✅ one Cycle Summary row per CLOSE validated
-- ✅ PnL and summary field accuracy validated against Event CLOSE evidence
+- ✅ Cycle Summary PnL aggregation validated against realized-PnL lifecycle events:
+  - successful MM_EVENT_SCALE_OUT close_profit values
+  - mandatory MM_EVENT_CLOSE close_profit value
 - ✅ no DBL_MAX / garbage / uninitialized values detected
 - ✅ Event ↔ Snapshot correlation validated
-- ✅ Cycle Summary ↔ Event CLOSE reconciliation validated
+- ✅ Cycle Summary broker close evidence reconciled against Event CLOSE fields.
 
 
 
@@ -193,9 +208,47 @@ For other non-CLOSE events (ENTRY / BE / TRAIL / EXIT):
 - [x] close_volume = 0.0
 - [x] deal_id = 0
 
+
+#### 7. CLOSE correlation_id Validation
+
+MM_EVENT_CLOSE correlation_id behavior MUST follow close-origin semantics.
+
+Engine-driven EXIT → CLOSE rule:
+- [ ] If MM_EVENT_CLOSE is the broker-confirmed result of an explicit MM_EVENT_EXIT:
+  - [ ] close_reason = MM_EXPERT: Exit Signal
+  - [ ] MM_EVENT_EXIT and MM_EVENT_CLOSE MAY share the same correlation_id
+  - [ ] This shared correlation_id is valid because CLOSE confirms the same logical exit action chain.
+
+Broker-driven CLOSE rule:
+- [ ] If MM_EVENT_CLOSE is caused by broker-side closure:
+  - [ ] TP_HIT
+  - [ ] SL_HIT
+  - [ ] STOP_OUT Event
+  - [ ] UNKNOWN
+  - [ ] manual / external close reason
+- [ ] MM_EVENT_CLOSE MUST receive a dedicated CLOSE correlation_id.
+- [ ] MM_EVENT_CLOSE MUST NOT inherit correlation_id from prior non-exit events:
+  - [ ] MM_EVENT_ENTRY
+  - [ ] MM_EVENT_SCALE_OUT
+  - [ ] MM_EVENT_BE
+  - [ ] MM_EVENT_TRAIL
+
+Required validation cases:
+- [ ] EXIT → CLOSE with close_reason = MM_EXPERT: Exit Signal may share correlation_id.
+- [ ] ENTRY → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
+- [ ] SCALE_OUT → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
+- [ ] BE → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
+- [ ] TRAIL → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
+
+BE-to-SL causality note:
+- [ ] If BE moves SL and the final close is SL_HIT, the close may be causally related to BE.
+- [ ] This causality MUST be validated through lifecycle/state fields such as be_triggered, previous_stoploss, new_stoploss, and close_reason.
+- [ ] It MUST NOT be represented by reusing the BE correlation_id for MM_EVENT_CLOSE.
+
+
 ---
 
-### 7. Cycle Summary Validation
+### 8. Cycle Summary Validation
 
 - [x] Cycle summary CSV file is generated
 - [x] One summary row is emitted after each CLOSE
@@ -205,14 +258,22 @@ For other non-CLOSE events (ENTRY / BE / TRAIL / EXIT):
 - [x] `exit_time` is valid
 - [x] `entry_price` is valid
 - [x] `exit_price` is valid
-- [x] `pnl` is realistic and validated against MT5 result
+- [ ] pnl is realistic and validated against MT5 result
+- [ ] pnl equals total realized lifecycle PnL:
+  - [ ] SUM(successful MM_EVENT_SCALE_OUT close_profit)
+  - [ ] plus MM_EVENT_CLOSE close_profit
+- [ ] For close-only cycles without successful SCALE_OUT:
+  - [ ] summary.pnl == MM_EVENT_CLOSE.close_profit
+- [ ] For cycles with successful SCALE_OUT:
+  - [ ] summary.pnl == SUM(SCALE_OUT close_profit) + MM_EVENT_CLOSE.close_profit
+  - [ ] summary.pnl may differ from MM_EVENT_CLOSE.close_profit
 - [x] `scale_count` is correct
 - [x] `trail_count` is correct
 - [x] `be_triggered` is correct
 
 ---
 
-### 8. Replay Completeness Validation
+### 9. Replay Completeness Validation
 
 - [x] Full trade lifecycle can be reconstructed using logs only
 - [x] ENTRY → MANAGE → (optional EXIT) → CLOSE sequence is visible
@@ -234,8 +295,13 @@ MM-LOG-01 may be marked COMPLETE only when:
 - Cycle summary logs are emitted correctly
 - No garbage or uninitialized values appear
 - Summary PnL and lifecycle metrics are validated against MT5 results
+- Summary PnL represents total realized lifecycle PnL, including successful SCALE_OUT close_profit values plus final CLOSE close_profit
 - Logs alone can reconstruct the full trade lifecycle
-- MM_EVENT_CLOSE exists exactly once per cycle and carries E2 close fields
+- `MM_EVENT_CLOSE` exists exactly once per cycle and carries E2 close fields
+- `MM_EVENT_CLOSE` correlation_id behavior follows close-origin semantics:
+  - engine-driven EXIT → CLOSE may share correlation_id
+  - broker-driven TP/SL/manual/unknown CLOSE must receive a dedicated CLOSE correlation_id
+
 - Replace “Cycle summary logs are emitted correctly” with “Cycle summary logs are emitted correctly (one per CLOSE)”
 - SCALE_OUT rows may carry broker partial-close evidence (close_* + deal_id) when deal matching succeeds
 
@@ -255,7 +321,15 @@ RUNTIME VALIDATION PASSED — v2.1
 - Confirmed Event Log v2.1 validation passed.
 - Confirmed Cycle Summary Log v2.1 validation passed.
 - Added validation result notes for position_type, correlation_id, internal_trade_id, Cycle Summary v2.1 close evidence, duration_sec, and lifecycle_status.
-- Clarified that CLOSE is currently Event-only broker confirmation and does not require Snapshot BEFORE/AFTER pairs under v2.1.
+- Clarified that CLOSE is currently Event-only broker confirmation and does not require Snapshot BEFORE/AFTER pairs under v2.1.  
+- P5-FIX-03 documentation alignment:
+  - Added validation criteria for Cycle Summary total realized lifecycle PnL aggregation.
+  - Clarified that Cycle Summary pnl must include successful MM_EVENT_SCALE_OUT close_profit values plus mandatory MM_EVENT_CLOSE close_profit.
+  - Added validation criteria for conditional MM_EVENT_CLOSE correlation_id behavior.
+  - Clarified that engine-driven EXIT → CLOSE may share correlation_id when close_reason = MM_EXPERT: Exit Signal.
+  - Clarified that broker-driven CLOSE events such as TP_HIT, SL_HIT, STOP_OUT Event, UNKNOWN, or manual/external closes must receive a dedicated CLOSE correlation_id.
+  - Clarified that BE-to-SL causality must be validated through lifecycle/state fields, not by reusing the BE correlation_id.
+
 
 ### v1.3 (2026-05-09)
 - Aligned checklist with updated MM_Event_Log_Schema rules:
