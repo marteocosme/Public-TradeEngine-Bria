@@ -117,10 +117,6 @@ Validation status:
 - ✅ Event ↔ Snapshot correlation validated
 - ✅ Cycle Summary broker close evidence reconciled against Event CLOSE fields.
 
-
-
-
-
 ---
 
 ## 🧪 Runtime Validation Checklist
@@ -214,36 +210,36 @@ For other non-CLOSE events (ENTRY / BE / TRAIL / EXIT):
 MM_EVENT_CLOSE correlation_id behavior MUST follow close-origin semantics.
 
 Engine-driven EXIT → CLOSE rule:
-- [ ] If MM_EVENT_CLOSE is the broker-confirmed result of an explicit MM_EVENT_EXIT:
-  - [ ] close_reason = MM_EXPERT: Exit Signal
-  - [ ] MM_EVENT_EXIT and MM_EVENT_CLOSE MAY share the same correlation_id
-  - [ ] This shared correlation_id is valid because CLOSE confirms the same logical exit action chain.
+- [x] If MM_EVENT_CLOSE is the broker-confirmed result of an explicit MM_EVENT_EXIT:
+  - [x] close_reason = MM_EXPERT: Exit Signal
+  - [x] MM_EVENT_EXIT and MM_EVENT_CLOSE MAY share the same correlation_id
+  - [x] This shared correlation_id is valid because CLOSE confirms the same logical exit action chain.
 
 Broker-driven CLOSE rule:
-- [ ] If MM_EVENT_CLOSE is caused by broker-side closure:
-  - [ ] TP_HIT
-  - [ ] SL_HIT
+- [x] If MM_EVENT_CLOSE is caused by broker-side closure:
+  - [x] TP_HIT
+  - [x] SL_HIT
   - [ ] STOP_OUT Event
   - [ ] UNKNOWN
   - [ ] manual / external close reason
-- [ ] MM_EVENT_CLOSE MUST receive a dedicated CLOSE correlation_id.
-- [ ] MM_EVENT_CLOSE MUST NOT inherit correlation_id from prior non-exit events:
-  - [ ] MM_EVENT_ENTRY
-  - [ ] MM_EVENT_SCALE_OUT
-  - [ ] MM_EVENT_BE
-  - [ ] MM_EVENT_TRAIL
+- [x] MM_EVENT_CLOSE MUST receive a dedicated CLOSE correlation_id.
+- [x] MM_EVENT_CLOSE MUST NOT inherit correlation_id from prior non-exit events:
+  - [x] MM_EVENT_ENTRY
+  - [x] MM_EVENT_SCALE_OUT
+  - [x] MM_EVENT_BE
+  - [x] MM_EVENT_TRAIL
 
 Required validation cases:
-- [ ] EXIT → CLOSE with close_reason = MM_EXPERT: Exit Signal may share correlation_id.
-- [ ] ENTRY → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
-- [ ] SCALE_OUT → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
-- [ ] BE → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
-- [ ] TRAIL → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
+- [x] EXIT → CLOSE with close_reason = MM_EXPERT: Exit Signal may share correlation_id.
+- [x] ENTRY → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
+- [x] SCALE_OUT → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
+- [x] BE → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
+- [x] TRAIL → CLOSE with close_reason = TP_HIT or SL_HIT must not share correlation_id.
 
 BE-to-SL causality note:
-- [ ] If BE moves SL and the final close is SL_HIT, the close may be causally related to BE.
-- [ ] This causality MUST be validated through lifecycle/state fields such as be_triggered, previous_stoploss, new_stoploss, and close_reason.
-- [ ] It MUST NOT be represented by reusing the BE correlation_id for MM_EVENT_CLOSE.
+- [x] If BE moves SL and the final close is SL_HIT, the close may be causally related to BE.
+- [x] This causality MUST be validated through lifecycle/state fields such as be_triggered, previous_stoploss, new_stoploss, and close_reason.
+- [x] It MUST NOT be represented by reusing the BE correlation_id for MM_EVENT_CLOSE.
 
 
 ---
@@ -258,18 +254,26 @@ BE-to-SL causality note:
 - [x] `exit_time` is valid
 - [x] `entry_price` is valid
 - [x] `exit_price` is valid
-- [ ] pnl is realistic and validated against MT5 result
-- [ ] pnl equals total realized lifecycle PnL:
-  - [ ] SUM(successful MM_EVENT_SCALE_OUT close_profit)
-  - [ ] plus MM_EVENT_CLOSE close_profit
+- [x] pnl is realistic and validated against MT5 result
+- [x] pnl equals total realized lifecycle PnL:
+  - [x] SUM(successful MM_EVENT_SCALE_OUT close_profit)
+  - [x] plus MM_EVENT_CLOSE close_profit
 - [ ] For close-only cycles without successful SCALE_OUT:
-  - [ ] summary.pnl == MM_EVENT_CLOSE.close_profit
+  - [x] summary.pnl == MM_EVENT_CLOSE.close_profit
 - [ ] For cycles with successful SCALE_OUT:
   - [ ] summary.pnl == SUM(SCALE_OUT close_profit) + MM_EVENT_CLOSE.close_profit
   - [ ] summary.pnl may differ from MM_EVENT_CLOSE.close_profit
 - [x] `scale_count` is correct
 - [x] `trail_count` is correct
 - [x] `be_triggered` is correct
+- [ ] total_traded_volume equals sum of:
+  - [ ] MM_EVENT_SCALE_OUT close_volume
+  - [ ] MM_EVENT_CLOSE close_volume
+- [ ] For close-only cycles:
+  - [ ] total_traded_volume == MM_EVENT_CLOSE.close_volume
+- [ ] For scale-out cycles:
+  - [ ] total_traded_volume == SUM(SCALE_OUT close_volume) + CLOSE close_volume
+
 
 ---
 
@@ -287,23 +291,24 @@ BE-to-SL causality note:
 
 MM-LOG-01 may be marked COMPLETE only when:
 
-- All MM lifecycle events are logged correctly
-- BEFORE and AFTER snapshots are paired and schema-compliant
-- cycle_id reconstructs each lifecycle correctly
-- SCALE_OUT events are consolidated
-- action_summary is populated and meaningful
-- Cycle summary logs are emitted correctly
-- No garbage or uninitialized values appear
-- Summary PnL and lifecycle metrics are validated against MT5 results
-- Summary PnL represents total realized lifecycle PnL, including successful SCALE_OUT close_profit values plus final CLOSE close_profit
-- Logs alone can reconstruct the full trade lifecycle
-- `MM_EVENT_CLOSE` exists exactly once per cycle and carries E2 close fields
-- `MM_EVENT_CLOSE` correlation_id behavior follows close-origin semantics:
-  - engine-driven EXIT → CLOSE may share correlation_id
-  - broker-driven TP/SL/manual/unknown CLOSE must receive a dedicated CLOSE correlation_id
-
-- Replace “Cycle summary logs are emitted correctly” with “Cycle summary logs are emitted correctly (one per CLOSE)”
-- SCALE_OUT rows may carry broker partial-close evidence (close_* + deal_id) when deal matching succeeds
+- [ ] All MM lifecycle events are logged correctly
+- [ ] BEFORE and AFTER snapshots are paired and schema-compliant
+- [ ] cycle_id reconstructs each lifecycle correctly
+- [ ] SCALE_OUT events are consolidated
+- [ ] action_summary is populated and meaningful
+- [ ] Cycle summary logs are emitted correctly
+- [ ] No garbage or uninitialized values appear
+- [ ] Summary PnL and lifecycle metrics are validated against MT5 results
+- [ ] Summary PnL represents total realized lifecycle PnL, including successful SCALE_OUT close_profit values plus final CLOSE close_profit
+- [ ] Logs alone can reconstruct the full trade lifecycle
+- [ ] `MM_EVENT_CLOSE` exists exactly once per cycle and carries E2 close fields
+- [ ] `MM_EVENT_CLOSE` correlation_id behavior follows close-origin semantics:
+  - [ ] engine-driven EXIT → CLOSE may share correlation_id
+  - [ ] broker-driven TP/SL/manual/unknown CLOSE must receive a dedicated CLOSE correlation_id
+- [ ] Replace “Cycle summary logs are emitted correctly” with “Cycle summary logs are emitted correctly (one per CLOSE)”
+- [ ] SCALE_OUT rows may carry broker partial-close evidence (close_* + deal_id) when deal matching succeeds
+- [ ] total_traded_volume correctly represents lifecycle execution volume
+- [ ] close_volume remains equal to MM_EVENT_CLOSE.close_volume (not aggregated)
 
 Runtime validation criteria are satisfied for the current v2.1 logging model.
 
@@ -329,6 +334,10 @@ RUNTIME VALIDATION PASSED — v2.1
   - Clarified that engine-driven EXIT → CLOSE may share correlation_id when close_reason = MM_EXPERT: Exit Signal.
   - Clarified that broker-driven CLOSE events such as TP_HIT, SL_HIT, STOP_OUT Event, UNKNOWN, or manual/external closes must receive a dedicated CLOSE correlation_id.
   - Clarified that BE-to-SL causality must be validated through lifecycle/state fields, not by reusing the BE correlation_id.
+- P5-FIX-04:
+  - Added validation rules for total_traded_volume lifecycle aggregation.
+  - Clarified distinction between close_volume and total_traded_volume.
+ 
 
 
 ### v1.3 (2026-05-09)

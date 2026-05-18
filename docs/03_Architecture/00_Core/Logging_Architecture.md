@@ -81,7 +81,12 @@ TradeEngine
 ↓
 Lifecycle CLOSE detected (MM_EVENT_CLOSE)
 ↓
-Cycle Summary constructed from completed lifecycle state and realized-PnL events
+Cycle Summary constructed from:
+- lifecycle state (counts, flags)
+- broker-confirmed CLOSE evidence
+- aggregated lifecycle metrics:
+  - total realized pnl
+  - total traded volume
 ↓
 Logger (Cycle Summary Writer)
 ↓
@@ -96,6 +101,18 @@ Cycle Summary pnl is total realized lifecycle PnL and is aggregated from:
 - mandatory MM_EVENT_CLOSE close_profit value
 
 Cycle Summary pnl is not limited to the final MM_EVENT_CLOSE close_profit when scale-out events occurred.
+
+Cycle Summary volume semantics:
+
+- close_volume represents the broker-confirmed volume of the final CLOSE deal.
+- total_traded_volume represents aggregated volume across the full lifecycle:
+  - includes SCALE_OUT partial closes
+  - includes final CLOSE volume
+
+These fields intentionally serve different purposes:
+- close_volume → final broker outcome
+- total_traded_volume → lifecycle execution activity
+
 
 ---
 
@@ -431,7 +448,7 @@ This does not change logging schema requirements; it only affects whether lifecy
 
 # ✅ 📌 Version Notes
 
-##### v1.5 (2026-05-12)
+##### v1.5 (2026-05-18)
 - Added Cycle Summary pipeline and schema reference.
 - Aligned CLOSE lifecycle handling with v2.1 runtime:
   - CLOSE is Event-only broker confirmation.
@@ -445,6 +462,9 @@ This does not change logging schema requirements; it only affects whether lifecy
     - Broker-driven CLOSE must not inherit correlation_id from prior ENTRY, SCALE_OUT, BE, or TRAIL events.
   - Clarified Cycle Summary pnl as total realized lifecycle PnL aggregated from successful SCALE_OUT close_profit values plus the mandatory CLOSE close_profit value.
   - Clarified that Cycle Summary close evidence reconciles against MM_EVENT_CLOSE, while Cycle Summary pnl reconciles against realized-PnL lifecycle events.
+- P5-FIX-04:
+  - Introduced total_traded_volume as lifecycle-level volume aggregation.
+  - Clarified distinction between close_volume (final CLOSE) and total_traded_volume (aggregated lifecycle volume).
 
 
 ##### v1.4 (2026-05-11)

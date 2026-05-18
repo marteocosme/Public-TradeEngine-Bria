@@ -94,8 +94,9 @@ Missing or extra columns invalidate the log.
 16. `be_triggered`
 17. `close_reason`
 18. `close_volume`
-19. `deal_id`
-20. `lifecycle_status`
+19. `total_traded_volume`
+20. `deal_id`
+21. `lifecycle_status`
 
 ---
 
@@ -281,7 +282,34 @@ Must match Event CLOSE `deal_id`.
 
 ---
 
-### 4.6 Lifecycle Status
+#### 4.6 Lifecycle Volume Aggregation Fields
+
+**`total_traded_volume`**
+
+Total volume closed across the full lifecycle for the cycle.
+
+**Calculation:**
+
+```text
+total_traded_volume =
+SUM(Event.close_volume where event_type = `MM_EVENT_SCALE_OUT`)
++ Event.close_volume where event_type = `MM_EVENT_CLOSE`
+
+```
+**Rules:**
+
+- MUST include all broker-confirmed partial close volumes from `MM_EVENT_SCALE_OUT`.
+- MUST include the final `MM_EVENT_CLOSE` close_volume.
+- MUST be 0 only if no close events occurred (not expected for completed lifecycle).
+- Represents the total executed volume across the trade lifecycle.
+
+**Important distinction:**
+
+- `close_volume` = volume of the final CLOSE deal only
+- `total_traded_volume` = full lifecycle volume across all executed closes
+
+
+### 4.7 Lifecycle Status
 
 #### lifecycle_status
 
@@ -336,6 +364,25 @@ summary.pnl =
 + SUM(Event.close_profit where event_type = MM_EVENT_CLOSE)
 ```
 
+
+Lifecycle volume MUST reconcile against Event rows:
+
+```text
+total_traded_volume =
+SUM(Event.close_volume where event_type = MM_EVENT_SCALE_OUT)
++ Event.close_volume where event_type = MM_EVENT_CLOSE
+```
+For close-only cycles:
+```
+total_traded_volume == Event CLOSE.close_volume
+```
+For scale-out cycles:
+```
+total_traded_volume == SUM(SCALE_OUT close_volume) + CLOSE.close_volume
+```
+Cycle Summary close_volume MUST still match Event CLOSE `close_volume` and must NOT be aggregated.
+
+
 ---
 
 ## 7. Runtime Validation Evidence — v2.1
@@ -355,7 +402,8 @@ Validated rules:
 - `position_type` matched Event CLOSE.
 - `exit_time` matched Event CLOSE `event_time`.
 - `exit_price` matched Event CLOSE `close_price`.
-- pnl matched total realized lifecycle PnL aggregated from successful MM_EVENT_SCALE_OUT close_profit values plus the mandatory MM_EVENT_CLOSE close_profit value. 
+- pnl matched total realized lifecycle PnL aggregated from successful MM_EVENT_SCALE_OUT close_profit values plus the mandatory MM_EVENT_CLOSE close_profit value. .
+- `total_traded_volume` matched sum of SCALE_OUT + CLOSE close_volume values.
 - For close-only cycles without SCALE_OUT, pnl matched Event CLOSE close_profit.
 - For cycles with successful SCALE_OUT events, pnl included partial realized PnL plus final CLOSE realized PnL.
 - `close_reason` matched Event CLOSE `close_reason`.
@@ -421,6 +469,12 @@ Validated rules:
     - close_reason
     - close_volume
     - deal_id
-  - Clarified that Cycle Summary uses cycle_id for lifecycle aggregation and does not define correlation_id ownership.  
+  - Clarified that Cycle Summary uses cycle_id for lifecycle aggregation and does not define correlation_id ownership.
+  - P5-FIX-04:
+    - Added total_traded_volume field to Cycle Summary schema.
+    - Defined lifecycle volume aggregation rule:
+      - include MM_EVENT_SCALE_OUT close_volume
+      - include MM_EVENT_CLOSE close_volume
+    - Clarified difference between close_volume (final CLOSE only) and total_traded_volume (lifecycle volume).
 
 ##### End of Document — MM_Cycle_Summary_Schema v2.1

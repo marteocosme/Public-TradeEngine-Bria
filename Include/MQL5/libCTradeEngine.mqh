@@ -225,6 +225,7 @@ private:
    double               m_entry_price;
    datetime             m_entry_time;
    double               m_cycle_realized_pnl; // ✅ NEW: tracks total pnl per cycle
+   double               m_cycle_traded_volume; // ✅ NEW: total traded volume per cycle
 
    // --------------------------------------------------
    // Phase 5 — Trade Lifecycle Orchestration
@@ -588,6 +589,7 @@ private:
          evt.close_profit = profit;
          m_cycle_realized_pnl += profit; // ✅ add final leg pnl
          evt.close_volume = volume;
+         m_cycle_traded_volume += volume; // ✅ final volume
          evt.deal_id      = deal_id;
          }
       else
@@ -645,6 +647,7 @@ private:
       summary.scale_count = m_scale_count;
       summary.trail_count = m_trail_count;
       summary.be_triggered = m_be_triggered;
+      summary.total_traded_volume = m_cycle_traded_volume;
 
       // --- Broker Close Evidence ---
       summary.close_reason = (evt.close_reason == "" ? "UNKNOWN" : evt.close_reason);
@@ -1037,6 +1040,8 @@ public:
 
       m_cycle_id++;
       m_cycle_realized_pnl = 0.0; // ✅ RESET per new cycle
+      m_cycle_traded_volume = 0.0; // ✅ reset per cycle
+      
       // --- MM Snapshot BEFORE (complete risk inputs) ---
       MM_SNAPSHOT_BEFORE snap;
       ZeroMemory(snap);
@@ -1369,6 +1374,7 @@ public:
                   evt.close_profit = prof;
                   m_cycle_realized_pnl += prof; // ✅ accumulate partial pnl
                   evt.close_volume = vol;
+                  m_cycle_traded_volume += vol; // ✅ accumulate partial volume
                   evt.close_reason = (rs == "" ? "UNKNOWN" : rs);
                   }
 

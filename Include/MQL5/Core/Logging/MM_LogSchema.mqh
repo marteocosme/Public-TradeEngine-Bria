@@ -127,6 +127,7 @@ public:
          "scale_count",
          "trail_count",
          "be_triggered",
+         "total_traded_volume",
          // --- Broker Close Evidence ---
          "close_reason",
          "close_volume",
