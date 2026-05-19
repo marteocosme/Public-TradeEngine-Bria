@@ -1,3 +1,10 @@
+
+> 🔒 STATUS: SUPERSEDED — DO NOT EDIT  
+> This document is historical. The active SSOT Roadmap is: ROADMAP_Implementation_Plan_and_Progress.md  
+> Superseded on: 2026-05-19 (UTC+8)
+
+
+
 # ROADMAP – Implementation Plan & Progress (revised v2 - 4/15/2026)
 
 ## Purpose of Revised Roadmap

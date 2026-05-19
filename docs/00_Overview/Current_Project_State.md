@@ -13,37 +13,25 @@ It answers, at a glance:
 This is the go‑to context reset file for resumes after breaks, new contributors, and Copilot sessions.
 
 ---
-## Project Phase Status (As of 4/15/2026)
-### ✅ Completed and Locked
-The following phases are finished, validated, and considered stable unless a critical defect is found.
-### Phase 4 – Execution & Money Management Event Logging
+## Project Phase Status (As of 2026-05-19)
+### ✅ Completed and Locked (v2.1 Runtime Validated)
 
+Phase 4 – Execution & Money Management Event Logging
 - Trade execution flow stabilized
 - Money Management events emitted
-- Logger structure aligned with lifecycle needs
-- Integration completed
+- Logging architecture validated
 
-### Completion marker:
-`Phase-4-Completion.md`
+Phase 5 – Execution Behavior Validation (MM-LOG-01)
+- Lifecycle orchestration validated
+- Event and Cycle Summary logs validated against schema
+- ✅ Runtime validation PASSED under v2.1
 
----
+ℹ️ Note:
+A schema refinement (P5-FIX-05: lifecycle volume semantics) introduces a v2.2 re-validation requirement before Phase 6.
 
-### Phase 5 – Trade Lifecycle Orchestrator
-
-- Explicit trade lifecycle states
-- Enforced valid/invalid transitions
-- Lifecycle‑bound MM actions
-- TradeContext formalized
-- Snapshot concept introduced (not fully enforced)
-
-### Completion marker:
-`Phase-5-Completion.md`
-
-Phase 5 guarantees **behavioral correctness**, not full observability.
-ℹ️ Note: MM‑LOG‑01 is a mandatory post‑closure obligation required to restore full observability.
 
 ## 🟡 Current Active Focus
-### MM‑LOG‑01 – Money Management Logging Completion & Validation (ACTIVE)
+### MM‑LOG‑01 – Execution Behavior Re-Validation (v2.2) (ACTIVE)
 
 This is a mandatory post‑Phase‑5 closure obligation required to restore full analytical observability.
 Phase 6 MUST NOT start until MM‑LOG‑01 is complete.
@@ -56,31 +44,38 @@ Phase 6 exists to close all remaining obligations from MM‑01 to MM‑04 relate
 - Validation criteria
 - Replay readiness
 
-This phase is explicitly Money Management first.
+This phase focuses on validating updated runtime semantics (v2.2), specifically:
+- close_volume event-level attribution
+- lifecycle volume aggregation (Cycle Summary)
+- schema alignment across Event / Cycle / Architecture / Contract
+
+
 
 ---
 
-## Phase 6 Objectives
-### Primary Objective
 
-Make Money Management behavior fully trustable through logs alone, for backtesting and forward testing.
+### Phase 6 – Data Analytics Layer (NEXT)
 
-### What Phase 6 Will Deliver
-### ✅ Enforced Lifecycle Snapshot Logging
-Mandatory snapshot emission at all MM‑relevant lifecycle points:
+#### Objective
+Turn validated logs into actionable analytics:
+- Trade performance attribution
+- Lifecycle behavior analysis
+- Risk and execution validation
+- Dashboard and reporting outputs
 
-- Post‑entry stabilization
-- Break‑even execution
-- Scale‑out execution
-- Trailing stop updates
-- Pre‑exit intent
-- Final trade exit
+#### Scope
+- CSV → Excel / Power BI ingestion
+- KPI calculation:
+  - expectancy
+  - R-multiples
+  - win/loss distribution
+  - scale-out contribution vs final close
+- Data validation monitors
 
-Each snapshot must include sufficient state to:
+#### Note
+Phase 6 ONLY begins after:
+✅ MM-LOG-01 v2.2 runtime validation PASSES
 
-- Reconstruct the trade
-- Audit MM logic
-- Validate calculations and values
 
 ---
 
@@ -150,7 +145,7 @@ These are monitored, not blockers.
 To resume work safely:
 
 1. Read this document
-2. Read Roadmap v2
+2. Read ROADMAP_Implementation_Plan_and_Progress.md
 3. Read latest Phase Completion Marker
 4. Work only within the active phase scope
 
@@ -175,8 +170,9 @@ Only after this:
 ## Final State Summary
 
 - ✅ Engine core built
-- ✅ Money Management logic in place
-- 🟡 Money Management observability in progress
+- ✅ Money Management logic validated
+- ✅ Observability achieved (v2.1)
+- 🟡 Re-validating updated volume model (v2.2)
 - ⏳ Strategy logic intentionally deferred
 
 This project is in an execution & validation phase, not a design phase.

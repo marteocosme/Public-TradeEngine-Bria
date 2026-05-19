@@ -140,7 +140,7 @@ These are deliberately deprioritized, not rejected forever.
 This document should be read alongside:
 
 - Current_Project_State.md
-- Roadmap v2
+- ROADMAP_Implementation_Plan_and_Progress.md
 - Phase completion markers
 - Logging contracts and validation specs
 
