@@ -18,7 +18,7 @@ It is the SSOT “field meaning layer” used by:
 ## 🧭 Governance Rules (Non-Negotiable)
 1. **Contract > Schema > Analytics interpretation.**  
    - Contract defines meaning and invariants; schemas define structure. 
-2. **Field meanings must match runtime truth.**  
+2. **Field meanings must match runtime truth.**     
    Any semantic change requires:
    - Contract update (if behavior/invariants changed)
    - Schema update (if structure changed)

@@ -61,10 +61,6 @@ This Roadmap defines:
 4) MM-LOG-01 observability is mandatory before analytics/scaling.
 5) Contract > Interpretation: `MM-LOG-01_Logging_Schema_Contract.md` defines semantic meaning + invariants; schemas define structure only.
 
-
-
-
-
 ---
 
 ## 🚦 Phase Gates (Hard Requirements)
@@ -186,8 +182,12 @@ This sign-off confirms that the execution behavior, logging model, and lifecycle
 
 
 ### Phase 6 — Data Analytics Layer (Dashboards / Metrics / Replay Tools)
+  
 Prerequisite:
 - Phase 5 v2.2 gate must be ✅ PASSED.
+
+Phase 6 Data Quality Gate: 
+- docs/05_Phase6_Analytics/02_Data_Quality/PHASE-6_Data_Quality_Checks_Checklist.md
 
 Goal:
 - Turn validated logs into analytics: performance attribution, lifecycle behavior, risk utilization.
