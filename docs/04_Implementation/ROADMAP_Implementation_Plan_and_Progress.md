@@ -10,6 +10,14 @@ Runtime Logging Model: v2.2
 - ROADMAP_Implementation_Plan_and_Progress_v2.md (Revised v2 — 2026-04-15)
 - Roadmap v1 (historical)
 
+### 🔗 SSOT References (Authoritative)
+- Logging Contract (behavioral semantics + invariants): `MM-LOG-01_Logging_Schema_Contract.md`
+- Snapshot Schema (structure): `MM_Snapshot_Schema.md`
+- Event Schema (structure): `MM_Event_Log_Schema.md`
+- Cycle Summary Schema (aggregation structure): `MM_Cycle_Summary_Schema.md`
+- Logging Pipeline (end-to-end reconciliation): `Logging_Architecture.md`
+- Runtime Acceptance Gate: `MM-LOG-01_Runtime_Validation_Checklist.md`
+
 ---
 
 ## 🎯 Purpose
@@ -50,6 +58,11 @@ This Roadmap defines:
 2) Specs/Schema/Contract must match runtime truth.  
 3) No phase progression without exit criteria.  
 4) MM-LOG-01 observability is mandatory before analytics/scaling.
+5) Contract > Interpretation: `MM-LOG-01_Logging_Schema_Contract.md` defines semantic meaning + invariants; schemas define structure only.
+
+
+
+
 
 ---
 
@@ -75,8 +88,14 @@ Phase 5 may be considered complete under the current model only when v2.2 runtim
 - Headers and column order match SSOT schema exactly.
 - No shifted columns, missing fields, or uninitialized garbage values.
 
-Output of this gate:
+**Output of this gate**
 - “RUNTIME VALIDATION PASSED — v2.2” recorded in the validation checklist SSOT.
+
+**Source of Truth**
+- Termination model + close_reason rules: `MM-LOG-01_Logging_Schema_Contract.md`
+- E2 close outcome field applicability rules: `MM-LOG-01_Logging_Schema_Contract.md`
+- v2.2 volume aggregation semantics: `MM-LOG-01_Logging_Schema_Contract.md`
+
 
 ---
 
@@ -177,6 +196,8 @@ Scope:
 - KPI set: expectancy, win-rate, R-multiples, drawdown, scale-out vs final-close attribution
 - Data quality monitors: missing rows, reconciliation checks, schema mismatch alerts
 - Optional replay tooling (reconstruct lifecycle timeline from logs)
+- Analytics must respect Logging Contract semantics (not schema-only interpretation)
+- Analytics interpretation MUST follow `MM-LOG-01_Logging_Schema_Contract.md` (semantic meaning + invariants), not schema alone.
 
 Non-Scope:
 - New strategy logic
@@ -245,6 +266,10 @@ Rule:
 ---
 
 ### Change Log
+
+#### v3.2 (2026-05-19)
+- Linked MM-LOG-01 contract as the authoritative semantic SSOT for Phase gates and Phase 6 analytics interpretation.
+
 #### v3.1 (2026-05-19)
 - Phase 5 gate passed: MM-LOG-01 runtime validation completed under v2.2 volume semantics (P5-FIX-05).
 - Phase 6 unblocked (Analytics Layer)
