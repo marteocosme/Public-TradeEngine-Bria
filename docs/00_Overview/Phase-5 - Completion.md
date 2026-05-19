@@ -11,7 +11,7 @@
 **Depends On:** Phase 4 — Execution & Money Management Logging (✅ Complete)
 
 **See also:**
-- Phase-5-Signoff.md (formal v2.2 runtime validation sign-off)
+- Phase_5_Signoff.md (formal v2.2 runtime validation sign-off)
 
 ---
 

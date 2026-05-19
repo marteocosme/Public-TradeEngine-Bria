@@ -275,9 +275,10 @@ Definition:
 Aggregated volume closed across all lifecycle closing events.
 
 Calculation:
+```
 close_volume = 
-SUM(Event.close_volume where event_type = MM_EVENT_SCALE_OUT)
-+ Event.close_volume where event_type = MM_EVENT_CLOSE
+SUM(Event.close_volume where event_type = MM_EVENT_SCALE_OUT) + Event.close_volume where event_type = MM_EVENT_CLOSE
+```
 
 Rules:
 - MUST include all broker-confirmed partial close volumes (MM_EVENT_SCALE_OUT).
@@ -453,7 +454,7 @@ Validated rules:
     - close_reason
     - close_volume
     - deal_id
-  - Clarified that Cycle Summary uses cycle_id for lifecycle aggregation and does not define correlation_id ownership.
+  - Clarified that Cycle Summary uses cycle_id for lifecycle aggregation and does not define `correlation_id` ownership.
   - P5-FIX-04:
     - Added total_traded_volume field to Cycle Summary schema.
     - Defined lifecycle volume aggregation rule:

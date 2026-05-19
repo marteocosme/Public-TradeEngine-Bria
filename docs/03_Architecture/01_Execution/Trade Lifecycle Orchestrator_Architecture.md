@@ -14,7 +14,7 @@ Last Updated: 2026-05-04
 
 This document is aligned with:
 
-- MM_Snapshot_Schema_v1.2.md
+- MM_Snapshot_Schema.md
 - MM-LOG-01_Logging_Schema_Contract.md
 - MM-LOG-01_Logging_Completion_and_Validation.md
 

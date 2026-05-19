@@ -17,7 +17,8 @@ Runtime Logging Model: v2.2
 - Cycle Summary Schema (aggregation structure): `MM_Cycle_Summary_Schema.md`
 - Logging Pipeline (end-to-end reconciliation): `Logging_Architecture.md`
 - Runtime Acceptance Gate: `MM-LOG-01_Runtime_Validation_Checklist.md`
-
+- Phase 5 Sign-off Evidence: `Phase_5_Signoff.md`
+ 
 ---
 
 ## 🎯 Purpose
@@ -68,7 +69,8 @@ This Roadmap defines:
 
 ## 🚦 Phase Gates (Hard Requirements)
 
-### Phase 5 (v2.2) Re-Validation Gate — REQUIRED before Phase 6
+### Phase 5 (v2.2) Validation Gate — (Already Passed)
+Status: ✅ PASSED (2026-05-19)
 Phase 5 may be considered complete under the current model only when v2.2 runtime validation passes for:
 
 **Schema / Semantics**
@@ -121,7 +123,7 @@ Exit Criteria:
 - Phase 5 v2.2 re-validation gate passes (see above).
 
 Reference:
-- Phase-5-Signoff.md (v2.2 validation evidence)
+- Phase_5_Signoff.md (v2.2 validation evidence)
 
 ---
 
@@ -203,6 +205,13 @@ Non-Scope:
 - New strategy logic
 - Entry/indicator signal expansion
 - Performance tuning
+
+Exit Criteria (Phase 6):
+- At least one working ingestion pipeline (CSV → structured dataset)
+- One reproducible dashboard/report (Excel / Power BI / script)
+- KPI set computed correctly (PnL, expectancy, drawdown, attribution)
+- Data validation checks pass (schema match, reconciliation checks)
+
 
 ---
 

@@ -26,7 +26,7 @@ Phase 5 – Execution Behavior Validation (MM-LOG-01)
 - Event and Cycle Summary logs validated against schema
 - ✅ Runtime validation PASSED under v2.1
 - Validation Evidence:
-  - Phase-5-Signoff.md
+  - Phase_5_Signoff.md
 
 
 ℹ️ Note:
