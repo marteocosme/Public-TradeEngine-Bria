@@ -3,11 +3,11 @@
 
 ## 🔒 Document Status
 
-**Version:** v1.6
+**Version:** v1.7
 
-**Status:** ✅ ACTIVE (SSOT)  
+**Status:** ✅ ACTIVE (SSOT) — PENDING RUNTIME VALIDATION (v2.2)  
 
-**Last Updated:** 2026-05-10 (UTC+8)
+**Last Updated:** 2026-05-19 (UTC+8)
 
 ---
 
@@ -50,6 +50,10 @@ This contract depends on the following SSOT specifications:
 - MM_Snapshot_Schema.md  *(SSOT)*
 - MM_Event_Log_Schema.md *(SSOT) — *defines MM_Events.csv / JSON, including MM_EVENT_CLOSE + close_reason fields*
 - TradeLifecycleEvents.md *(SSOT)* — *canonical event identifiers and mappings*
+- MM_Cycle_Summary_Schema.md *(SSOT) — defines Cycle Summary aggregation rules (pnl + close_volume lifecycle aggregates)*
+- Logging_Architecture.md *(SSOT) — end-to-end logging pipeline + reconciliation rules*
+- MM-LOG-01_Runtime_Validation_Checklist.md *(SSOT) — runtime acceptance + regression gates*
+
 
 Dependency rules:
 - Dependencies must reference SSOT filenames only. Versioned documents belong under `/00_Core/_archive/`.
@@ -156,7 +160,7 @@ The following E2 close outcome fields are broker/deal-derived outcome fields:
   - MM_EVENT_CLOSE remains the **official lifecycle terminator**.
 
 - For MM_EVENT_SCALE_OUT (partial outcome evidence):
-  - These fields **MAY** be populated when a broker partial-close deal is matched.
+  - These fields **MUST** be populated when a broker partial-close deal is matched.
   - If no matching deal is found, emit neutral defaults (same as other non-close events).
 
 - For all non-CLOSE events (`MM_EVENT_ENTRY`, `MM_EVENT_EXIT`, `MM_EVENT_BE`, `MM_EVENT_TRAIL`): 
@@ -173,6 +177,20 @@ The following E2 close outcome fields are broker/deal-derived outcome fields:
 - Allows SCALE_OUT to carry broker-confirmed partial-close evidence for auditability without redefining termination semantics.
 
 ---
+
+## Cycle Summary Aggregation Rules (v2.2)
+
+Under the v2.2 volume model:
+
+- Event.close_volume represents executed volume closed in the specific event:
+  - MM_EVENT_SCALE_OUT → partial closed volume for that scale-out
+  - MM_EVENT_CLOSE → remaining volume closed at lifecycle termination
+
+- Cycle Summary close_volume represents total lifecycle closed volume and MUST be derived as:
+  close_volume = SUM(Event.close_volume for MM_EVENT_SCALE_OUT) + Event.close_volume for MM_EVENT_CLOSE
+
+- No separate lifecycle volume field is maintained (total_traded_volume removed as redundant under the monotonic-decreasing lifecycle model).
+
 
 ## Protective Exit Configuration vs Exit Execution
 
@@ -459,7 +477,13 @@ All violations must:
 - Be treated as system failures
 
 ## Change Log
-
+### v1.7 (2026-05-19)
+- Added SSOT dependency references for Cycle Summary schema, Logging Architecture, and Runtime Validation Checklist.
+- Documented v2.2 Cycle Summary lifecycle volume aggregation:
+  - Cycle Summary close_volume = SUM(SCALE_OUT close_volume) + CLOSE close_volume.
+- Clarified SCALE_OUT E2 close fields must be populated when a broker partial-close deal is matched.
+- Marked contract as pending runtime validation under v2.2 semantics.
+  
 ### v1.6
 - Updated applicability rules for E2 close outcome fields:
   - MM_EVENT_CLOSE remains mandatory and authoritative terminator (MUST populate close_* + deal_id)

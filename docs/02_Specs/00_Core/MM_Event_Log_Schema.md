@@ -1,13 +1,13 @@
 # MM Event Log Schema (MM_Events.csv / JSON)
 
 ## 🔒 Document Status
-**Version:** v2.1 
+**Version:** v2.2
 
-**Status:** ✅ ACTIVE (SSOT) — RUNTIME VALIDATION PASSE
+**Status:** ✅ ACTIVE (SSOT) — PENDING VALIDATION PASSE
 
-**Last Updated:** 2026-05-12 (UTC+8)
+**Last Updated:** 2026-05-19 (UTC+8)
 
-**Runtime Schema Version:** v2.1
+**Runtime Schema Version:** v2.2
 
 ## Supersedes
 - MM_Event_Log_Schema_v1.1.md
@@ -113,7 +113,16 @@ All Event logs MUST follow this exact column order. Missing or extra columns inv
 - `position_type` is the trade direction context for the Event row.
 - `action_summary` is a human-readable action description.
 - `scale_steps` and `scale_fraction_total` apply to SCALE_OUT and are `0` / `0.0` otherwise.
-- `close_reason`, `close_price`, `close_profit`, `close_volume`, and `deal_id` are broker close/partial-close evidence fields.
+- `close_reason`, `close_price`, `close_profit`, `close_volume`, and `deal_id` are broker-confirmed close/partial-close evidence fields.
+- `close_volume` represents the volume closed in the specific event.
+
+  **Semantics:**
+  - For `MM_EVENT_SCALE_OUT` → partial volume closed during the scale-out execution
+  - For `MM_EVENT_CLOSE` → remaining volume closed during final lifecycle termination
+
+  **Invariant:**
+  SUM(`close_volume` across all events within the same `cycle_id`)
+  equals the total lifecycle closed volume (Cycle Summary close_volume)
 
 ### 3.3 position_type Rule (v2.1)
 
@@ -164,6 +173,18 @@ All Event logs MUST follow this exact column order. Missing or extra columns inv
   - MUST be populated when `event_type = MM_EVENT_CLOSE`.
   - MAY be populated when `event_type = MM_EVENT_SCALE_OUT` and a broker partial-close deal is matched.
   - MUST remain neutral for ENTRY / BE / TRAIL / EXIT.
+- close_volume semantic rules (v2.2):
+  - MUST be populated (> 0) for:
+    - MM_EVENT_SCALE_OUT (when a partial close is executed)
+    - MM_EVENT_CLOSE (final close)
+  - MUST be 0 or empty for:
+    - `MM_EVENT_ENTRY`
+    - `MM_EVENT_BE`
+    - `MM_EVENT_TRAIL`
+    - `MM_EVENT_EXIT`
+  - MUST represent actual executed volume per event, based on broker-confirmed deal data.
+  - Aggregation rule:
+    SUM(`close_volume` across all events in the same `cycle_id`) MUST equal the total lifecycle closed volume.
 
 ### 4.2 close_reason (required for CLOSE)
 `close_reason` MUST be one of:
@@ -201,6 +222,14 @@ All Event logs MUST follow this exact column order. Missing or extra columns inv
 - `ticket` and/or `trade_id` MUST allow joining across logs when available.
 - `phase` and `timeframe` MUST use `EnumToString` output, not custom shortened labels.
 - CLOSE is Event-only broker confirmation under the current v2.1 runtime model and does not require Snapshot BEFORE/AFTER rows.
+- Volume consistency (v2.2 model):
+
+  Event-level `close_volume` fields form the single source of truth for lifecycle volume.
+
+  The Cycle Summary `close_volume` MUST be derived as:
+  SUM(Event.`close_volume` for all `MM_EVENT_SCALE_OUT` and `MM_EVENT_CLOSE` events within the same `cycle_id`).
+
+  No separate lifecycle volume field is maintained.
 
 ### 4.5 correlation_id rules for MM_EVENT_CLOSE
 
@@ -256,13 +285,14 @@ Each JSON event MUST contain keys matching the CSV field names:
 ### 5.2 Required keys for MM_EVENT_CLOSE and MM_EVENT_SCALE_OUT
 
 For MM_EVENT_CLOSE:
-- close_reason / close_price / close_profit / close_volume / deal_id MUST be populated.
+- `close_reason` / `close_price` / `close_profit` / `close_volume` / `deal_id` MUST be populated.
 
 For MM_EVENT_SCALE_OUT:
-- close_reason / close_price / close_profit / close_volume / deal_id MAY be populated when a broker deal is matched.
+- `close_reason` / `close_price` / `close_profit` / `close_volume` / `deal_id` MUST be populated when a broker partial-close deal is matched.
+- `close_volume` MUST represent the actual executed partial-close volume for that event.
 
 For all other event types:
-- close_reason / close_price / close_profit / close_volume / deal_id MUST be null/empty.
+- `close_reason` / `close_price` / `close_profit` / `close_volume` / `deal_id` MUST be null/empty.
 
 ---
 
@@ -312,7 +342,17 @@ Implementation binding:
 ---
 
 ## 8) Change Log
-
+### v2.2 (P5-FIX-05 — Volume Model Simplification Alignment)
+- Clarified close_volume semantics as event-level executed volume.
+- Defined close_volume applicability for:
+  - MM_EVENT_SCALE_OUT (partial close)
+  - MM_EVENT_CLOSE (final close)
+- Introduced explicit aggregation invariant:
+  - SUM(Event.close_volume) = Cycle Summary close_volume
+- Strengthened SCALE_OUT requirements to require close_volume when partial-close deals are matched.
+- Removed ambiguity between final close volume and lifecycle volume.
+- Aligned Event schema with simplified Cycle Summary model (no total_traded_volume).
+- 
 ### v2.1 (2026-05-12)
 - Added `position_type` after `ticket`.
 - Increased Event schema column count to 19.

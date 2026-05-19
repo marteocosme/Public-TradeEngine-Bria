@@ -2,11 +2,11 @@
 
 ## 🔒 Document Status
 
-**Version:** v1.5
+**Version:** v1.6
 
-**Status:** ✅ ACTIVE (SSOT)
+**Status:** ✅ ACTIVE (SSOT) — PENDING RUNTIME VALIDATION
 
-**Last Updated:** 2026-05-12 (UTC+8)
+**Last Updated:** 2026-05-19 (UTC+8)
 
 
 ### 📂 Location Note
@@ -85,8 +85,8 @@ Cycle Summary constructed from:
 - lifecycle state (counts, flags)
 - broker-confirmed CLOSE evidence
 - aggregated lifecycle metrics:
-  - total realized pnl
-  - total traded volume
+- total realized pnl
+- total lifecycle closed volume (aggregated)
 ↓
 Logger (Cycle Summary Writer)
 ↓
@@ -102,16 +102,17 @@ Cycle Summary pnl is total realized lifecycle PnL and is aggregated from:
 
 Cycle Summary pnl is not limited to the final MM_EVENT_CLOSE close_profit when scale-out events occurred.
 
-Cycle Summary volume semantics:
+Cycle Summary volume semantics (v2.2):
+- Event.close_volume represents the executed volume closed in the specific event:
+  - MM_EVENT_SCALE_OUT → partial closed volume for that scale-out
+  - MM_EVENT_CLOSE → remaining volume closed at lifecycle termination
+- Cycle Summary close_volume represents the total lifecycle closed volume:
+  - close_volume = SUM(Event.close_volume for MM_EVENT_SCALE_OUT) + Event.close_volume for MM_EVENT_CLOSE
 
-- close_volume represents the broker-confirmed volume of the final CLOSE deal.
-- total_traded_volume represents aggregated volume across the full lifecycle:
-  - includes SCALE_OUT partial closes
-  - includes final CLOSE volume
+Note:
+- No separate lifecycle volume field is maintained (total_traded_volume removed).
+- This preserves per-event attribution while keeping Cycle Summary as the lifecycle aggregate layer.
 
-These fields intentionally serve different purposes:
-- close_volume → final broker outcome
-- total_traded_volume → lifecycle execution activity
 
 
 ---
@@ -448,6 +449,13 @@ This does not change logging schema requirements; it only affects whether lifecy
 
 # ✅ 📌 Version Notes
 
+##### v1.6 (2026-05-19)
+- P5-FIX-05:
+  - Removed total_traded_volume from the Cycle Summary volume model (redundant).
+  - Redefined Cycle Summary close_volume as total lifecycle closed volume aggregated from Event close_volume across SCALE_OUT + CLOSE.
+  - Clarified event-level close_volume semantics for analytics attribution.
+  - Marked architecture as pending runtime validation under v2.2 schema semantics.
+
 ##### v1.5 (2026-05-18)
 - Added Cycle Summary pipeline and schema reference.
 - Aligned CLOSE lifecycle handling with v2.1 runtime:
@@ -465,7 +473,6 @@ This does not change logging schema requirements; it only affects whether lifecy
 - P5-FIX-04:
   - Introduced total_traded_volume as lifecycle-level volume aggregation.
   - Clarified distinction between close_volume (final CLOSE) and total_traded_volume (aggregated lifecycle volume).
-
 
 ##### v1.4 (2026-05-11)
 - Aligned architecture with MM Snapshot Schema v2.0:

@@ -2,13 +2,13 @@
 
 ## 🔒 Document Status
 
-Version: v1.4
+Version: v1.5
 
-Status: ✅ ACTIVE (SSOT) — CODE COMPLETE / PENDING RUNTIME VALIDATION
+Status: ✅ ACTIVE (SSOT) — PENDING RUNTIME VALIDATION (v2.2)
 
-Last Updated: 2026-05-12 (UTC+8)
+Last Updated: 2026-05-19 (UTC+8)
 
-Runtime Schema Version: v2.1
+Runtime Schema Version: v2.2
 
 ---
 
@@ -48,8 +48,9 @@ Event fields are defined by:
 
 ## Current Phase Status
 
+MM-LOG-01 Observability Upgrade is code-complete.
+Runtime validation PASSED under v2.1 and is PENDING re-validation under v2.2 due to Cycle Summary volume model changes (P5-FIX-05).
 
-MM-LOG-01 Observability Upgrade is code-complete and runtime validation has passed under the v2.1 logging model.
 
 Validated runtime outputs:
 
@@ -62,7 +63,7 @@ Validation status:
 - Snapshot Log v2.1: PASSED
 - Event Log v2.1: PASSED
 - Cycle Summary Log v2.1: PASSED
-
+- v2.2 re-validation: PENDING (Cycle Summary volume semantics update)
 
 ### Implemented upgrades:
 
@@ -84,6 +85,9 @@ Validation status:
 
 ### Recent Changes / Validation Notes (Patch Notes)
 
+- ✅ P5-FIX-05: Volume model simplification:
+  - Removed total_traded_volume from Cycle Summary schema.
+  - Cycle Summary close_volume now represents total lifecycle closed volume (SUM of SCALE_OUT + CLOSE event close_volume).
 - ✅ “MM_EVENT_SCALE_OUT writes deal_id and close_* fields (price/profit/volume/reason) when partial close succeeds.”
 - ✅ Fixed event log data corruption by ensuring all `MM_LogEventBase` instances are zero-initialized before write.
 - ✅ Updated E2 close outcome field applicability:
@@ -266,14 +270,12 @@ BE-to-SL causality note:
 - [x] `scale_count` is correct
 - [x] `trail_count` is correct
 - [x] `be_triggered` is correct
-- [ ] total_traded_volume equals sum of:
-  - [ ] MM_EVENT_SCALE_OUT close_volume
-  - [ ] MM_EVENT_CLOSE close_volume
+- [ ] close_volume equals total lifecycle closed volume:
+  - [ ] close_volume == SUM(MM_EVENT_SCALE_OUT close_volume) + MM_EVENT_CLOSE close_volume
 - [ ] For close-only cycles:
-  - [ ] total_traded_volume == MM_EVENT_CLOSE.close_volume
+  - [ ] close_volume == MM_EVENT_CLOSE.close_volume
 - [ ] For scale-out cycles:
-  - [ ] total_traded_volume == SUM(SCALE_OUT close_volume) + CLOSE close_volume
-
+  - [ ] close_volume == SUM(SCALE_OUT close_volume) + MM_EVENT_CLOSE.close_volume
 
 ---
 
@@ -307,17 +309,25 @@ MM-LOG-01 may be marked COMPLETE only when:
   - [ ] broker-driven TP/SL/manual/unknown CLOSE must receive a dedicated CLOSE correlation_id
 - [ ] Replace “Cycle summary logs are emitted correctly” with “Cycle summary logs are emitted correctly (one per CLOSE)”
 - [ ] SCALE_OUT rows may carry broker partial-close evidence (close_* + deal_id) when deal matching succeeds
-- [ ] total_traded_volume correctly represents lifecycle execution volume
-- [ ] close_volume remains equal to MM_EVENT_CLOSE.close_volume (not aggregated)
+- [ ] Cycle Summary close_volume represents total lifecycle closed volume:
+  - [ ] close_volume == SUM(SCALE_OUT close_volume) + MM_EVENT_CLOSE.close_volume
+
 
 Runtime validation criteria are satisfied for the current v2.1 logging model.
 
 ✅ MM-LOG-01 status:
 
 RUNTIME VALIDATION PASSED — v2.1
-
+PENDING RUNTIME VALIDATION — v2.2 (Cycle Summary volume semantics update)
 
 ## Change Log
+
+### v1.5 (2026-05-19)
+- Updated checklist to align with v2.2 Cycle Summary volume model (P5-FIX-05).
+- Removed total_traded_volume validation checks.
+- Redefined Cycle Summary close_volume validation as lifecycle aggregate:
+  - SUM(SCALE_OUT close_volume) + CLOSE close_volume.
+- Marked v2.2 runtime validation as pending while preserving v2.1 passed status.
 
 ### v1.4 (2026-05-12)
 - Updated checklist status from CODE COMPLETE / PENDING RUNTIME VALIDATION to RUNTIME VALIDATION PASSED.
