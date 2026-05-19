@@ -4,8 +4,8 @@
 
 ## 🔒 Status
 
-Version: v1.1  
-Last Updated: 2026-05-19 (UTC+8)
+Version: v1.2
+Last Updated: 2026-05-20 (UTC+8)
 
 ---
 
