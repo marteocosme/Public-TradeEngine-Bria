@@ -40,12 +40,13 @@ This repo intentionally prioritizes correctness, traceability, and testability o
 
 ```
 /docs
- ├── 00_Overview           ← How to navigate the project (this file)
- ├── 01_Algorithm          ← Trading logic & mathematical definitions
- ├── 02_Specs              ← Functional specifications (WHAT the system must do)
- ├── 03_Architecture       ← Design & structure (HOW it is built)
- ├── 04_Implementation     ← Step‑by‑step implementation plans
- ├── Phase-*-Completion.md ← Phase completion markers & validation notes
+ ├── 00_Overview            ← How to navigate the project (this file)
+ ├── 01_Algorithm           ← Trading logic & mathematical definitions
+ ├── 02_Specs               ← Functional specifications (WHAT the system must do)
+ ├── 03_Architecture        ← Design & structure (HOW it is built)
+ ├── 04_Implementation      ← Step‑by‑step implementation plans
+ ├── 05_Phase6_Analytics    ← Analytics domain
+ ├── Phase-*-Completion.md  ← Phase completion markers & validation notes
 
 /Include
  ├── Core libraries (.mqh)
@@ -145,6 +146,18 @@ Phase-5-Completion.md ✅
 Anything after that is explicitly out of scope.
 
 ---
+### Phase 6 — Analytics Domain (Start Here)
+
+Phase 6 begins only after Phase 5 validation is complete.
+Phase 6 is about turning validated logs into metrics/dashboards/replay tooling, with data-quality gates.
+
+**Start Here (Phase 6 Gate):**
+- `/docs/05_Phase6_Analytics/02_Data_Quality/PHASE-6_Data_Quality_Checks_Checklist.md`
+
+**What this enables:**
+- Join correctness (Snapshot ↔ Event ↔ Cycle)
+- Reconciliation checks (pnl and close_volume)
+- Analytics-ready ingestion (Power BI / Excel / scripts)
 
 ## How to Read the Code Safely
 ### Start Here

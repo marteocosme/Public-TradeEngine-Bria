@@ -32,6 +32,7 @@ This document provides end-to-end traceability across the system:
 | Schema | State representation |
 | Contract | Logging rules |
 | Validation | System correctness |
+| Analytics | Dashboards / Metrics / Replay tooling + Data Quality monitoring (Phase 6) |
 
 ---
 
@@ -51,6 +52,8 @@ Snapshot Schema
 Logging Contract
 ↓
 Validation (MM-LOG-01)
+↓
+Analytics (Phase 6: Data Quality + Dashboards)
 ```
 # ✅ 📊 FIELD-LEVEL TRACEABILITY
 
@@ -209,7 +212,29 @@ Validation (MM-LOG-01)
 | Logger | Constructs and writes aggregated Cycle Summary row |
 | Validation | Ensures: <br>- pnl = SUM(SCALE_OUT close_profit) + CLOSE close_profit<br>- close_volume = SUM(SCALE_OUT close_volume) + CLOSE close_volume |
 
+## ✅ 13. PHASE 6 — DATA QUALITY GATE (Analytics Entry)
+
+### Goal:
+Phase 6 analytics must only operate on logs that pass data-quality checks.
+This prevents silent drift in joins, reconciliation, and schema compliance.
+
+### Gate Artifact (SSOT):
+- docs/05_Phase6_Analytics/02_Data_Quality/PHASE-6_Data_Quality_Checks_Checklist.md
+
+### What It Validates:
+- Snapshot pairing integrity (BEFORE/AFTER completeness)
+- Snapshot ↔ Event join applicability (correlation_id rules)
+- Cycle Summary ↔ Event reconciliation (cycle_id rules)
+- Aggregation correctness:
+  - pnl = SUM(SCALE_OUT close_profit) + CLOSE close_profit
+  - close_volume = SUM(SCALE_OUT close_volume) + CLOSE close_volume
+
+### Output:
+- Data Quality Summary (counts by finding type)
+- Failure Details (cycle_id / correlation_id evidence)
+
 ---
+
 
 # ✅ 🔗 SPEC → ARCHITECTURE TRACEABILITY
 
