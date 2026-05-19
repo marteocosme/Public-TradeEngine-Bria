@@ -15,6 +15,7 @@ This document explains:
 ## What This Repository Is
 This repository is a modular trading engine for MetaTrader 5, inspired by NNFX principles, with a strong focus on:
 
+- Current focus: validation of execution behavior and transition to analytics (Phase 5 → Phase 6)
 - Deterministic trade execution
 - Explicit trade lifecycle control
 - Money‑management‑first design
@@ -29,7 +30,7 @@ Entry logic, confirmations, filters, and exits are *plug‑ins*, not hard‑code
 
 - ❌ Not a ready‑to‑run EA for retail users
 - ❌ Not a signal strategy or indicator pack
-- ❌ Not optimized for live trading yet
+- ❌ Not yet validated for live trading deployment (pending forward testing and analytics validation)
 - ❌ Not for commercial use without permission
 
 This repo intentionally prioritizes correctness, traceability, and testability over speed or convenience.

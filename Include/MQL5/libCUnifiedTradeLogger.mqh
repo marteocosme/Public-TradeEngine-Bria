@@ -497,10 +497,6 @@ public:
                 // --- Broker Close Evidence ---
                 s.close_reason,
                 s.close_volume,
-                // total_traded_volume:
-                // Aggregated lifecycle volume = sum of SCALE_OUT + CLOSE volumes
-                // DO NOT confuse with close_volume (final CLOSE only)
-                s.total_traded_volume,
                 s.deal_id,
                 // --- Lifecycle Status ---
                 s.lifecycle_status

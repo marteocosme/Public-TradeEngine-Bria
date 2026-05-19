@@ -5,7 +5,7 @@
 
 **Version:** v1.7
 
-**Status:** ✅ ACTIVE (SSOT) — PENDING RUNTIME VALIDATION (v2.2)  
+**Status:** ✅ ACTIVE (SSOT) — VERIFIED (v2.2)  
 
 **Last Updated:** 2026-05-19 (UTC+8)
 
@@ -482,7 +482,7 @@ All violations must:
 - Documented v2.2 Cycle Summary lifecycle volume aggregation:
   - Cycle Summary close_volume = SUM(SCALE_OUT close_volume) + CLOSE close_volume.
 - Clarified SCALE_OUT E2 close fields must be populated when a broker partial-close deal is matched.
-- Marked contract as pending runtime validation under v2.2 semantics.
+- Marked contract as verified runtime validation under v2.2 semantics.
   
 ### v1.6
 - Updated applicability rules for E2 close outcome fields:

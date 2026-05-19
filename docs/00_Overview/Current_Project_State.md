@@ -25,6 +25,9 @@ Phase 5 – Execution Behavior Validation (MM-LOG-01)
 - Lifecycle orchestration validated
 - Event and Cycle Summary logs validated against schema
 - ✅ Runtime validation PASSED under v2.1
+- Validation Evidence:
+  - Phase-5-Signoff.md
+
 
 ℹ️ Note:
 A schema refinement (P5-FIX-05: lifecycle volume semantics) introduces a v2.2 re-validation requirement before Phase 6.
@@ -172,7 +175,7 @@ Only after this:
 - ✅ Engine core built
 - ✅ Money Management logic validated
 - ✅ Observability achieved (v2.1)
-- 🟡 Re-validating updated volume model (v2.2)
+- ✅ Execution behavior fully validated (v2.2)
 - ⏳ Strategy logic intentionally deferred
 
 This project is in an execution & validation phase, not a design phase.

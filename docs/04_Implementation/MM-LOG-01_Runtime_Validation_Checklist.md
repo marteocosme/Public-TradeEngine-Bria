@@ -4,7 +4,7 @@
 
 Version: v1.5
 
-Status: ✅ ACTIVE (SSOT) — PENDING RUNTIME VALIDATION (v2.2)
+Status: ✅ ACTIVE (SSOT) — RUNTIME VALIDATION PASSED (v2.2)
 
 Last Updated: 2026-05-19 (UTC+8)
 
@@ -49,7 +49,7 @@ Event fields are defined by:
 ## Current Phase Status
 
 MM-LOG-01 Observability Upgrade is code-complete.
-Runtime validation PASSED under v2.1 and is PENDING re-validation under v2.2 due to Cycle Summary volume model changes (P5-FIX-05).
+Runtime validation PASSED under v2.1 and is PASSED re-validation under v2.2 due to Cycle Summary volume model changes (P5-FIX-05).
 
 
 Validated runtime outputs:
@@ -63,7 +63,7 @@ Validation status:
 - Snapshot Log v2.1: PASSED
 - Event Log v2.1: PASSED
 - Cycle Summary Log v2.1: PASSED
-- v2.2 re-validation: PENDING (Cycle Summary volume semantics update)
+- v2.2 re-validation: PASSED (Cycle Summary volume semantics update)
 
 ### Implemented upgrades:
 
@@ -318,7 +318,7 @@ Runtime validation criteria are satisfied for the current v2.1 logging model.
 ✅ MM-LOG-01 status:
 
 RUNTIME VALIDATION PASSED — v2.1
-PENDING RUNTIME VALIDATION — v2.2 (Cycle Summary volume semantics update)
+RUNTIME VALIDATION PASSED — v2.2 (Cycle Summary volume semantics update)
 
 ## Change Log
 
@@ -327,7 +327,7 @@ PENDING RUNTIME VALIDATION — v2.2 (Cycle Summary volume semantics update)
 - Removed total_traded_volume validation checks.
 - Redefined Cycle Summary close_volume validation as lifecycle aggregate:
   - SUM(SCALE_OUT close_volume) + CLOSE close_volume.
-- Marked v2.2 runtime validation as pending while preserving v2.1 passed status.
+- Marked v2.2 runtime validation passed while preserving v2.1 passed status.
 
 ### v1.4 (2026-05-12)
 - Updated checklist status from CODE COMPLETE / PENDING RUNTIME VALIDATION to RUNTIME VALIDATION PASSED.

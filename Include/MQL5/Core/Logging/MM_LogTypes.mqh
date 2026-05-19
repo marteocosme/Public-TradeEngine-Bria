@@ -29,7 +29,7 @@ struct MM_LogCycleSummary
   int  scale_count;
   int  trail_count;
   bool be_triggered;
-  double total_traded_volume;
+  //double total_traded_volume;
 
   // --- Broker Close Evidence ---
   string close_reason;

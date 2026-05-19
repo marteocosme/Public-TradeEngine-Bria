@@ -4,8 +4,8 @@
 
 ## 🔒 Status
 
-Version: v1.0  
-Last Updated: 2026-05-04  
+Version: v1.1  
+Last Updated: 2026-05-19 (UTC+8)
 
 ---
 
@@ -193,7 +193,21 @@ Validation (MM-LOG-01)
 
 | Validation Type | File |
 |----------------|------|
-| Logging correctness | MM-LOG-01_Logging_Completion_and_Validation.md |
+| Logging correctness | MM-LOG-01_Runtime_Validation_Checklist.md |
+
+## ✅ 12. CYCLE SUMMARY AGGREGATION (v2.2)
+
+### Fields:
+- pnl
+- close_volume
+
+| Layer | Responsibility |
+|------|----------------|
+| Event Log | Provides close_profit and close_volume per lifecycle event (SCALE_OUT / CLOSE) |
+| Cycle Summary Schema | Aggregates lifecycle totals from Event data |
+| Contract | Defines aggregation rules and lifecycle completeness |
+| Logger | Constructs and writes aggregated Cycle Summary row |
+| Validation | Ensures: <br>- pnl = SUM(SCALE_OUT close_profit) + CLOSE close_profit<br>- close_volume = SUM(SCALE_OUT close_volume) + CLOSE close_volume |
 
 ---
 
@@ -206,6 +220,8 @@ Validation (MM-LOG-01)
 | MM Spec | MM_Architecture |
 | EntryStrategy_Spec | (Future Signal Architecture) |
 | Logging Contract | Logging Architecture |
+| MM_Cycle_Summary_Schema | Logging Architecture / Cycle Summary Pipeline |
+
 
 ---
 

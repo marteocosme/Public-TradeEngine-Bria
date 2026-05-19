@@ -130,7 +130,6 @@ public:
          // --- Broker Close Evidence ---
          "close_reason",
          "close_volume",
-         "total_traded_volume",
          "deal_id",
          // --- Lifecycle Status ---
          "lifecycle_status"
@@ -143,7 +142,7 @@ public:
    // ============================================================
    static int SummaryColumnCount()
    {
-      return 20;
+      return 19;
 
    }
 

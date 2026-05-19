@@ -3,7 +3,7 @@
 ## 🔒 Document Status
 **Version:** v2.2
 
-**Status:** ✅ ACTIVE (SSOT) — PENDING VALIDATION PASSE
+**Status:** ✅ ACTIVE (SSOT) — RUNTIME VALIDATION PASSED (v2.2)
 
 **Last Updated:** 2026-05-19 (UTC+8)
 

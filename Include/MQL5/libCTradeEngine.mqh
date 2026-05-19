@@ -647,11 +647,11 @@ private:
       summary.scale_count = m_scale_count;
       summary.trail_count = m_trail_count;
       summary.be_triggered = m_be_triggered;
-      summary.total_traded_volume = m_cycle_traded_volume;
+      // summary.total_traded_volume = m_cycle_traded_volume;
 
       // --- Broker Close Evidence ---
       summary.close_reason = (evt.close_reason == "" ? "UNKNOWN" : evt.close_reason);
-      summary.close_volume = evt.close_volume;
+      summary.close_volume = m_cycle_traded_volume;
       summary.deal_id = evt.deal_id;
 
       // --- Lifecycle Status ---

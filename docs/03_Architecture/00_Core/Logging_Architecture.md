@@ -4,7 +4,7 @@
 
 **Version:** v1.6
 
-**Status:** ✅ ACTIVE (SSOT) — PENDING RUNTIME VALIDATION
+**Status:** ✅ ACTIVE (SSOT) — RUNTIME VALIDATION PASSED (v2.2)
 
 **Last Updated:** 2026-05-19 (UTC+8)
 
@@ -454,7 +454,7 @@ This does not change logging schema requirements; it only affects whether lifecy
   - Removed total_traded_volume from the Cycle Summary volume model (redundant).
   - Redefined Cycle Summary close_volume as total lifecycle closed volume aggregated from Event close_volume across SCALE_OUT + CLOSE.
   - Clarified event-level close_volume semantics for analytics attribution.
-  - Marked architecture as pending runtime validation under v2.2 schema semantics.
+  - Marked architecture as runtime validation passed under v2.2 schema semantics.
 
 ##### v1.5 (2026-05-18)
 - Added Cycle Summary pipeline and schema reference.

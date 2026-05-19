@@ -2,9 +2,9 @@
 
 ## ✅ 🔒 Document Status
 
-Version: v1.1  
-Status: ✅ ACTIVE  
-Last Updated: 2026-05-10 (UTC+8) 
+Version: v1.2 
+Status: ✅ ACTIVE (SSOT) — RUNTIME VALIDATION PASSED (v2.2)  
+Last Updated: 2026-05-19 (UTC+8) 
 
 ---
 
@@ -68,45 +68,31 @@ Provide full traceability and grouping of all logs belonging to a single trade l
 - MM-LOG-01_Logging_Schema_Contract.md (SSOT filename)
 - Logging_Architecture.md
 - MM_Event_Log_Schema.md (SSOT filename)
-
+- MM_Cycle_Summary_Schema.md (SSOT filename)
+- MM-LOG-01_Runtime_Validation_Checklist.md (SSOT filename)
 
 
 ## 🧪 Implementation Status — Logging Observability Upgrade
 
-Status: ✅ CODE IMPLEMENTED — PENDING LOG VALIDATION
+Status: ✅ RUNTIME VALIDATION PASSED (v2.2)
 
-The following MM-LOG-01 observability upgrades have been implemented in code:
-
-- `cycle_id` lifecycle grouping
-- Snapshot integrity hardening
-- SCALE_OUT event consolidation
-- `action_summary` support
-- Cycle summary logging via `MM_LogCycleSummary`
-- Cycle summary CSV output
-
-Pending validation:
-
-- Confirm one lifecycle summary is emitted per completed CLOSE (lifecycle terminator)
-- Confirm cycle_id remains consistent across ENTRY → MANAGE → (optional EXIT) → CLOSE
-- Confirm no duplicate SCALE_OUT logs are emitted
-- Confirm summary values are accurate:
-  - entry_time
-  - exit_time
-  - entry_price
-  - exit_price
-  - pnl
-  - scale_count
-  - trail_count
-  - be_triggered
-- Confirm CSV output has no undeclared/runtime issues
-- Confirm no garbage/uninitialized values appear in logs
-
-Next validation step:
-
-Run a backtest and review the generated MM event, snapshot, and cycle summary logs.
-
+Validation confirmed:
+- One lifecycle summary is emitted per completed CLOSE (lifecycle terminator)
+- cycle_id remains consistent across ENTRY → MANAGE → (optional EXIT) → CLOSE
+- No duplicate SCALE_OUT logs are emitted
+- Cycle Summary values are accurate and reconciled:
+  - pnl = SUM(SCALE_OUT close_profit) + CLOSE close_profit
+  - close_volume (Cycle Summary) = SUM(SCALE_OUT close_volume) + CLOSE close_volume
+- CSV output is schema-compliant and ingestion-safe
+- No garbage/uninitialized values appear in logs
 
 ### Change Log
+
+#### v1.2 (2026-05-19)
+- Updated implementation status to reflect runtime validation passed under v2.2 model.
+- Added explicit validation confirmations for Cycle Summary reconciliation and close_volume aggregation.
+- Refreshed Document Status metadata.
+
 #### v1.1 (2026-05-09)
 - Updated validation notes to confirm cycle summary emitted per CLOSE (not EXIT).
 - Updated dependency references to SSOT filenames.
